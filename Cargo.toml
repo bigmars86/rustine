@@ -74,7 +74,7 @@ tikv-jemallocator = { version = "0.6", optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1"
-criterion = { version = "0.5", default-features = false, features = ["plotters", "cargo_bench_support"] }
+criterion = { version = "0.8", default-features = false, features = ["plotters", "cargo_bench_support"] }
 
 [[bench]]
 name = "fixtures"
