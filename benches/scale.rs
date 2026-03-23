@@ -235,7 +235,7 @@ fn bench_scale(c: &mut Criterion) {
         group.bench_function("execute_25MB", |b| {
             b.iter(|| {
                 let result = execute_precompiled(&doc, "input", &input).expect("execute");
-                criterion::black_box(result.consumed);
+                std::hint::black_box(result.consumed);
             });
         });
         group.finish();
@@ -262,7 +262,7 @@ fn bench_scale(c: &mut Criterion) {
         group.bench_function(format!("serialize_{fmt_name}_25MB"), |b| {
             b.iter(|| {
                 let out = serialize_tree(&result, *fmt);
-                criterion::black_box(out.len());
+                std::hint::black_box(out.len());
             });
         });
         group.finish();
@@ -279,7 +279,7 @@ fn bench_scale(c: &mut Criterion) {
             b.iter(|| {
                 let res = execute_precompiled(&doc, "input", &input).expect("execute");
                 let out = serialize_tree(&res, *fmt);
-                criterion::black_box(out.len());
+                std::hint::black_box(out.len());
             });
         });
         group.finish();

@@ -78,7 +78,7 @@ fn bench_scaling(c: &mut Criterion) {
         group.bench_function(label, |b| {
             b.iter(|| {
                 let result = execute(&mut doc, "input", &input).expect("execute");
-                criterion::black_box(result.consumed);
+                std::hint::black_box(result.consumed);
             });
         });
         group.finish();
@@ -110,7 +110,7 @@ fn bench_serialization(c: &mut Criterion) {
         group.bench_function(name, |b| {
             b.iter(|| {
                 let out = serialize_execution(&result, fmt);
-                criterion::black_box(out.len());
+                std::hint::black_box(out.len());
             });
         });
     }
@@ -154,7 +154,7 @@ fn bench_capture_heavy(c: &mut Criterion) {
     group.bench_function("heavy_5000", |b| {
         b.iter(|| {
             let result = execute(&mut doc, "input", &input).expect("execute");
-            criterion::black_box(result.consumed);
+            std::hint::black_box(result.consumed);
         });
     });
     group.finish();
@@ -204,7 +204,7 @@ fn bench_output_tree_deep(c: &mut Criterion) {
     group.bench_function("deep", |b| {
         b.iter(|| {
             let result = execute(&mut doc, "input", &input).expect("execute");
-            criterion::black_box(result.consumed);
+            std::hint::black_box(result.consumed);
         });
     });
     group.finish();
@@ -227,7 +227,7 @@ fn bench_arena(c: &mut Criterion) {
             for i in 0..1_000 {
                 let s = format!("some_temporary_string_{}", i);
                 let allocated = arena.alloc_str(&s);
-                criterion::black_box(allocated);
+                std::hint::black_box(allocated);
             }
             arena.reset();
         });
@@ -239,7 +239,7 @@ fn bench_arena(c: &mut Criterion) {
             for i in 0..1_000 {
                 v.push(format!("some_temporary_string_{}", i));
             }
-            criterion::black_box(&v);
+            std::hint::black_box(&v);
             drop(v);
         });
     });

@@ -54,19 +54,19 @@ jemalloc = ["tikv-jemallocator"]
 mimalloc = ["mimalloc-dep"]
 
 [dependencies]
-pyo3 = { version = "0.24", features = ["extension-module", "abi3-py39"], optional = true }
 nom = "7"
+pyo3 = { version = "0.28.2", features = ["extension-module", "abi3-py39"], optional = true }
 rayon = { version = "1.10", optional = true }
 serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1", features = ["preserve_order"] }
-quick-xml = { version = "0.36", features = ["serialize"] }
-thiserror = "1"
-memmap2 = { version = "0.9", optional = true }
-regex = "1"
+serde_json = { version = "1.0.149", features = ["preserve_order"] }
+quick-xml = { version = "0.39.2", features = ["serialize"] }
+thiserror = "2.0.18"
+memmap2 = { version = "0.9.10", optional = true }
+regex = "1.12.3"
 smallvec = { version = "1", features = ["union"] }
-memchr = "2"
-clap = { version = "4", features = ["derive"], optional = true }
-bumpalo = { version = "3", features = ["collections"] }
+memchr = "2.8.0"
+clap = { version = "4.5.60", features = ["derive"], optional = true }
+bumpalo = { version = "3.20.2", features = ["collections"] }
 mimalloc-dep = { package = "mimalloc", version = "0.1", optional = true }
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
@@ -74,7 +74,7 @@ tikv-jemallocator = { version = "0.6", optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1"
-criterion = { version = "0.5", default-features = false, features = ["plotters", "cargo_bench_support"] }
+criterion = { version = "0.8.2", default-features = false, features = ["plotters", "cargo_bench_support"] }
 
 [[bench]]
 name = "fixtures"
