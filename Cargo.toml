@@ -59,7 +59,7 @@ nom = "7"
 rayon = { version = "1.10", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
-quick-xml = { version = "0.36", features = ["serialize"] }
+quick-xml = { version = "0.39", features = ["serialize"] }
 thiserror = "1"
 memmap2 = { version = "0.9", optional = true }
 regex = "1"
