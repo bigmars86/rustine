@@ -54,7 +54,7 @@ jemalloc = ["tikv-jemallocator"]
 mimalloc = ["mimalloc-dep"]
 
 [dependencies]
-pyo3 = { version = "0.24", features = ["extension-module", "abi3-py39"], optional = true }
+pyo3 = { version = "0.28", features = ["extension-module", "abi3-py39"], optional = true }
 nom = "7"
 rayon = { version = "1.10", optional = true }
 serde = { version = "1", features = ["derive"] }
