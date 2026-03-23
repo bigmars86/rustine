@@ -277,7 +277,8 @@ impl GelDocument {
             }
 
             // Classify patterns for fast-path dispatch
-            self.fast_path_kinds.resize(self.regex_patterns.len(), FastPathKind::None);
+            self.fast_path_kinds
+                .resize(self.regex_patterns.len(), FastPathKind::None);
             for (idx, pat) in &new_patterns {
                 self.fast_path_kinds[*idx] = classify_fast_path(pat);
             }
@@ -383,8 +384,13 @@ impl GelDocument {
                         return; // cycle — leave as Variable
                     }
                     match defines.get(name) {
-                        Some(Expression::Variable(next)) => { name = next; }
-                        Some(resolved) => { *expr = resolved.clone(); return; }
+                        Some(Expression::Variable(next)) => {
+                            name = next;
+                        }
+                        Some(resolved) => {
+                            *expr = resolved.clone();
+                            return;
+                        }
                         None => return, // unresolved — leave as Variable
                     }
                 }
@@ -511,10 +517,7 @@ impl GelDocument {
     /// Try to build a combined regex pattern string from a list of expressions.
     /// Returns `None` if any expression cannot be resolved at compile time
     /// (e.g. back-references like `$1`, `$name`).
-    fn build_combined_pattern(
-        expressions: &[Expression],
-        defines: &HashMap<String, Expression>,
-    ) -> Option<String> {
+    fn build_combined_pattern(expressions: &[Expression], defines: &HashMap<String, Expression>) -> Option<String> {
         let mut parts: Vec<String> = Vec::with_capacity(expressions.len());
         for expr in expressions {
             match Self::expr_to_regex_pattern(expr, defines) {
@@ -528,10 +531,7 @@ impl GelDocument {
 
     /// Convert a single expression to its regex pattern string (like Python's `re_value()`).
     /// Returns `None` for expressions that depend on runtime state.
-    fn expr_to_regex_pattern(
-        expr: &Expression,
-        defines: &HashMap<String, Expression>,
-    ) -> Option<String> {
+    fn expr_to_regex_pattern(expr: &Expression, defines: &HashMap<String, Expression>) -> Option<String> {
         match expr {
             Expression::String(s) => Some(regex::escape(s)),
             Expression::Regex(r) => Some(r.clone()),
@@ -562,10 +562,7 @@ impl GelDocument {
 
     /// Extract a literal string prefix from the first expression of a field list.
     /// Used for fast rejection: if input doesn't start with this prefix, skip the regex.
-    fn extract_literal_prefix(
-        expressions: &[Expression],
-        defines: &HashMap<String, Expression>,
-    ) -> Option<String> {
+    fn extract_literal_prefix(expressions: &[Expression], defines: &HashMap<String, Expression>) -> Option<String> {
         let first = expressions.first()?;
         match first {
             Expression::String(s) => {

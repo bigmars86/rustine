@@ -796,8 +796,11 @@ impl StreamingRunner {
                                     out.push_str(val);
                                 }
                             }
-                        } else if let Some((i, _)) =
-                            self.last_capture_names.iter().enumerate().find(|(_, n)| n.as_deref() == Some(token.as_str()))
+                        } else if let Some((i, _)) = self
+                            .last_capture_names
+                            .iter()
+                            .enumerate()
+                            .find(|(_, n)| n.as_deref() == Some(token.as_str()))
                         {
                             if let Some(val) = self.last_captures.get(i) {
                                 out.push_str(val);

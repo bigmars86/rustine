@@ -25,16 +25,20 @@ fn parity_linesplit_json_line_count() {
     // Rust output has 10 "line" entries — each with #text (empty string for blank lines).
     // Count the "line" entries by counting occurrences of the "line" key in JSON.
     let parsed: serde_json::Value = serde_json::from_str(&json).unwrap_or_else(|e| panic!("valid JSON: {e}\n{json}"));
-    let output = parsed.get("output").unwrap_or_else(|| panic!("missing 'output' key\n{json}"));
-    let lines = output.get("line").unwrap_or_else(|| panic!("missing 'line' key\n{json}"));
-    let lines = lines.as_array().unwrap_or_else(|| panic!("line is not array: {lines}\nfull: {json}"));
+    let output = parsed
+        .get("output")
+        .unwrap_or_else(|| panic!("missing 'output' key\n{json}"));
+    let lines = output
+        .get("line")
+        .unwrap_or_else(|| panic!("missing 'line' key\n{json}"));
+    let lines = lines
+        .as_array()
+        .unwrap_or_else(|| panic!("line is not array: {lines}\nfull: {json}"));
     assert_eq!(lines.len(), 10, "expected 10 lines, got {}\n{}", lines.len(), json);
     // 8 non-empty #text values
     let non_empty = lines
         .iter()
-        .filter(|l| {
-            l.get("#text").and_then(|t| t.as_str()).is_some_and(|s| !s.is_empty())
-        })
+        .filter(|l| l.get("#text").and_then(|t| t.as_str()).is_some_and(|s| !s.is_empty()))
         .count();
     assert_eq!(non_empty, 8, "expected 8 non-empty lines, got {non_empty}\n{json}");
 }
@@ -45,23 +49,11 @@ fn parity_linesplit_json_content() {
     // Verify specific content values from the Python expected output
     assert!(json.contains("a nice line"), "missing 'a nice line'\n{json}");
     assert!(json.contains("another & line"), "missing 'another & line'\n{json}");
-    assert!(
-        json.contains("something else"),
-        "missing 'something else'\n{json}"
-    );
+    assert!(json.contains("something else"), "missing 'something else'\n{json}");
     assert!(json.contains("my name is foo"), "missing 'my name is foo'\n{json}");
-    assert!(
-        json.contains("your name is bar"),
-        "missing 'your name is bar'\n{json}"
-    );
-    assert!(
-        json.contains("yet a nice line"),
-        "missing 'yet a nice line'\n{json}"
-    );
-    assert!(
-        json.contains("yet another line"),
-        "missing 'yet another line'\n{json}"
-    );
+    assert!(json.contains("your name is bar"), "missing 'your name is bar'\n{json}");
+    assert!(json.contains("yet a nice line"), "missing 'yet a nice line'\n{json}");
+    assert!(json.contains("yet another line"), "missing 'yet another line'\n{json}");
     assert!(
         json.contains("yet something else"),
         "missing 'yet something else'\n{json}"
@@ -91,5 +83,8 @@ fn parity_linesplit_xml() {
 fn parity_linesplit_yaml() {
     let yaml = run_linesplit(RuntimeFormat::Yaml);
     assert!(yaml.contains("a nice line"), "missing 'a nice line'\n{yaml}");
-    assert!(yaml.contains("yet something else"), "missing 'yet something else'\n{yaml}");
+    assert!(
+        yaml.contains("yet something else"),
+        "missing 'yet something else'\n{yaml}"
+    );
 }

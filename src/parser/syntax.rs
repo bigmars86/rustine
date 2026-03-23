@@ -114,8 +114,8 @@ fn statement_line(input: TokenInput) -> ParseResult<Statement> {
     // Optional newline(s) then optional indent(s) then a statement.
     let (rest, _) = many0(token_kind(TokenKind::Newline))(input)?;
     let (rest, _) = many0(token_kind(TokenKind::Indent))(rest)?; // ignore indent depth for now
-    // Try skip first (single expression), then match/when/imatch with actions,
-    // then bare function calls (e.g. out.set_root_name('tria') at grammar level).
+                                                                 // Try skip first (single expression), then match/when/imatch with actions,
+                                                                 // then bare function calls (e.g. out.set_root_name('tria') at grammar level).
     alt((
         map(skip_statement, Statement::Skip),
         map(match_statement, Statement::Match),
@@ -141,7 +141,8 @@ fn match_statement(input: TokenInput) -> ParseResult<MatchStatement> {
     let mut alts = vec![MatchFieldList {
         expressions: first_patterns,
         flags: if case_flag { 1 } else { 0 },
-        compiled_regex: None, literal_prefix: None,
+        compiled_regex: None,
+        literal_prefix: None,
     }];
     // Additional alternatives start with Pipe then expressions.
     // The Pipe may appear on a continuation line after Newline+Indent tokens,
@@ -155,7 +156,8 @@ fn match_statement(input: TokenInput) -> ParseResult<MatchStatement> {
                 alts.push(MatchFieldList {
                     expressions: alt_patterns,
                     flags: if case_flag { 1 } else { 0 },
-                    compiled_regex: None, literal_prefix: None,
+                    compiled_regex: None,
+                    literal_prefix: None,
                 });
                 rest_alt = r_after_exprs;
                 continue;
@@ -183,7 +185,8 @@ fn when_statement(input: TokenInput) -> ParseResult<WhenStatement> {
     let mut alts = vec![MatchFieldList {
         expressions: first_patterns,
         flags: 0,
-        compiled_regex: None, literal_prefix: None,
+        compiled_regex: None,
+        literal_prefix: None,
     }];
     // Additional alternatives start with Pipe then expressions (same as match_statement)
     loop {
@@ -195,7 +198,8 @@ fn when_statement(input: TokenInput) -> ParseResult<WhenStatement> {
                 alts.push(MatchFieldList {
                     expressions: alt_patterns,
                     flags: 0,
-                    compiled_regex: None, literal_prefix: None,
+                    compiled_regex: None,
+                    literal_prefix: None,
                 });
                 rest_alt = r_after_exprs;
                 continue;
@@ -296,10 +300,7 @@ fn action_block(input: TokenInput) -> ParseResult<Vec<FunctionCall>> {
             }
             Err(_) => {
                 if actions.is_empty() {
-                    return Err(nom::Err::Error(nom::error::Error::new(
-                        r2,
-                        nom::error::ErrorKind::Tag,
-                    )));
+                    return Err(nom::Err::Error(nom::error::Error::new(r2, nom::error::ErrorKind::Tag)));
                 }
                 rest = saved; // rewind
                 break;
@@ -313,7 +314,13 @@ fn function_call(input: TokenInput) -> ParseResult<FunctionCall> {
     let (rest, name) = identifier(input)?;
     // Allow bare identifier (no parens) as a grammar invocation — Python: Function.py
     if rest.first().map(|t| t.kind != TokenKind::LeftParen).unwrap_or(true) {
-        return Ok((rest, FunctionCall { name: name.into(), args: Vec::new() }));
+        return Ok((
+            rest,
+            FunctionCall {
+                name: name.into(),
+                args: Vec::new(),
+            },
+        ));
     }
     let (rest, _) = token_kind(TokenKind::LeftParen)(rest)?;
     // Args: zero or more expressions separated by commas
@@ -340,7 +347,13 @@ fn function_call(input: TokenInput) -> ParseResult<FunctionCall> {
         }
     }
     let (rfinal, _) = token_kind(TokenKind::RightParen)(r)?;
-    Ok((rfinal, FunctionCall { name: name.into(), args }))
+    Ok((
+        rfinal,
+        FunctionCall {
+            name: name.into(),
+            args,
+        },
+    ))
 }
 
 fn expression(input: TokenInput) -> ParseResult<Expression> {

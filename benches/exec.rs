@@ -43,7 +43,7 @@ fn generate_input(num_rules: usize, num_lines: usize) -> String {
     let mut s = String::with_capacity(num_lines * 30);
     for i in 0..num_lines {
         let key = i % num_rules;
-        let _ = write!(s, "key{}= value{}\n", key, i);
+        let _ = writeln!(s, "key{}= value{}", key, i);
     }
     s
 }
@@ -139,13 +139,7 @@ fn bench_capture_heavy(c: &mut Criterion) {
 
     let mut input = String::with_capacity(5_000 * 60);
     for i in 0..5_000 {
-        let _ = write!(
-            input,
-            "alpha=val{} beta=data{} gamma=info{}\n",
-            i,
-            i * 2,
-            i * 3,
-        );
+        let _ = writeln!(input, "alpha=val{} beta=data{} gamma=info{}", i, i * 2, i * 3,);
     }
 
     let tokens = lexer::lex(&grammar_src).expect("lex");
@@ -196,7 +190,7 @@ fn bench_output_tree_deep(c: &mut Criterion) {
 
     let mut input = String::with_capacity(num_items * 30);
     for i in 0..num_items {
-        let _ = write!(input, "key{} value{}\n", i, i);
+        let _ = writeln!(input, "key{} value{}", i, i);
     }
 
     let tokens = lexer::lex(&grammar_src).expect("lex");

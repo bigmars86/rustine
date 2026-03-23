@@ -16,10 +16,7 @@ fn discover_fixtures() -> Vec<(String, String, String)> {
     let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/parity");
     let mut fixtures = Vec::new();
     if let Ok(entries) = std::fs::read_dir(&base) {
-        let mut dirs: Vec<_> = entries
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().is_dir())
-            .collect();
+        let mut dirs: Vec<_> = entries.filter_map(|e| e.ok()).filter(|e| e.path().is_dir()).collect();
         dirs.sort_by_key(|e| e.file_name());
 
         for entry in dirs {
@@ -88,17 +85,13 @@ fn bench_fixtures(c: &mut Criterion) {
             group.warm_up_time(Duration::from_secs(1));
             group.measurement_time(Duration::from_secs(5));
 
-            group.bench_with_input(
-                BenchmarkId::new("total", *fmt_name),
-                &(*fmt,),
-                |b, (fmt,)| {
-                    b.iter(|| {
-                        let result = execute_precompiled(&doc, "input", input).expect("execute");
-                        let out = serialize_tree(&result, *fmt);
-                        criterion::black_box(out.len());
-                    });
-                },
-            );
+            group.bench_with_input(BenchmarkId::new("total", *fmt_name), &(*fmt,), |b, (fmt,)| {
+                b.iter(|| {
+                    let result = execute_precompiled(&doc, "input", input).expect("execute");
+                    let out = serialize_tree(&result, *fmt);
+                    criterion::black_box(out.len());
+                });
+            });
             group.finish();
         }
     }
@@ -121,11 +114,7 @@ fn print_peak_rss(label: &str) {
             _rest: [usize; 6],
         }
         extern "system" {
-            fn K32GetProcessMemoryInfo(
-                process: isize,
-                ppsmemcounters: *mut ProcessMemoryCounters,
-                cb: u32,
-            ) -> i32;
+            fn K32GetProcessMemoryInfo(process: isize, ppsmemcounters: *mut ProcessMemoryCounters, cb: u32) -> i32;
             fn GetCurrentProcess() -> isize;
         }
         unsafe {

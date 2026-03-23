@@ -32,14 +32,8 @@ fn parity_tria_json_week_count() {
 #[test]
 fn parity_tria_json_week_numbers() {
     let json = run_tria(RuntimeFormat::Json);
-    assert!(
-        json.contains("@number\": \"1"),
-        "missing week @number 1\n{json}"
-    );
-    assert!(
-        json.contains("@number\": \"2"),
-        "missing week @number 2\n{json}"
-    );
+    assert!(json.contains("@number\": \"1"), "missing week @number 1\n{json}");
+    assert!(json.contains("@number\": \"2"), "missing week @number 2\n{json}");
 }
 
 #[test]
@@ -66,23 +60,11 @@ fn parity_tria_json_disciplines() {
 fn parity_tria_json_unit_details() {
     let json = run_tria(RuntimeFormat::Json);
     // Run unit: route + comment + time
-    assert!(
-        json.contains("Unterführung"),
-        "missing route 'Unterführung'\n{json}"
-    );
-    assert!(
-        json.contains("LS3AsicsTrabuco"),
-        "missing Run comment\n{json}"
-    );
-    assert!(
-        json.contains("15:34(15:34)"),
-        "missing Run time\n{json}"
-    );
+    assert!(json.contains("Unterführung"), "missing route 'Unterführung'\n{json}");
+    assert!(json.contains("LS3AsicsTrabuco"), "missing Run comment\n{json}");
+    assert!(json.contains("15:34(15:34)"), "missing Run time\n{json}");
     // Swim unit: place + distances
-    assert!(
-        json.contains("Hallenbad Markgröningen"),
-        "missing Swim place\n{json}"
-    );
+    assert!(json.contains("Hallenbad Markgröningen"), "missing Swim place\n{json}");
     assert!(json.contains("400 ES"), "missing distance '400 ES'\n{json}");
     assert!(json.contains("100 AS"), "missing distance '100 AS'\n{json}");
 }

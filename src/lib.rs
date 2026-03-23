@@ -201,8 +201,8 @@ pub fn parse_and_run(source: &str, grammar: &str, input: &str) -> Result<String>
 #[pymodule]
 fn rustine(m: &Bound<'_, PyModule>) -> PyResult<()> {
     use bridge::{
-        compile_file, compile_grammar, compile_string, parse_to_json, parse_to_xml, parse_to_yaml, run_grammar, run_grammar_xml,
-        run_grammar_yaml, GelContext,
+        compile_file, compile_grammar, compile_string, parse_to_json, parse_to_xml, parse_to_yaml, run_grammar,
+        run_grammar_xml, run_grammar_yaml, GelContext,
     };
     m.add_class::<GelContext>()?;
     m.add_function(wrap_pyfunction!(compile_grammar, m)?)?;

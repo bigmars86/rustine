@@ -45,15 +45,15 @@ fn child_hash_key<K: AsRef<str>, V: AsRef<str>>(name: &str, attribs: &[(K, V)]) 
 /// Intern attribute keys from a `[(String,String)]` slice into `[(Rc<str>,String)]`.
 #[allow(dead_code)]
 fn intern_attrs(table: &mut HashSet<Rc<str>>, attribs: &[(String, String)]) -> Vec<(Rc<str>, String)> {
-    attribs.iter()
-        .map(|(k, v)| (intern(table, k), v.clone()))
-        .collect()
+    attribs.iter().map(|(k, v)| (intern(table, k), v.clone())).collect()
 }
 
 /// Compare interned attributes with plain-string attributes.
 fn attrs_eq(a: &[(Rc<str>, String)], b: &[(String, String)]) -> bool {
     a.len() == b.len()
-        && a.iter().zip(b.iter()).all(|((k1, v1), (k2, v2))| &**k1 == k2.as_str() && v1 == v2)
+        && a.iter()
+            .zip(b.iter())
+            .all(|((k1, v1), (k2, v2))| &**k1 == k2.as_str() && v1 == v2)
 }
 
 /// Intern a string in the given table, returning a shared `Rc<str>`.
@@ -300,9 +300,7 @@ impl<'a> Iterator for FlatChildGroupIter<'a> {
         let start = self.pos;
         let name_ptr = &self.children[start].name;
         self.pos += 1;
-        while self.pos < self.children.len()
-            && Rc::ptr_eq(&self.children[self.pos].name, name_ptr)
-        {
+        while self.pos < self.children.len() && Rc::ptr_eq(&self.children[self.pos].name, name_ptr) {
             self.pos += 1;
         }
         Some(&self.children[start..self.pos])
@@ -352,18 +350,19 @@ fn percent_decode_slow(input: &str) -> String {
 
 /// URL percent-encode (equivalent to Python's `urllib.parse.quote(s, safe=' ')`).
 pub fn percent_encode(input: &str) -> String {
-    let needs_encoding = input.bytes().any(|b| !matches!(b,
-        b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9'
-        | b'-' | b'_' | b'.' | b'~' | b' '
-    ));
+    let needs_encoding = input.bytes().any(|b| {
+        !matches!(b,
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9'
+            | b'-' | b'_' | b'.' | b'~' | b' '
+        )
+    });
     if !needs_encoding {
         return input.to_string();
     }
     let mut out = String::with_capacity(input.len() + input.len() / 4);
     for b in input.bytes() {
         match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9'
-            | b'-' | b'_' | b'.' | b'~' | b' ' => out.push(b as char),
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b' ' => out.push(b as char),
             _ => {
                 out.push('%');
                 out.push(char::from(HEX_UPPER[(b >> 4) as usize]));
@@ -530,7 +529,9 @@ impl OutputTree {
     #[allow(dead_code)]
     fn node_attrs(&self, node_id: NodeId) -> &[(Rc<str>, String)] {
         let node = &self.arena[node_id as usize];
-        if node.attr_len == 0 { return &[]; }
+        if node.attr_len == 0 {
+            return &[];
+        }
         &self.attr_pool[node.attr_start as usize..(node.attr_start + node.attr_len) as usize]
     }
 
@@ -587,7 +588,9 @@ impl OutputTree {
     /// the node's range is not at the pool's tail.
     #[allow(dead_code)]
     fn extend_node_attrs(&mut self, node_id: NodeId, extra: &[(Rc<str>, String)]) {
-        if extra.is_empty() { return; }
+        if extra.is_empty() {
+            return;
+        }
         let node = &self.arena[node_id as usize];
         let end = (node.attr_start + node.attr_len) as usize;
         if end != self.attr_pool.len() {
@@ -638,7 +641,9 @@ impl OutputTree {
     fn push_child(&mut self, parent_id: NodeId, child_id: NodeId) {
         // Compute hash key from child data before borrowing parent.
         let child = &self.arena[child_id as usize];
-        let child_attrs = if child.attr_len == 0 { &[][..] } else {
+        let child_attrs = if child.attr_len == 0 {
+            &[][..]
+        } else {
             &self.attr_pool[child.attr_start as usize..(child.attr_start + child.attr_len) as usize]
         };
         let key = child_hash_key(&child.name, child_attrs);
@@ -655,7 +660,9 @@ impl OutputTree {
                 .enumerate()
                 .map(|(i, &cid)| {
                     let c = &self.arena[cid as usize];
-                    let c_attrs = if c.attr_len == 0 { &[][..] } else {
+                    let c_attrs = if c.attr_len == 0 {
+                        &[][..]
+                    } else {
                         &self.attr_pool[c.attr_start as usize..(c.attr_start + c.attr_len) as usize]
                     };
                     (child_hash_key(&c.name, c_attrs), i)
@@ -685,7 +692,9 @@ impl OutputTree {
         } else {
             parent.children.iter().position(|&cid| {
                 let c = &self.arena[cid as usize];
-                let c_attrs = if c.attr_len == 0 { &[][..] } else {
+                let c_attrs = if c.attr_len == 0 {
+                    &[][..]
+                } else {
                     &self.attr_pool[c.attr_start as usize..(c.attr_start + c.attr_len) as usize]
                 };
                 *c.name == *seg.tag && attrs_eq(c_attrs, &seg.attribs)
@@ -712,7 +721,9 @@ impl OutputTree {
             .enumerate()
             .map(|(i, &cid)| {
                 let c = &self.arena[cid as usize];
-                let c_attrs = if c.attr_len == 0 { &[][..] } else {
+                let c_attrs = if c.attr_len == 0 {
+                    &[][..]
+                } else {
                     &self.attr_pool[c.attr_start as usize..(c.attr_start + c.attr_len) as usize]
                 };
                 (child_hash_key(&c.name, c_attrs), i)
@@ -816,9 +827,7 @@ impl OutputTree {
         if segments.is_empty() {
             return;
         }
-        let names: Vec<Rc<str>> = segments.iter()
-            .map(|s| intern(&mut self.name_intern, &s.tag))
-            .collect();
+        let names: Vec<Rc<str>> = segments.iter().map(|s| intern(&mut self.name_intern, &s.tag)).collect();
         let mut current = self.cursor();
         for (i, seg) in segments.iter().enumerate() {
             let is_leaf = i == segments.len() - 1;
@@ -850,9 +859,7 @@ impl OutputTree {
         if segments.is_empty() {
             return;
         }
-        let names: Vec<Rc<str>> = segments.iter()
-            .map(|s| intern(&mut self.name_intern, &s.tag))
-            .collect();
+        let names: Vec<Rc<str>> = segments.iter().map(|s| intern(&mut self.name_intern, &s.tag)).collect();
         let mut current = self.cursor();
         for (i, seg) in segments.iter().enumerate() {
             let is_leaf = i == segments.len() - 1;
@@ -899,9 +906,7 @@ impl OutputTree {
         if segments.is_empty() {
             return;
         }
-        let names: Vec<Rc<str>> = segments.iter()
-            .map(|s| intern(&mut self.name_intern, &s.tag))
-            .collect();
+        let names: Vec<Rc<str>> = segments.iter().map(|s| intern(&mut self.name_intern, &s.tag)).collect();
         let mut current = self.cursor();
         for (i, seg) in segments.iter().enumerate() {
             let is_leaf = i == segments.len() - 1;
@@ -921,7 +926,9 @@ impl OutputTree {
                     .copied()
                     .filter(|&cid| {
                         let c = &arena[cid as usize];
-                        let c_attrs = if c.attr_len == 0 { &[][..] } else {
+                        let c_attrs = if c.attr_len == 0 {
+                            &[][..]
+                        } else {
                             &pool[c.attr_start as usize..(c.attr_start + c.attr_len) as usize]
                         };
                         !(*c.name == *seg.tag && attrs_eq(c_attrs, &seg.attribs))
@@ -950,9 +957,7 @@ impl OutputTree {
         if segments.is_empty() {
             return;
         }
-        let inames: Vec<Rc<str>> = segments.iter()
-            .map(|s| intern(&mut self.name_intern, &s.tag))
-            .collect();
+        let inames: Vec<Rc<str>> = segments.iter().map(|s| intern(&mut self.name_intern, &s.tag)).collect();
         let attr_name = intern(&mut self.name_intern, name);
         let mut current = self.cursor();
         for (i, seg) in segments.iter().enumerate() {
@@ -998,14 +1003,8 @@ impl OutputTree {
         self.stack.push(new_cursor);
     }
 
-    fn _traverse_from(
-        &mut self,
-        segs: &[PathSegment],
-        create_leaf_always_new: bool,
-    ) -> NodeId {
-        let names: Vec<Rc<str>> = segs.iter()
-            .map(|s| intern(&mut self.name_intern, &s.tag))
-            .collect();
+    fn _traverse_from(&mut self, segs: &[PathSegment], create_leaf_always_new: bool) -> NodeId {
+        let names: Vec<Rc<str>> = segs.iter().map(|s| intern(&mut self.name_intern, &s.tag)).collect();
         let mut current = self.cursor();
         for (i, seg) in segs.iter().enumerate() {
             if seg.tag == "." {
@@ -1127,7 +1126,9 @@ impl ActionExecutor for OutputTree {
                         } else {
                             parent.children.iter().copied().find(|&cid| {
                                 let c = &arena[cid as usize];
-                                let c_attrs = if c.attr_len == 0 { &[][..] } else {
+                                let c_attrs = if c.attr_len == 0 {
+                                    &[][..]
+                                } else {
                                     &pool[c.attr_start as usize..(c.attr_start + c.attr_len) as usize]
                                 };
                                 *c.name == *segs[0].tag && attrs_eq(c_attrs, &segs[0].attribs)

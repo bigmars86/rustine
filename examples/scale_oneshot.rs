@@ -25,26 +25,55 @@ fn generate_grammar() -> String {
     for sect in 0..NUM_SECTIONS {
         for sub in 0..SUBS_PER_SECTION {
             let pat = (sect * SUBS_PER_SECTION + sub) % 6;
-            let _ = write!(s, "grammar s{sect:02}_{sub:02}(default):\n");
+            let _ = writeln!(s, "grammar s{sect:02}_{sub:02}(default):");
             match pat {
-                0 => { for a in 0..ATTRS_PER_SUB { let _ = write!(s, "    match 'f{a}' fs nows nl:\n        out.add('f{a}', '$2')\n"); } }
-                1 => { s.push_str("    match 'f0' fs nows fs nows nl:\n        out.add('f0?type=\"$4\"', '$2')\n"); for a in 1..ATTRS_PER_SUB { let _ = write!(s, "    match 'f{a}' fs nows nl:\n        out.add('f{a}', '$2')\n"); } }
-                2 => { for a in 0..ATTRS_PER_SUB { let _ = write!(s, "    match 'f{a}' fs nows nl:\n        out.add('detail/f{a}', '$2')\n"); } }
-                3 => { s.push_str("    match 'f0' fs nows fs nows nl:\n        out.add('f0?src=\"$2\"&dst=\"$4\"')\n    match 'f1' fs nows fs number nl:\n        out.add('f1?name=\"$2\"&id=\"$4\"')\n    match 'f2' fs nows nl:\n        out.add('f2', '$2')\n"); }
-                4 => { s.push_str("    match 'f0' fs nows fs nows nl:\n        out.open('f0?id=\"$2\"')\n        out.add_attribute('.', 'value', '$4')\n    match 'f1' fs nows nl:\n        out.add('f1', '$2')\n    match 'f2' fs number nl:\n        out.add('f2', '$2')\n"); }
-                5 => { s.push_str("    match 'f0' fs nows nl | 'g0' fs nows nl:\n        out.add('f0', '$2')\n    match 'f1' fs nows nl:\n        out.add('f1', '$2')\n    match 'f2' fs nows nl:\n        out.add('f2', '$2')\n"); }
+                0 => {
+                    for a in 0..ATTRS_PER_SUB {
+                        let _ = write!(s, "    match 'f{a}' fs nows nl:\n        out.add('f{a}', '$2')\n");
+                    }
+                }
+                1 => {
+                    s.push_str("    match 'f0' fs nows fs nows nl:\n        out.add('f0?type=\"$4\"', '$2')\n");
+                    for a in 1..ATTRS_PER_SUB {
+                        let _ = write!(s, "    match 'f{a}' fs nows nl:\n        out.add('f{a}', '$2')\n");
+                    }
+                }
+                2 => {
+                    for a in 0..ATTRS_PER_SUB {
+                        let _ = write!(
+                            s,
+                            "    match 'f{a}' fs nows nl:\n        out.add('detail/f{a}', '$2')\n"
+                        );
+                    }
+                }
+                3 => {
+                    s.push_str("    match 'f0' fs nows fs nows nl:\n        out.add('f0?src=\"$2\"&dst=\"$4\"')\n    match 'f1' fs nows fs number nl:\n        out.add('f1?name=\"$2\"&id=\"$4\"')\n    match 'f2' fs nows nl:\n        out.add('f2', '$2')\n");
+                }
+                4 => {
+                    s.push_str("    match 'f0' fs nows fs nows nl:\n        out.open('f0?id=\"$2\"')\n        out.add_attribute('.', 'value', '$4')\n    match 'f1' fs nows nl:\n        out.add('f1', '$2')\n    match 'f2' fs number nl:\n        out.add('f2', '$2')\n");
+                }
+                5 => {
+                    s.push_str("    match 'f0' fs nows nl | 'g0' fs nows nl:\n        out.add('f0', '$2')\n    match 'f1' fs nows nl:\n        out.add('f1', '$2')\n    match 'f2' fs nows nl:\n        out.add('f2', '$2')\n");
+                }
                 _ => unreachable!(),
             }
             s.push_str("    do.return()\n\n");
         }
     }
     for sect in 0..NUM_SECTIONS {
-        let _ = write!(s, "grammar s{sect:02}_dispatch(default):\n");
-        for sub in 0..SUBS_PER_SECTION { let _ = write!(s, "    match 'g{sub:02}' fs name nl:\n        out.enter('g{sub:02}?name=\"$2\"')\n        s{sect:02}_{sub:02}()\n"); }
+        let _ = writeln!(s, "grammar s{sect:02}_dispatch(default):");
+        for sub in 0..SUBS_PER_SECTION {
+            let _ = write!(s, "    match 'g{sub:02}' fs name nl:\n        out.enter('g{sub:02}?name=\"$2\"')\n        s{sect:02}_{sub:02}()\n");
+        }
         s.push_str("    do.return()\n\n");
     }
     s.push_str("grammar input(default):\n");
-    for sect in 0..NUM_SECTIONS { let _ = write!(s, "    match 'sect{sect:02}' nl:\n        out.enter('sect{sect:02}')\n        s{sect:02}_dispatch()\n"); }
+    for sect in 0..NUM_SECTIONS {
+        let _ = write!(
+            s,
+            "    match 'sect{sect:02}' nl:\n        out.enter('sect{sect:02}')\n        s{sect:02}_dispatch()\n"
+        );
+    }
     s.push('\n');
     s
 }
@@ -54,19 +83,52 @@ fn generate_input(target_bytes: usize) -> String {
     let mut block_id: usize = 0;
     while s.len() < target_bytes {
         let sect = block_id % NUM_SECTIONS;
-        let _ = write!(s, "sect{sect:02}\n");
+        let _ = writeln!(s, "sect{sect:02}");
         let num_subs = 3 + (block_id % (SUBS_PER_SECTION - 2));
         for sub_idx in 0..num_subs {
             let sub = sub_idx % SUBS_PER_SECTION;
             let pat = (sect * SUBS_PER_SECTION + sub) % 6;
-            let _ = write!(s, " g{sub:02} inst-{block_id:06}-{sub:02}\n");
+            let _ = writeln!(s, " g{sub:02} inst-{block_id:06}-{sub:02}");
             match pat {
-                0 => { for a in 0..ATTRS_PER_SUB { let _ = write!(s, "  f{a} v{}-{sub}-{a}\n", block_id % 10000); } }
-                1 => { let _ = write!(s, "  f0 {}.{sub}.0.{} t{}\n", 10 + block_id % 200, block_id & 0xFF, block_id % 8); for a in 1..ATTRS_PER_SUB { let _ = write!(s, "  f{a} v{}-{sub}-{a}\n", block_id % 10000); } }
-                2 => { for a in 0..ATTRS_PER_SUB { let _ = write!(s, "  f{a} mp-{block_id}-{sub}-{a}\n"); } }
-                3 => { let _ = write!(s, "  f0 src-{} dst-{sub}\n", block_id % 1000); let _ = write!(s, "  f1 name-{} {}\n", block_id % 500, block_id * 10 + sub); let _ = write!(s, "  f2 val-{block_id}-{sub}\n"); }
-                4 => { let _ = write!(s, "  f0 id-{block_id:06} data-{sub}\n"); let _ = write!(s, "  f1 state-{}\n", block_id % 3); let _ = write!(s, "  f2 {}\n", block_id * 100 + sub); }
-                5 => { let key = if (block_id + sub) % 2 == 0 { "g0" } else { "f0" }; let _ = write!(s, "  {key} alt-{block_id}-{sub}\n"); for a in 1..ATTRS_PER_SUB { let _ = write!(s, "  f{a} x{block_id}-{sub}-{a}\n"); } }
+                0 => {
+                    for a in 0..ATTRS_PER_SUB {
+                        let _ = writeln!(s, "  f{a} v{}-{sub}-{a}", block_id % 10000);
+                    }
+                }
+                1 => {
+                    let _ = writeln!(
+                        s,
+                        "  f0 {}.{sub}.0.{} t{}",
+                        10 + block_id % 200,
+                        block_id & 0xFF,
+                        block_id % 8
+                    );
+                    for a in 1..ATTRS_PER_SUB {
+                        let _ = writeln!(s, "  f{a} v{}-{sub}-{a}", block_id % 10000);
+                    }
+                }
+                2 => {
+                    for a in 0..ATTRS_PER_SUB {
+                        let _ = writeln!(s, "  f{a} mp-{block_id}-{sub}-{a}");
+                    }
+                }
+                3 => {
+                    let _ = writeln!(s, "  f0 src-{} dst-{sub}", block_id % 1000);
+                    let _ = writeln!(s, "  f1 name-{} {}", block_id % 500, block_id * 10 + sub);
+                    let _ = writeln!(s, "  f2 val-{block_id}-{sub}");
+                }
+                4 => {
+                    let _ = writeln!(s, "  f0 id-{block_id:06} data-{sub}");
+                    let _ = writeln!(s, "  f1 state-{}", block_id % 3);
+                    let _ = writeln!(s, "  f2 {}", block_id * 100 + sub);
+                }
+                5 => {
+                    let key = if (block_id + sub) % 2 == 0 { "g0" } else { "f0" };
+                    let _ = writeln!(s, "  {key} alt-{block_id}-{sub}");
+                    for a in 1..ATTRS_PER_SUB {
+                        let _ = writeln!(s, "  f{a} x{block_id}-{sub}-{a}");
+                    }
+                }
                 _ => unreachable!(),
             }
         }
@@ -81,7 +143,13 @@ fn peak_rss_mb() -> f64 {
     {
         use std::mem::MaybeUninit;
         #[repr(C)]
-        struct Pmc { cb: u32, pf: u32, peak_wss: usize, wss: usize, _r: [usize; 6] }
+        struct Pmc {
+            cb: u32,
+            pf: u32,
+            peak_wss: usize,
+            wss: usize,
+            _r: [usize; 6],
+        }
         extern "system" {
             fn K32GetProcessMemoryInfo(h: isize, p: *mut Pmc, cb: u32) -> i32;
             fn GetCurrentProcess() -> isize;
@@ -110,7 +178,8 @@ fn peak_rss_mb() -> f64 {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    let sizes: Vec<usize> = args.iter()
+    let sizes: Vec<usize> = args
+        .iter()
         .position(|a| a == "--sizes")
         .and_then(|i| args.get(i + 1))
         .map(|s| s.split(',').filter_map(|v| v.trim().parse().ok()).collect())
@@ -124,7 +193,11 @@ fn main() {
     let tokens = lexer::lex(&grammar_src).expect("lex");
     let mut doc = parse_gel_document(&tokens).expect("parse");
     doc.compile_regexes();
-    eprintln!("Grammar: {} bytes ({} grammars)\n", grammar_src.len(), doc.grammars.len());
+    eprintln!(
+        "Grammar: {} bytes ({} grammars)\n",
+        grammar_src.len(),
+        doc.grammars.len()
+    );
 
     let formats: [(&str, RuntimeFormat); 3] = [
         ("json", RuntimeFormat::Json),
@@ -132,8 +205,10 @@ fn main() {
         ("yaml", RuntimeFormat::Yaml),
     ];
 
-    eprintln!("{:>6} | {:>10} | {:>7} | {:>10} | {:>10} | {:>8} | {:>8}",
-        "Size", "Format", "Nodes", "Exec", "Serialize", "Total", "Peak RSS");
+    eprintln!(
+        "{:>6} | {:>10} | {:>7} | {:>10} | {:>10} | {:>8} | {:>8}",
+        "Size", "Format", "Nodes", "Exec", "Serialize", "Total", "Peak RSS"
+    );
     eprintln!("{}", "-".repeat(82));
 
     for &mb in &sizes {
@@ -155,12 +230,21 @@ fn main() {
             let total = exec_time + ser_time;
             let rss = peak_rss_mb();
 
-            eprintln!("{:>4} MB | {:>10} | {:>7} | {:>9.3}s | {:>9.3}s | {:>7.3}s | {:>6.1} MB",
-                mb, fmt_name, node_count,
-                exec_time.as_secs_f64(), ser_time.as_secs_f64(), total.as_secs_f64(),
-                rss);
-            eprintln!("       |            |         | {:>8.2} MB/s | {:>6} bytes out",
-                input_mb / total.as_secs_f64(), output.len());
+            eprintln!(
+                "{:>4} MB | {:>10} | {:>7} | {:>9.3}s | {:>9.3}s | {:>7.3}s | {:>6.1} MB",
+                mb,
+                fmt_name,
+                node_count,
+                exec_time.as_secs_f64(),
+                ser_time.as_secs_f64(),
+                total.as_secs_f64(),
+                rss
+            );
+            eprintln!(
+                "       |            |         | {:>8.2} MB/s | {:>6} bytes out",
+                input_mb / total.as_secs_f64(),
+                output.len()
+            );
 
             // drop output early to reduce RSS for next iteration
             drop(output);

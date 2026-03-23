@@ -41,21 +41,34 @@ fn main() {
     let diag_mode = args.iter().any(|a| a == "--diag");
     let stream_mode = args.iter().any(|a| a == "--stream");
 
-    let grammar_src = std::fs::read_to_string(syntax_path)
-        .unwrap_or_else(|e| { eprintln!("Cannot read {syntax_path}: {e}"); std::process::exit(1); });
-    let input = std::fs::read_to_string(input_path)
-        .unwrap_or_else(|e| { eprintln!("Cannot read {input_path}: {e}"); std::process::exit(1); });
+    let grammar_src = std::fs::read_to_string(syntax_path).unwrap_or_else(|e| {
+        eprintln!("Cannot read {syntax_path}: {e}");
+        std::process::exit(1);
+    });
+    let input = std::fs::read_to_string(input_path).unwrap_or_else(|e| {
+        eprintln!("Cannot read {input_path}: {e}");
+        std::process::exit(1);
+    });
 
     let input_mb = input.len() as f64 / 1_048_576.0;
-    eprintln!("Grammar: {} bytes, Input: {} bytes ({:.1} MB)", grammar_src.len(), input.len(), input_mb);
+    eprintln!(
+        "Grammar: {} bytes, Input: {} bytes ({:.1} MB)",
+        grammar_src.len(),
+        input.len(),
+        input_mb
+    );
     eprintln!("Iterations: {}\n", iterations);
 
     // Compile grammar once
     let tokens = lexer::lex(&grammar_src).expect("lexer error");
     let mut doc = parse_gel_document(&tokens).expect("parse error");
     doc.compile_regexes();
-    eprintln!("Grammar compiled ({} grammars, {} defines, {} regex patterns)",
-        doc.grammars.len(), doc.defines.len(), doc.regex_patterns.len());
+    eprintln!(
+        "Grammar compiled ({} grammars, {} defines, {} regex patterns)",
+        doc.grammars.len(),
+        doc.defines.len(),
+        doc.regex_patterns.len()
+    );
 
     let mut times_exec = Vec::with_capacity(iterations);
     let mut times_total = Vec::with_capacity(iterations);
@@ -64,8 +77,7 @@ fn main() {
     for i in 0..iterations {
         // Execute
         let t0 = Instant::now();
-        let result = execute_precompiled(&doc, "input", &input)
-            .expect("execution error");
+        let result = execute_precompiled(&doc, "input", &input).expect("execution error");
         let exec_time = t0.elapsed();
 
         if i == 0 {
@@ -86,28 +98,66 @@ fn main() {
             eprintln!("\n=== Memory Diagnostics ===");
             eprintln!("  actions: {} items", result.actions.len());
             eprintln!("  traces: {} items", result.traces.len());
-            let traces_bytes: usize = result.traces.iter().map(|t| t.len() + std::mem::size_of::<String>()).sum();
-            eprintln!("  traces total: {} bytes ({:.1} MB)", traces_bytes, traces_bytes as f64 / 1_048_576.0);
+            let traces_bytes: usize = result
+                .traces
+                .iter()
+                .map(|t| t.len() + std::mem::size_of::<String>())
+                .sum();
+            eprintln!(
+                "  traces total: {} bytes ({:.1} MB)",
+                traces_bytes,
+                traces_bytes as f64 / 1_048_576.0
+            );
             eprintln!("  capture_history: {} items", result.capture_history.len());
-            let cap_bytes: usize = result.capture_history.iter().map(|v| {
-                std::mem::size_of::<Vec<String>>() + v.iter().map(|s| std::mem::size_of::<String>() + s.len()).sum::<usize>()
-            }).sum();
-            eprintln!("  capture_history total: {} bytes ({:.1} MB)", cap_bytes, cap_bytes as f64 / 1_048_576.0);
+            let cap_bytes: usize = result
+                .capture_history
+                .iter()
+                .map(|v| {
+                    std::mem::size_of::<Vec<String>>()
+                        + v.iter().map(|s| std::mem::size_of::<String>() + s.len()).sum::<usize>()
+                })
+                .sum();
+            eprintln!(
+                "  capture_history total: {} bytes ({:.1} MB)",
+                cap_bytes,
+                cap_bytes as f64 / 1_048_576.0
+            );
             eprintln!("  capture_names_history: {} items", result.capture_names_history.len());
-            let cap_names_bytes: usize = result.capture_names_history.iter().map(|v| {
-                std::mem::size_of::<Vec<Option<std::sync::Arc<str>>>>() + v.len() * std::mem::size_of::<Option<std::sync::Arc<str>>>()
-            }).sum();
-            eprintln!("  capture_names_history total: {} bytes ({:.1} MB)", cap_names_bytes, cap_names_bytes as f64 / 1_048_576.0);
+            let cap_names_bytes: usize = result
+                .capture_names_history
+                .iter()
+                .map(|v| {
+                    std::mem::size_of::<Vec<Option<std::sync::Arc<str>>>>()
+                        + v.len() * std::mem::size_of::<Option<std::sync::Arc<str>>>()
+                })
+                .sum();
+            eprintln!(
+                "  capture_names_history total: {} bytes ({:.1} MB)",
+                cap_names_bytes,
+                cap_names_bytes as f64 / 1_048_576.0
+            );
             eprintln!("  diagnostics: {} items", result.diagnostics.len());
-            let diag_bytes: usize = result.diagnostics.iter().map(|d| std::mem::size_of_val(d) + d.message.len()).sum();
-            eprintln!("  diagnostics total: {} bytes ({:.1} MB)", diag_bytes, diag_bytes as f64 / 1_048_576.0);
+            let diag_bytes: usize = result
+                .diagnostics
+                .iter()
+                .map(|d| std::mem::size_of_val(d) + d.message.len())
+                .sum();
+            eprintln!(
+                "  diagnostics total: {} bytes ({:.1} MB)",
+                diag_bytes,
+                diag_bytes as f64 / 1_048_576.0
+            );
 
             // FlatTree analysis
             if let Some(ref flat) = result.flat {
                 eprintln!("  flat nodes: {}", flat.nodes.len());
                 let flat_node_size = std::mem::size_of::<rustine::exec::out::FlatNode>();
                 eprintln!("  FlatNode size: {} bytes", flat_node_size);
-                eprintln!("  flat nodes shallow: {} bytes ({:.1} MB)", flat.nodes.len() * flat_node_size, (flat.nodes.len() * flat_node_size) as f64 / 1_048_576.0);
+                eprintln!(
+                    "  flat nodes shallow: {} bytes ({:.1} MB)",
+                    flat.nodes.len() * flat_node_size,
+                    (flat.nodes.len() * flat_node_size) as f64 / 1_048_576.0
+                );
 
                 // Pooled attributes analysis
                 let attr_count = flat.attrs.len();
@@ -116,8 +166,17 @@ fn main() {
                 for (k, v) in &flat.attrs {
                     attr_str_bytes += k.len() + v.len();
                 }
-                eprintln!("  flat attr pool: {} pairs, pool capacity overhead: {} bytes ({:.1} MB)", attr_count, attr_pool_overhead, attr_pool_overhead as f64 / 1_048_576.0);
-                eprintln!("  flat attr string content: {} bytes ({:.1} MB)", attr_str_bytes, attr_str_bytes as f64 / 1_048_576.0);
+                eprintln!(
+                    "  flat attr pool: {} pairs, pool capacity overhead: {} bytes ({:.1} MB)",
+                    attr_count,
+                    attr_pool_overhead,
+                    attr_pool_overhead as f64 / 1_048_576.0
+                );
+                eprintln!(
+                    "  flat attr string content: {} bytes ({:.1} MB)",
+                    attr_str_bytes,
+                    attr_str_bytes as f64 / 1_048_576.0
+                );
 
                 let mut text_count = 0usize;
                 let mut text_bytes = 0usize;
@@ -129,7 +188,12 @@ fn main() {
                         text_bytes += t.len() + std::mem::size_of::<String>();
                     }
                 }
-                eprintln!("  flat text nodes: {}, text bytes: {} ({:.1} MB)", text_count, text_bytes, text_bytes as f64 / 1_048_576.0);
+                eprintln!(
+                    "  flat text nodes: {}, text bytes: {} ({:.1} MB)",
+                    text_count,
+                    text_bytes,
+                    text_bytes as f64 / 1_048_576.0
+                );
                 eprintln!("  flat name unique bytes (non-interned): {} bytes", name_bytes);
             }
 
@@ -146,8 +210,7 @@ fn main() {
         if stream_mode {
             // Streaming: write directly to a counting sink (no in-memory String)
             let mut counter = ByteCounter(0);
-            serialize_tree_to_writer(&result, RuntimeFormat::Json, &mut counter)
-                .expect("streaming serialize error");
+            serialize_tree_to_writer(&result, RuntimeFormat::Json, &mut counter).expect("streaming serialize error");
             json_len = counter.0;
         } else {
             let json = serialize_tree(&result, RuntimeFormat::Json);
@@ -186,11 +249,23 @@ fn main() {
     let med_exec = times_exec[mid];
     let med_total = times_total[mid];
 
-    eprintln!("\n=== Median of {} iterations{} ===", iterations, if stream_mode { " (streaming)" } else { "" });
+    eprintln!(
+        "\n=== Median of {} iterations{} ===",
+        iterations,
+        if stream_mode { " (streaming)" } else { "" }
+    );
     eprintln!("  Input:     {:.1} MB ({} bytes)", input_mb, input.len());
     eprintln!("  Nodes:     {}", node_count);
-    eprintln!("  Exec:      {:.3}s  ({:.2} MB/s)", med_exec.as_secs_f64(), input_mb / med_exec.as_secs_f64());
-    eprintln!("  Total:     {:.3}s  ({:.2} MB/s)", med_total.as_secs_f64(), input_mb / med_total.as_secs_f64());
+    eprintln!(
+        "  Exec:      {:.3}s  ({:.2} MB/s)",
+        med_exec.as_secs_f64(),
+        input_mb / med_exec.as_secs_f64()
+    );
+    eprintln!(
+        "  Total:     {:.3}s  ({:.2} MB/s)",
+        med_total.as_secs_f64(),
+        input_mb / med_total.as_secs_f64()
+    );
     eprintln!("  Peak RSS:  {:.1} MB", peak_rss_mb());
 }
 
@@ -199,7 +274,13 @@ fn peak_rss_mb() -> f64 {
     {
         use std::mem::MaybeUninit;
         #[repr(C)]
-        struct Pmc { cb: u32, pf: u32, peak_wss: usize, wss: usize, _r: [usize; 6] }
+        struct Pmc {
+            cb: u32,
+            pf: u32,
+            peak_wss: usize,
+            wss: usize,
+            _r: [usize; 6],
+        }
         extern "system" {
             fn K32GetProcessMemoryInfo(h: isize, p: *mut Pmc, cb: u32) -> i32;
             fn GetCurrentProcess() -> isize;

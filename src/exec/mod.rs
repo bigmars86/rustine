@@ -7,8 +7,7 @@
 use crate::errors::{Diagnostic, GelError, Result, Severity};
 use crate::exec::out::{ActionExecutor, FlatNode, FlatTree, OutputTree, RuntimeAction};
 use crate::parser::ast::{
-    Expression, FunctionCall, GelDocument, MatchFieldList, MatchStatement, SkipStatement, Statement,
-    WhenStatement,
+    Expression, FunctionCall, GelDocument, MatchFieldList, MatchStatement, SkipStatement, Statement, WhenStatement,
 };
 use regex::Regex;
 use smallvec::SmallVec;
@@ -24,7 +23,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 #[cfg(feature = "profiling")]
 macro_rules! prof_inc {
-    ($counter:ident) => { $counter.fetch_add(1, Ordering::Relaxed); };
+    ($counter:ident) => {
+        $counter.fetch_add(1, Ordering::Relaxed);
+    };
 }
 #[cfg(not(feature = "profiling"))]
 macro_rules! prof_inc {
@@ -259,8 +260,11 @@ impl<'a> Runner<'a> {
                                 self.last_captures = std::mem::take(&mut scope);
                                 self.last_capture_names = std::mem::take(&mut name_scope);
                                 self.fire_triggers("before", &mut result.output);
-                                let (return_levels, did_next, fail_error, auto_leaves) =
-                                    self.execute_runtime_actions(actions_to_run, &mut result.output, &mut result.traces);
+                                let (return_levels, did_next, fail_error, auto_leaves) = self.execute_runtime_actions(
+                                    actions_to_run,
+                                    &mut result.output,
+                                    &mut result.traces,
+                                );
                                 // Track total consumption (match len + sub-grammar advances)
                                 let total_consumed = self.ctx.pos - pos_before;
                                 result.consumed += total_consumed;
@@ -433,17 +437,19 @@ impl<'a> Runner<'a> {
         // Resolve variables to get the underlying regex pattern.
         let resolved = match &s.pattern {
             Expression::Regex(r) => Some(r.as_str()),
-            Expression::Variable(v) => {
-                match self.resolve_variable(v) {
-                    Some(Expression::Regex(r)) => Some(r.as_str()),
-                    _ => None,
-                }
-            }
+            Expression::Variable(v) => match self.resolve_variable(v) {
+                Some(Expression::Regex(r)) => Some(r.as_str()),
+                _ => None,
+            },
             _ => None,
         };
         if let Some(pattern) = resolved {
             // Look up pre-classified FastPathKind (O(1) enum dispatch)
-            let kind = self.ctx.doc.pattern_indices.get(pattern)
+            let kind = self
+                .ctx
+                .doc
+                .pattern_indices
+                .get(pattern)
                 .and_then(|&idx| self.ctx.doc.fast_path_kinds.get(idx).copied())
                 .unwrap_or(crate::parser::ast::FastPathKind::None);
             if kind != crate::parser::ast::FastPathKind::None {
@@ -474,21 +480,29 @@ impl<'a> Runner<'a> {
             return None;
         }
         match kind {
-            FastPathKind::SkipToNewline => {
-                memchr::memchr(b'\n', bytes).map(|pos| pos + 1)
-            }
+            FastPathKind::SkipToNewline => memchr::memchr(b'\n', bytes).map(|pos| pos + 1),
             FastPathKind::SkipToNewlinePlus => {
                 if let Some(pos) = memchr::memchr(b'\n', bytes) {
-                    if pos >= 1 { Some(pos + 1) } else { None }
-                } else { None }
+                    if pos >= 1 {
+                        Some(pos + 1)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             }
-            FastPathKind::SkipToCrLf => {
-                memchr::memchr2(b'\r', b'\n', bytes).map(|pos| pos + 1)
-            }
+            FastPathKind::SkipToCrLf => memchr::memchr2(b'\r', b'\n', bytes).map(|pos| pos + 1),
             FastPathKind::SkipToCrLfPlus => {
                 if let Some(pos) = memchr::memchr2(b'\r', b'\n', bytes) {
-                    if pos >= 1 { Some(pos + 1) } else { None }
-                } else { None }
+                    if pos >= 1 {
+                        Some(pos + 1)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             }
             FastPathKind::CommentBangHash => {
                 if bytes[0] == b'!' || bytes[0] == b'#' {
@@ -502,7 +516,10 @@ impl<'a> Runner<'a> {
                 if bytes[0] == b'#' {
                     if let Some(pos) = memchr::memchr2(b'\r', b'\n', &bytes[1..]) {
                         let line_end = 1 + pos;
-                        let trailing = bytes[line_end..].iter().take_while(|&&b| b == b'\r' || b == b'\n').count();
+                        let trailing = bytes[line_end..]
+                            .iter()
+                            .take_while(|&&b| b == b'\r' || b == b'\n')
+                            .count();
                         if trailing > 0 {
                             return Some(line_end + trailing);
                         }
@@ -513,34 +530,69 @@ impl<'a> Runner<'a> {
             FastPathKind::DotStarNewline => memchr::memchr(b'\n', bytes).map(|pos| pos + 1),
             FastPathKind::Whitespace => {
                 let count = bytes.iter().take_while(|b| b.is_ascii_whitespace()).count();
-                if count > 0 { Some(count) } else { None }
+                if count > 0 {
+                    Some(count)
+                } else {
+                    None
+                }
             }
             FastPathKind::NonWhitespace => {
                 let count = bytes.iter().take_while(|b| !b.is_ascii_whitespace()).count();
-                if count > 0 { Some(count) } else { None }
+                if count > 0 {
+                    Some(count)
+                } else {
+                    None
+                }
             }
             FastPathKind::Digits => {
                 let count = bytes.iter().take_while(|b| b.is_ascii_digit()).count();
-                if count > 0 { Some(count) } else { None }
+                if count > 0 {
+                    Some(count)
+                } else {
+                    None
+                }
             }
             FastPathKind::WordChars => {
-                let count = bytes.iter().take_while(|b| b.is_ascii_alphanumeric() || **b == b'_').count();
-                if count > 0 { Some(count) } else { None }
+                let count = bytes
+                    .iter()
+                    .take_while(|b| b.is_ascii_alphanumeric() || **b == b'_')
+                    .count();
+                if count > 0 {
+                    Some(count)
+                } else {
+                    None
+                }
             }
             FastPathKind::HorizWhitespace => {
                 let count = bytes.iter().take_while(|&&b| b == b'\t' || b == b' ').count();
-                if count > 0 { Some(count) } else { None }
+                if count > 0 {
+                    Some(count)
+                } else {
+                    None
+                }
             }
             FastPathKind::CrLfPlus => {
                 let count = bytes.iter().take_while(|&&b| b == b'\r' || b == b'\n').count();
-                if count > 0 { Some(count) } else { None }
+                if count > 0 {
+                    Some(count)
+                } else {
+                    None
+                }
             }
             FastPathKind::CrLf => {
-                if bytes[0] == b'\r' || bytes[0] == b'\n' { Some(1) } else { None }
+                if bytes[0] == b'\r' || bytes[0] == b'\n' {
+                    Some(1)
+                } else {
+                    None
+                }
             }
             FastPathKind::NonCrLfPlus => {
                 if let Some(pos) = memchr::memchr2(b'\r', b'\n', bytes) {
-                    if pos > 0 { Some(pos) } else { None }
+                    if pos > 0 {
+                        Some(pos)
+                    } else {
+                        None
+                    }
                 } else if !bytes.is_empty() {
                     Some(bytes.len())
                 } else {
@@ -555,12 +607,23 @@ impl<'a> Runner<'a> {
                 }
             }
             FastPathKind::NonCrLf => {
-                if bytes[0] != b'\r' && bytes[0] != b'\n' { Some(1) } else { None }
+                if bytes[0] != b'\r' && bytes[0] != b'\n' {
+                    Some(1)
+                } else {
+                    None
+                }
             }
             FastPathKind::SpacesNewlines => {
                 let spaces = bytes.iter().take_while(|&&b| b == b' ').count();
-                let newlines = bytes[spaces..].iter().take_while(|&&b| b == b'\r' || b == b'\n').count();
-                if newlines > 0 { Some(spaces + newlines) } else { None }
+                let newlines = bytes[spaces..]
+                    .iter()
+                    .take_while(|&&b| b == b'\r' || b == b'\n')
+                    .count();
+                if newlines > 0 {
+                    Some(spaces + newlines)
+                } else {
+                    None
+                }
             }
             // ── CRLF-safe variants (\r?\n treated as single line ending) ──
             FastPathKind::OptCrNl => {
@@ -588,23 +651,30 @@ impl<'a> Runner<'a> {
                         break;
                     }
                 }
-                if count > 0 { Some(pos) } else { None }
-            }
-            FastPathKind::SkipToOptCrNl => {
-                // [^\r\n]*\r?\n — skip non-CRLF chars then consume one \n or \r\n
-                if let Some(nl_pos) = memchr::memchr(b'\n', bytes) {
-                    // Check for \r\n: the \r before \n is part of the line ending
-                    Some(nl_pos + 1)
+                if count > 0 {
+                    Some(pos)
                 } else {
                     None
                 }
+            }
+            FastPathKind::SkipToOptCrNl => {
+                // [^\r\n]*\r?\n — skip non-CRLF chars then consume one \n or \r\n
+                memchr::memchr(b'\n', bytes).map(|nl_pos| nl_pos + 1)
             }
             FastPathKind::SkipToOptCrNlPlus => {
                 // [^\r\n]+\r?\n — skip 1+ non-CRLF chars then consume one \n or \r\n
                 if let Some(nl_pos) = memchr::memchr(b'\n', bytes) {
                     // Need at least 1 non-CRLF char before the line ending
-                    let content_end = if nl_pos > 0 && bytes[nl_pos - 1] == b'\r' { nl_pos - 1 } else { nl_pos };
-                    if content_end >= 1 { Some(nl_pos + 1) } else { None }
+                    let content_end = if nl_pos > 0 && bytes[nl_pos - 1] == b'\r' {
+                        nl_pos - 1
+                    } else {
+                        nl_pos
+                    };
+                    if content_end >= 1 {
+                        Some(nl_pos + 1)
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
@@ -623,7 +693,7 @@ impl<'a> Runner<'a> {
                 if bytes[0] == b'#' {
                     if let Some(nl_pos) = memchr::memchr(b'\n', &bytes[1..]) {
                         let mut pos = 1 + nl_pos + 1; // past the first \n
-                        // consume additional \r?\n sequences
+                                                      // consume additional \r?\n sequences
                         while pos < bytes.len() {
                             if bytes[pos] == b'\n' {
                                 pos += 1;
@@ -655,10 +725,18 @@ impl<'a> Runner<'a> {
                         break;
                     }
                 }
-                if count > 0 { Some(spaces + pos) } else { None }
+                if count > 0 {
+                    Some(spaces + pos)
+                } else {
+                    None
+                }
             }
             FastPathKind::Newline => {
-                if bytes[0] == b'\n' { Some(1) } else { None }
+                if bytes[0] == b'\n' {
+                    Some(1)
+                } else {
+                    None
+                }
             }
             FastPathKind::Dot => Some(1),
             FastPathKind::None => None,
@@ -859,7 +937,11 @@ impl<'a> Runner<'a> {
             }
             Expression::CaptureName(name) => {
                 // Look up the named capture in captures accumulated so far
-                if let Some((i, _)) = names_so_far.iter().enumerate().find(|(_, n)| n.as_deref() == Some(name.as_str())) {
+                if let Some((i, _)) = names_so_far
+                    .iter()
+                    .enumerate()
+                    .find(|(_, n)| n.as_deref() == Some(name.as_str()))
+                {
                     if let Some(val) = captures_so_far.get(i) {
                         let len = val.len();
                         if rem.len() >= len {
@@ -950,7 +1032,11 @@ impl<'a> Runner<'a> {
             }
             Expression::CaptureName(name) => {
                 // Look up the named capture by name
-                if let Some((i, _)) = names_so_far.iter().enumerate().find(|(_, n)| n.as_deref() == Some(name.as_str())) {
+                if let Some((i, _)) = names_so_far
+                    .iter()
+                    .enumerate()
+                    .find(|(_, n)| n.as_deref() == Some(name.as_str()))
+                {
                     if let Some(val) = groups_so_far.get(i) {
                         let len = val.len();
                         if rem.len() >= len {
@@ -982,10 +1068,17 @@ impl<'a> Runner<'a> {
     #[inline]
     fn actions_need_substitution(actions: &[FunctionCall]) -> bool {
         actions.iter().any(|a| {
-            a.args.iter().any(|arg| matches!(arg, Expression::Capture(_) | Expression::CaptureName(_)))
+            a.args
+                .iter()
+                .any(|arg| matches!(arg, Expression::Capture(_) | Expression::CaptureName(_)))
         })
     }
-    fn substitute_action(&self, action: &FunctionCall, scope: &[Cow<'a, str>], name_scope: &[Option<Arc<str>>]) -> FunctionCall {
+    fn substitute_action(
+        &self,
+        action: &FunctionCall,
+        scope: &[Cow<'a, str>],
+        name_scope: &[Option<Arc<str>>],
+    ) -> FunctionCall {
         let mut new_args = Vec::with_capacity(action.args.len());
         for arg in &action.args {
             let replaced = match arg {
@@ -1329,8 +1422,7 @@ impl<'a> Runner<'a> {
                         let pos_before_action = self.ctx.pos;
                         // Fast path: direct grammar dispatch (same as run_grammar optimization).
                         if !a.name.contains('.') && self.stmt_cache.contains_key(&*a.name) {
-                            let (sub_consumed, remaining) =
-                                self.run_inline_grammar(&a.name, tree, traces);
+                            let (sub_consumed, remaining) = self.run_inline_grammar(&a.name, tree, traces);
                             if remaining > 0 {
                                 return_levels = remaining;
                                 break;
@@ -1479,7 +1571,11 @@ fn interpolate_local(s: &str, captures: &[&str], names: &[Option<Arc<str>>]) -> 
                         out.push_str(val);
                     }
                 }
-            } else if let Some((i, _)) = names.iter().enumerate().find(|(_, n)| n.as_deref() == Some(token.as_str())) {
+            } else if let Some((i, _)) = names
+                .iter()
+                .enumerate()
+                .find(|(_, n)| n.as_deref() == Some(token.as_str()))
+            {
                 if let Some(val) = captures.get(i) {
                     out.push_str(val);
                 }
@@ -1547,8 +1643,11 @@ impl<'a> Runner<'a> {
                                     out.push_str(&crate::exec::out::percent_encode(val));
                                 }
                             }
-                        } else if let Some((i, _)) =
-                            self.last_capture_names.iter().enumerate().find(|(_, n)| n.as_deref() == Some(token.as_str()))
+                        } else if let Some((i, _)) = self
+                            .last_capture_names
+                            .iter()
+                            .enumerate()
+                            .find(|(_, n)| n.as_deref() == Some(token.as_str()))
                         {
                             if let Some(val) = self.last_captures.get(i) {
                                 out.push_str(&crate::exec::out::percent_encode(val));
@@ -1596,7 +1695,7 @@ pub fn execute_precompiled(doc: &GelDocument, grammar: &str, input: &str) -> Res
     // build-time indices) and flatten into BFS-ordered Vec<FlatNode>.
     // The arena Vec<Node> is consumed and freed in one shot —
     // dramatically reduces allocator fragmentation / RSS.
-    let tree = std::mem::replace(&mut result.output, OutputTree::new());
+    let tree = std::mem::take(&mut result.output);
     result.flat = Some(tree.compact_and_flatten());
     Ok(result)
 }
@@ -1740,7 +1839,9 @@ fn tree_json_node_direct(flat: &FlatTree, node: &FlatNode, out: &mut String, ind
     let mut first = true;
 
     for (k, v) in attrs {
-        if !first { out.push(','); }
+        if !first {
+            out.push(',');
+        }
         out.push('\n');
         json_write_indent_direct(out, inner);
         json_write_escaped_direct(out, &format!("@{k}"));
@@ -1750,7 +1851,9 @@ fn tree_json_node_direct(flat: &FlatTree, node: &FlatNode, out: &mut String, ind
     }
 
     if has_text {
-        if !first { out.push(','); }
+        if !first {
+            out.push(',');
+        }
         out.push('\n');
         json_write_indent_direct(out, inner);
         json_write_escaped_direct(out, "#text");
@@ -1760,7 +1863,9 @@ fn tree_json_node_direct(flat: &FlatTree, node: &FlatNode, out: &mut String, ind
     }
 
     for group in flat.iter_child_groups(node) {
-        if !first { out.push(','); }
+        if !first {
+            out.push(',');
+        }
         out.push('\n');
         json_write_indent_direct(out, inner);
         json_write_escaped_direct(out, &group[0].name);
@@ -1771,7 +1876,9 @@ fn tree_json_node_direct(flat: &FlatTree, node: &FlatNode, out: &mut String, ind
         } else {
             out.push('[');
             for (i, ch) in group.iter().enumerate() {
-                if i > 0 { out.push(','); }
+                if i > 0 {
+                    out.push(',');
+                }
                 out.push('\n');
                 json_write_indent_direct(out, inner + 1);
                 tree_json_node_direct(flat, ch, out, inner + 1);
@@ -1820,7 +1927,12 @@ fn json_write_escaped_direct(out: &mut String, s: &str) {
 
 // ---- Streaming path (generic over OutputSink) ----
 
-fn tree_json_node_stream<S: OutputSink>(flat: &FlatTree, node: &FlatNode, out: &mut S, indent: usize) -> std::io::Result<()> {
+fn tree_json_node_stream<S: OutputSink>(
+    flat: &FlatTree,
+    node: &FlatNode,
+    out: &mut S,
+    indent: usize,
+) -> std::io::Result<()> {
     let attrs = flat.attrs_of(node);
     let has_attrs = !attrs.is_empty();
     let has_text = node.text.as_ref().is_some_and(|t| !t.is_empty());
@@ -1835,7 +1947,9 @@ fn tree_json_node_stream<S: OutputSink>(flat: &FlatTree, node: &FlatNode, out: &
     let mut first = true;
 
     for (k, v) in attrs {
-        if !first { out.write_char(',')?; }
+        if !first {
+            out.write_char(',')?;
+        }
         out.write_char('\n')?;
         json_write_indent_stream(out, inner)?;
         json_write_escaped_stream(out, &format!("@{k}"))?;
@@ -1845,7 +1959,9 @@ fn tree_json_node_stream<S: OutputSink>(flat: &FlatTree, node: &FlatNode, out: &
     }
 
     if has_text {
-        if !first { out.write_char(',')?; }
+        if !first {
+            out.write_char(',')?;
+        }
         out.write_char('\n')?;
         json_write_indent_stream(out, inner)?;
         json_write_escaped_stream(out, "#text")?;
@@ -1855,7 +1971,9 @@ fn tree_json_node_stream<S: OutputSink>(flat: &FlatTree, node: &FlatNode, out: &
     }
 
     for group in flat.iter_child_groups(node) {
-        if !first { out.write_char(',')?; }
+        if !first {
+            out.write_char(',')?;
+        }
         out.write_char('\n')?;
         json_write_indent_stream(out, inner)?;
         json_write_escaped_stream(out, &group[0].name)?;
@@ -1866,7 +1984,9 @@ fn tree_json_node_stream<S: OutputSink>(flat: &FlatTree, node: &FlatNode, out: &
         } else {
             out.write_char('[')?;
             for (i, ch) in group.iter().enumerate() {
-                if i > 0 { out.write_char(',')?; }
+                if i > 0 {
+                    out.write_char(',')?;
+                }
                 out.write_char('\n')?;
                 json_write_indent_stream(out, inner + 1)?;
                 tree_json_node_stream(flat, ch, out, inner + 1)?;
@@ -1957,7 +2077,11 @@ fn tree_xml_to_writer<W: std::io::Write>(exec: &ExecutionResult, writer: &mut W)
 
     // Root element name: use the tree root's name if set (via out.set_root_name),
     // otherwise default to "xml" (Python Gelatin default).
-    let root_name = if root.name.is_empty() || &*root.name == "." { "xml" } else { &root.name };
+    let root_name = if root.name.is_empty() || &*root.name == "." {
+        "xml"
+    } else {
+        &root.name
+    };
 
     {
         let mut w = Writer::new_with_indent(AposWriter { inner: &mut *writer }, b' ', 2);
@@ -2160,7 +2284,11 @@ fn push_yaml_indent_direct(out: &mut String, indent: usize) {
 // ---- Streaming path (generic over OutputSink) ----
 
 fn tree_yaml_node_stream<S: OutputSink>(
-    flat: &FlatTree, node: &FlatNode, out: &mut S, indent: usize, inline: bool,
+    flat: &FlatTree,
+    node: &FlatNode,
+    out: &mut S,
+    indent: usize,
+    inline: bool,
 ) -> std::io::Result<()> {
     let attrs = flat.attrs_of(node);
     let has_attrs = !attrs.is_empty();
@@ -2236,7 +2364,6 @@ fn push_yaml_indent_stream<S: OutputSink>(out: &mut S, indent: usize) -> std::io
     }
 }
 
-
 /// Quote a YAML mapping key using PyYAML conventions.
 /// Keys starting with `@` or `#` are single-quoted.
 fn yaml_quote_key(k: &str) -> Cow<'_, str> {
@@ -2275,8 +2402,30 @@ fn yaml_quote_value(s: &str) -> Cow<'_, str> {
         || s.starts_with('@')
         || looks_like_number(s)
         || looks_like_date(s)
-        || matches!(s, "true" | "false" | "yes" | "no" | "null" | "True" | "False" | "Yes" | "No" | "Null"
-            | "TRUE" | "FALSE" | "YES" | "NO" | "NULL" | "on" | "off" | "On" | "Off" | "ON" | "OFF");
+        || matches!(
+            s,
+            "true"
+                | "false"
+                | "yes"
+                | "no"
+                | "null"
+                | "True"
+                | "False"
+                | "Yes"
+                | "No"
+                | "Null"
+                | "TRUE"
+                | "FALSE"
+                | "YES"
+                | "NO"
+                | "NULL"
+                | "on"
+                | "off"
+                | "On"
+                | "Off"
+                | "ON"
+                | "OFF"
+        );
     if !needs_quoting {
         return Cow::Borrowed(s);
     }
@@ -2398,10 +2547,7 @@ fn output_node_to_value(flat: &FlatTree, node: &FlatNode) -> serde_json::Value {
             if group.len() == 1 {
                 obj.insert(name.to_string(), output_node_to_value(flat, &group[0]));
             } else {
-                let arr: Vec<Value> = group
-                    .iter()
-                    .map(|ch| output_node_to_value(flat, ch))
-                    .collect();
+                let arr: Vec<Value> = group.iter().map(|ch| output_node_to_value(flat, ch)).collect();
                 obj.insert(name.to_string(), Value::Array(arr));
             }
         }

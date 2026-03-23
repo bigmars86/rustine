@@ -12,9 +12,7 @@ use rustine::parser::lexer;
 use rustine::parser::syntax::parse_gel_document;
 
 #[cfg(feature = "bench")]
-use rustine::exec::{
-    serialize_tree, RuntimeFormat,
-};
+use rustine::exec::{serialize_tree, RuntimeFormat};
 
 use std::time::Instant;
 
@@ -25,9 +23,7 @@ fn main() {
 
     #[cfg(feature = "bench")]
     {
-        use rustine::exec::{
-            execute_precompiled, serialize_tree, RuntimeFormat,
-        };
+        use rustine::exec::{execute_precompiled, serialize_tree, RuntimeFormat};
         let grammar_src = std::fs::read_to_string(syntax_path).expect("read grammar");
         let input = std::fs::read_to_string(input_path).expect("read input");
         let tokens = lexer::lex(&grammar_src).expect("lex");

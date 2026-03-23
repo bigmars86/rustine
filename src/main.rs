@@ -51,11 +51,10 @@ fn main() {
     };
 
     // Read and compile grammar once.
-    let gel_src = fs::read_to_string(&cli.syntax)
-        .unwrap_or_else(|e| {
-            eprintln!("Error reading grammar '{}': {}", cli.syntax, e);
-            process::exit(1);
-        });
+    let gel_src = fs::read_to_string(&cli.syntax).unwrap_or_else(|e| {
+        eprintln!("Error reading grammar '{}': {}", cli.syntax, e);
+        process::exit(1);
+    });
     let tokens = lex(&gel_src).unwrap_or_else(|e| {
         eprintln!("Lex error: {}", e);
         process::exit(1);
@@ -100,11 +99,10 @@ fn main() {
     } else {
         // Process each input file
         for input_path in &cli.input_files {
-            let input = fs::read_to_string(input_path)
-                .unwrap_or_else(|e| {
-                    eprintln!("Error reading '{}': {}", input_path, e);
-                    process::exit(1);
-                });
+            let input = fs::read_to_string(input_path).unwrap_or_else(|e| {
+                eprintln!("Error reading '{}': {}", input_path, e);
+                process::exit(1);
+            });
             let mut doc_clone = doc.clone();
             match execute(&mut doc_clone, &cli.grammar, &input) {
                 Ok(exec) => {

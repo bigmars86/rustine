@@ -1,9 +1,9 @@
 use crate::exec::{execute, execute_precompiled, serialize_tree, serialize_tree_to_writer, RuntimeFormat};
+use crate::parser::ast::GelDocument;
 use crate::parser::lexer::lex;
 use crate::parser::syntax::parse_gel_document;
 use crate::parser::validate;
 use crate::parser::{OutputFormat, Parser};
-use crate::parser::ast::GelDocument;
 use crate::{GelError, Result, Severity};
 use pyo3::prelude::*;
 use std::fs;
@@ -14,9 +14,7 @@ fn gel_to_pyerr(e: GelError) -> PyErr {
         GelError::Lex { .. } | GelError::Parse { .. } | GelError::Validation { .. } => {
             PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("{e}"))
         }
-        GelError::Runtime { .. } => {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{e}"))
-        }
+        GelError::Runtime { .. } => PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{e}")),
         GelError::Io(_) => PyErr::new::<pyo3::exceptions::PyIOError, _>(format!("{e}")),
     }
 }
@@ -162,13 +160,7 @@ impl GelContext {
     /// Uses streaming output to avoid building the full result string in memory.
     /// Mirrors ``Gelatin.util.generate_to_file(converter, input_file, output_file, format)``.
     #[pyo3(signature = (input_file, output_file, format = "json", grammar = "input"))]
-    fn generate_to_file(
-        &self,
-        input_file: &str,
-        output_file: &str,
-        format: &str,
-        grammar: &str,
-    ) -> PyResult<()> {
+    fn generate_to_file(&self, input_file: &str, output_file: &str, format: &str, grammar: &str) -> PyResult<()> {
         let fmt = parse_format(format)?;
         let content = fs::read_to_string(input_file)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(format!("{}: {}", input_file, e)))?;
@@ -189,13 +181,7 @@ impl GelContext {
     /// Uses streaming output to avoid building the full result string in memory.
     /// Mirrors ``Gelatin.util.generate_string_to_file(converter, input, output_file, format)``.
     #[pyo3(signature = (input, output_file, format = "json", grammar = "input"))]
-    fn generate_string_to_file(
-        &self,
-        input: &str,
-        output_file: &str,
-        format: &str,
-        grammar: &str,
-    ) -> PyResult<()> {
+    fn generate_string_to_file(&self, input: &str, output_file: &str, format: &str, grammar: &str) -> PyResult<()> {
         let fmt = parse_format(format)?;
         let exec = execute_precompiled(&self.doc, grammar, input).map_err(gel_to_pyerr)?;
         if let Some(err) = &exec.error {

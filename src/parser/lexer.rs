@@ -193,11 +193,7 @@ fn keyword(input: &str) -> LexResult<'_> {
         move |input: &'a str| {
             let (rest, matched) = tag(word)(input)?;
             // If the next char is alphanumeric or '_', this is actually an identifier, not a keyword.
-            if rest
-                .chars()
-                .next()
-                .is_some_and(|c| c.is_alphanumeric() || c == '_')
-            {
+            if rest.chars().next().is_some_and(|c| c.is_alphanumeric() || c == '_') {
                 return Err(nom::Err::Error(nom::error::Error::new(
                     input,
                     nom::error::ErrorKind::Tag,
@@ -209,7 +205,7 @@ fn keyword(input: &str) -> LexResult<'_> {
     alt((
         kw("define", TokenKind::Define),
         kw("grammar", TokenKind::Grammar),
-        kw("imatch", TokenKind::IMatch),  // imatch before match
+        kw("imatch", TokenKind::IMatch), // imatch before match
         kw("match", TokenKind::Match),
         kw("when", TokenKind::When),
         kw("skip", TokenKind::Skip),
