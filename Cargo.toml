@@ -1,0 +1,100 @@
+[package]
+name = "rustine"
+version = "0.1.0"
+edition = "2021"
+authors = ["Rustine Contributors"]
+license = "MIT OR Apache-2.0"
+description = "High-performance Gel syntax parser transforming to JSON/XML (Rust + PyO3)"
+readme = "README.md"
+repository = "https://github.com/bigmars86/rustine"
+keywords = ["parser", "rustine", "gelatin", "json", "xml"]
+categories = ["parsing", "text-processing"]
+rust-version = "1.70"
+resolver = "2"
+exclude = [
+  "benches/",
+  "cliff.toml",
+  "clippy.toml",
+  "CODE_OF_CONDUCT.md",
+  "CONTRIBUTING.md",
+  "deny.toml",
+  "dist/",
+  "docs/",
+  "examples/",
+  "fixtures/",
+  "fuzz/",
+  "Gelatin/",
+  "pgo-build.*",
+  "Rustine/*.pyd",
+  "SECURITY.md",
+  "BENCHMARKS.md",
+  "PERFORMANCE_ANALYSIS.md",
+  ".editorconfig",
+  ".github/",
+  ".pre-commit-config.yaml",
+  ".readthedocs.yaml",
+  "pyproject.toml",
+  "rustfmt.toml",
+  "*.pdb",
+]
+
+[lib]
+name = "rustine"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["python"]
+python = ["pyo3/extension-module"]
+parallel = ["rayon"]
+cli = ["clap"]
+mmap = ["memmap2"]
+bench = []
+profiling = []
+jemalloc = ["tikv-jemallocator"]
+mimalloc = ["mimalloc-dep"]
+
+[dependencies]
+pyo3 = { version = "0.24", features = ["extension-module", "abi3-py39"], optional = true }
+nom = "7"
+rayon = { version = "1.10", optional = true }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+quick-xml = { version = "0.36", features = ["serialize"] }
+thiserror = "1"
+memmap2 = { version = "0.9", optional = true }
+regex = "1"
+smallvec = { version = "1", features = ["union"] }
+memchr = "2"
+clap = { version = "4", features = ["derive"], optional = true }
+bumpalo = { version = "3", features = ["collections"] }
+mimalloc-dep = { package = "mimalloc", version = "0.1", optional = true }
+
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+tikv-jemallocator = { version = "0.6", optional = true }
+
+[dev-dependencies]
+pretty_assertions = "1"
+criterion = { version = "0.5", default-features = false, features = ["plotters", "cargo_bench_support"] }
+
+[[bench]]
+name = "fixtures"
+harness = false
+
+[[bench]]
+name = "scale"
+harness = false
+
+[[bin]]
+name = "rgel"
+path = "src/main.rs"
+required-features = ["cli"]
+
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+strip = true
+# Note: `panic = "abort"` is omitted because [profile.bench] inherits from
+# release and criterion requires unwinding.  Cargo ignores a bench-level
+# `panic` override, so keeping abort here would break `cargo bench`.

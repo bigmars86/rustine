@@ -1,0 +1,31 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Python build artifacts via maturin
+/dist/
+*.egg-info/
+*.whl
+*.so
+*.pyd
+*.pdb
+
+# Environments
+.venv/
+venv*/
+__pycache__/
+
+# Coverage output (cargo-tarpaulin)
+/coverage/
+tarpaulin-report.html
+cobertura.xml
+
+# Misc
+.DS_Store
+*.swp
+*.swo
+
+# IDE
+.vscode/
+.idea/
+*.iml

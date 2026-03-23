@@ -1,0 +1,738 @@
+Building configuration...
+Current configuration : 98765 bytes
+!! Last configuration change at 08:15:33 UTC Mon Jan 06 2025
+WARNING: This is a synthetic test fixture
+hostname CORE-RTR-01
+!
+logging
+ console warnings
+ monitor informational
+ buffered 1048576
+ source-interface Loopback0
+ host 10.0.0.1
+ host 10.0.0.2 port 5514
+ trap debugging
+ facility local7
+!
+ntp
+ server 10.100.1.1
+ server 10.100.1.2 prefer
+ source-interface Loopback0
+ authenticate
+ authentication-key 1 md5 SECRETHASH01
+!
+snmp-server
+ community PUBLIC
+  view ALLVIEW
+  ro
+ community PRIVATE
+  view RESTRICTED
+  rw
+  deny
+ community MONITOR
+  view ALLVIEW
+  ro
+  permit
+ contact NOC ops@example.net 555-0199
+ location Main DC, Floor 3, Rack A7
+ trap-source Loopback0
+ host 10.0.0.5 traps SNMP-COMMUNITY
+!
+interface Loopback0
+ description ** Router Loopback **
+ ipv4 address 10.255.0.1/32
+!
+interface Loopback1
+ description Management Loopback
+ ipv4 address 10.255.1.1 255.255.255.255
+!
+interface MgmtEth0/RSP0/CPU0/0
+ description OOB-MANAGEMENT
+ ipv4
+  address
+   10.10.0.1/24
+  mtu 1500
+ shutdown
+!
+interface GigabitEthernet0/0/0/0
+ description TO-DIST-SW-01:Gi0/1
+ mtu 9216
+ speed 1000
+ duplex full
+ ipv4 address 10.1.0.1 255.255.255.252
+ ipv6 address 2001:db8:1::1/64
+ load-interval 30
+ negotiation auto
+ carrier-delay up 2000
+ dampening 5 1000 2000 20
+!
+interface GigabitEthernet0/0/0/1
+ description TO-DIST-SW-02:Gi0/1
+ mtu 9216
+ ipv4 address 10.1.0.5 255.255.255.252
+ ipv6 address 2001:db8:2::1/64
+ service-policy
+  input QOS-INGRESS
+  output QOS-EGRESS
+ load-interval 30
+!
+interface GigabitEthernet0/0/0/2
+ description TO-CORE-RTR-02:Gi0/0/0/2
+ mtu 9216
+ ipv4 address 10.1.0.9 255.255.255.252
+ service-policy input SP-IN-POLICY
+ service-policy output SP-OUT-POLICY
+ load-interval 30
+!
+interface GigabitEthernet0/0/0/3
+ description TO-PE-RTR-01:Gi0/0/0/0
+ mtu 9216
+ encapsulation dot1q 100
+ ipv4 address 10.1.0.13 255.255.255.252
+ load-interval 30
+!
+interface GigabitEthernet0/0/0/4
+ description CUSTOMER-A-HANDOFF
+ ipv4
+  address
+   172.16.0.1/30
+   172.16.0.5 255.255.255.252 secondary
+  mtu 1400
+  helper-address vrf CUST-A 10.200.0.1
+!
+interface GigabitEthernet0/0/0/5
+ description TO-AGG-SW-01:Eth1/1
+ ipv4 address 10.1.0.17 255.255.255.252
+ ethernet cfm
+  domain CFM-L2
+   service SVC-A efd
+   mep crosscheck
+    mep-id 100
+!
+interface TenGigE0/0/0/0
+ description UPLINK-TO-SPINE-01
+ mtu 9216
+ ipv4 address 10.2.0.1 255.255.255.252
+ ipv6 address 2001:db8:10::1/64
+ load-interval 30
+!
+interface TenGigE0/0/0/1
+ description UPLINK-TO-SPINE-02
+ mtu 9216
+ ipv4 address 10.2.0.5 255.255.255.252
+ load-interval 30
+!
+interface TenGigE0/0/0/2
+ description MPLS-CORE-LINK
+ mtu 9216
+ ipv4 address 10.2.0.9 255.255.255.252
+ ipv4 mtu 9000
+ load-interval 30
+!
+interface BVI100
+ description BRIDGE-VLAN-100
+ ipv4 address 192.168.100.1 255.255.255.0
+!
+interface BVI200
+ description BRIDGE-VLAN-200
+ ipv4 address 192.168.200.1 255.255.255.0
+!
+interface Bundle-Ether1
+ description LAG-TO-CORE-RTR-03
+ mtu 9216
+ ipv4 address 10.3.0.1 255.255.255.252
+ load-interval 30
+!
+interface Bundle-Ether1.100
+ description SUB-IF-VLAN-100
+ encapsulation dot1q 100
+ ipv4 address 10.3.100.1 255.255.255.252
+!
+interface Bundle-Ether1.200
+ description SUB-IF-VLAN-200
+ encapsulation dot1q 200
+ ipv4 address 10.3.200.1 255.255.255.252
+!
+interface Bundle-Ether2
+ description LAG-TO-CORE-RTR-04
+ mtu 9216
+ ipv4 address 10.3.0.5 255.255.255.252
+ load-interval 30
+!
+interface HundredGigE0/0/1/0
+ description BACKBONE-LINK-NORTH
+ mtu 9216
+ ipv4 address 10.4.0.1 255.255.255.252
+ ipv6 address 2001:db8:40::1/64
+ load-interval 30
+!
+interface HundredGigE0/0/1/1
+ description BACKBONE-LINK-SOUTH
+ mtu 9216
+ ipv4 address 10.4.0.5 255.255.255.252
+ load-interval 30
+!
+interface Tunnel-te10
+ description TE-TUNNEL-TO-CORE-02
+ ipv4 address 10.5.0.1 255.255.255.252
+!
+interface Tunnel-te20
+ description TE-TUNNEL-TO-CORE-03
+ ipv4 address 10.5.0.5 255.255.255.252
+!
+interface Null0
+ description BLACKHOLE
+!
+no interface GigabitEthernet0/0/0/6
+!
+no interface GigabitEthernet0/0/0/7
+!
+router bgp 65000
+ bgp router-id 10.255.0.1
+ bgp log-neighbor-changes
+ bgp bestpath med always
+ timers bgp 30 90
+ address-family ipv4 unicast
+  network
+   10.255.0.0/16
+   172.16.0.0/12
+  redistribute
+   connected
+   static route-policy RPL-STATIC-TO-BGP
+  aggregate-address 10.0.0.0/8 summary-only
+  aggregate-address 172.16.0.0/12
+  maximum-paths ebgp 8
+ address-family ipv6 unicast
+  network
+   2001:db8::/32
+  redistribute
+   connected
+  maximum-paths ibgp 4
+ neighbor 10.1.0.2
+  remote-as 65001
+  password encrypted BGPKEY001
+  update-source Loopback0
+  description DIST-SW-01
+  ebgp-multihop 2
+  address-family ipv4 unicast
+   maximum-prefix 1000 75
+   route-policy RPL-CUST-IN in
+   soft-reconfiguration inbound
+   next-hop-self
+   as-override
+  timers 10 30
+  bfd minimum-interval 300
+  bfd multiplier 3
+ neighbor 10.1.0.6
+  remote-as 65002
+  update-source Loopback0
+  description DIST-SW-02
+  address-family ipv4 unicast
+   maximum-prefix 500 80
+   route-policy RPL-PEER-IN in
+   route-policy RPL-PEER-OUT out
+   soft-reconfiguration inbound
+  timers 10 30
+ neighbor 10.2.0.2
+  remote-as 65000
+  update-source Loopback0
+  description SPINE-01 (iBGP)
+  address-family ipv4 unicast
+   next-hop-self
+  address-family ipv6 unicast
+   next-hop-self
+ neighbor 10.2.0.6
+  remote-as 65000
+  update-source Loopback0
+  description SPINE-02 (iBGP)
+  address-family ipv4 unicast
+   next-hop-self
+ neighbor 2001:db8:1::2
+  remote-as 65001
+  description DIST-SW-01-v6
+  address-family ipv6 unicast
+   route-policy RPL-V6-IN in
+   route-policy RPL-V6-OUT out
+ neighbor 10.4.0.2
+  remote-as 65100
+  password clear BACKBONE-KEY
+  update-source Loopback0
+  description BACKBONE-NORTH
+  ebgp-multihop 4
+  address-family ipv4 unicast
+   maximum-prefix 50000 90
+   route-policy RPL-BACKBONE-IN in
+   route-policy RPL-BACKBONE-OUT out
+   soft-reconfiguration inbound
+   next-hop-self
+  timers 15 45
+  bfd minimum-interval 100
+  bfd multiplier 5
+ neighbor 10.4.0.6
+  remote-as 65200
+  update-source Loopback0
+  description BACKBONE-SOUTH
+  address-family ipv4 unicast
+   maximum-prefix 50000 90
+   route-policy RPL-BACKBONE-IN in
+   route-policy RPL-BACKBONE-OUT out
+   soft-reconfiguration inbound
+  timers 15 45
+ vrf CUST-A
+  rd 65000:100
+  address-family ipv4 unicast
+   redistribute
+    connected
+    static route-policy RPL-VRF-STATIC
+   aggregate-address 172.16.0.0/16 summary-only
+ vrf CUST-B
+  rd 65000:200
+  address-family ipv4 unicast
+   redistribute
+    connected
+ vrf MGMT
+  rd 65000:999
+  address-family ipv4 unicast
+   network
+    10.10.0.0/24
+!
+router ospf 1
+ router-id 10.255.0.1
+ log-adjacency-changes detail
+ auto-cost reference-bandwidth 100000
+ default-information originate
+ redistribute bgp
+ redistribute static route-policy RPL-STATIC-OSPF
+ area 0
+  interface Loopback0
+   cost 1
+   network point-to-point
+   passive
+  interface GigabitEthernet0/0/0/0
+   cost 10
+   network point-to-point
+   authentication message-digest
+   authentication-key 1 OSPFKEY01
+   dead-interval 40
+   hello-interval 10
+  interface GigabitEthernet0/0/0/1
+   cost 10
+   network point-to-point
+   dead-interval 40
+   hello-interval 10
+  interface GigabitEthernet0/0/0/2
+   cost 5
+   network point-to-point
+  interface TenGigE0/0/0/0
+   cost 1
+   network point-to-point
+   dead-interval 12
+   hello-interval 3
+  interface TenGigE0/0/0/1
+   cost 1
+   network point-to-point
+ area 1
+  stub
+  default-cost 10
+  interface GigabitEthernet0/0/0/3
+   cost 20
+   network broadcast
+ area 2
+  nssa
+  interface Bundle-Ether1
+   cost 5
+   network point-to-point
+   dead-interval 40
+   hello-interval 10
+!
+router ospf 2
+ router-id 10.255.1.1
+ area 0
+  interface Loopback1
+   passive
+  interface HundredGigE0/0/1/0
+   cost 1
+   network point-to-point
+  interface HundredGigE0/0/1/1
+   cost 1
+   network point-to-point
+!
+mpls
+ traffic-eng
+ tunnel-te 10
+  destination 10.255.0.2
+  bandwidth 1000000
+  priority 1 1
+  path-option 10 dynamic
+  signalled-bandwidth 500000
+  autoroute announce
+ tunnel-te 20
+  destination 10.255.0.3
+  bandwidth 500000
+  priority 2 2
+  path-option 10 explicit-path-A
+ path-option EXPLICIT-A
+  hop 10
+   next-address strict 10.1.0.2
+  hop 20
+   next-address loose 10.2.0.2
+  hop 30
+   next-address strict 10.255.0.2
+ static
+  local-label 16001
+   forward path 1 next-hop 10.1.0.2 out-label 24001
+   forward path 2 next-hop 10.2.0.2 out-label 24002
+  local-label 16002
+   forward path 1 next-hop 10.1.0.6 out-label 24010
+  local-label 16003
+   forward path 1 next-hop GigabitEthernet0/0/0/3 out-label pop backup
+ ldp
+  router-id 10.255.0.1
+  address-family ipv4
+   discovery transport-address 10.255.0.1
+   label local allocate for LDP-ACL
+  interface GigabitEthernet0/0/0/0
+  interface GigabitEthernet0/0/0/1
+  interface TenGigE0/0/0/0
+!
+imatch-test
+ enabled
+ DISABLED
+ priority HIGH
+!
+escape-test
+ literal-dollar HELLO
+ quoted-value world
+ with-apos test123
+!
+warn-test
+ warning something looks odd
+ warning check this too
+!
+trigger-test
+ arm-before MARKER1
+ arm-after MARKER2
+ event alpha
+ event beta
+ clear-triggers
+ event gamma
+!
+route-policy RPL-STATIC-TO-BGP
+  if destination in PREFIX-LIST-STATICS then
+    set local-preference 200
+    pass
+  endif
+end-policy
+!
+route-policy RPL-CUST-IN
+  if community matches-any COMM-CUST-A then
+    set local-preference 150
+    pass
+  else
+    drop
+  endif
+end-policy
+!
+route-policy RPL-PEER-IN
+  if destination in PREFIX-LIST-PEERS then
+    set med 100
+    pass
+  endif
+end-policy
+!
+route-policy RPL-PEER-OUT
+  if community matches-any COMM-LOCAL then
+    pass
+  endif
+end-policy
+!
+route-policy RPL-V6-IN
+  pass
+end-policy
+!
+route-policy RPL-V6-OUT
+  if community matches-any COMM-V6-LOCAL then
+    pass
+  endif
+end-policy
+!
+route-policy RPL-BACKBONE-IN
+  if destination in BACKBONE-PREFIXES then
+    set local-preference 300
+    pass
+  else
+    set local-preference 100
+    pass
+  endif
+end-policy
+!
+route-policy RPL-BACKBONE-OUT
+  if community matches-any COMM-TRANSIT then
+    set med 50
+    pass
+  endif
+end-policy
+!
+route-policy RPL-VRF-STATIC
+  pass
+end-policy
+!
+route-policy RPL-STATIC-OSPF
+  set tag 100
+  pass
+end-policy
+!
+vrf CUST-A
+ rd 65000:100
+ description Customer A production VRF
+ address-family ipv4 unicast
+  import route-target
+   65000:100
+   65000:101
+  export route-target
+   65000:100
+!
+vrf CUST-B
+ rd 65000:200
+ description Customer B production VRF
+ address-family ipv4 unicast
+  import route-target
+   65000:200
+  export route-target
+   65000:200
+   65000:201
+!
+vrf MGMT
+ rd 65000:999
+ description Management VRF
+ address-family ipv4 unicast
+  import route-target
+   65000:999
+  export route-target
+   65000:999
+!
+l2vpn
+ pw-class MPLS-PW
+  encapsulation mpls
+ bridge group BG-CUST-A
+  bridge-domain BD-100
+   mac
+    aging
+     time 300
+     type inactivity
+   vfi VFI-100
+    vpn-id 100
+    autodiscovery bgp
+     rd 65000:100
+     signaling-protocol bgp
+      pw-id
+       neighbor 10.255.0.2 pw-id 100
+       pw-class MPLS-PW
+   interface GigabitEthernet0/0/0/3.100
+    split-horizon group
+    storm-control broadcast pps 1000
+   routed interface BVI100
+  bridge-domain BD-200
+   mac
+    aging
+     time 600
+   vfi VFI-200
+    vpn-id 200
+    autodiscovery bgp
+     rd 65000:200
+     signaling-protocol ldp
+   interface GigabitEthernet0/0/0/3.200
+    storm-control broadcast pps 500
+   routed interface BVI200
+ bridge group BG-CUST-B
+  bridge-domain BD-300
+   mac
+    aging
+     time 300
+     type inactivity
+   vfi VFI-300
+    vpn-id 300
+    autodiscovery bgp
+     rd 65000:300
+     signaling-protocol bgp
+      pw-id
+       neighbor 10.255.0.3 pw-id 300
+!
+policy-map QOS-INGRESS
+ description Ingress QoS policy for customer traffic
+ class VOICE
+  priority level 1
+  police rate 10000000
+ class VIDEO
+  bandwidth percent 30
+  police
+   police rate 50000000
+  queue-limit 512 packets
+ class BUSINESS
+  bandwidth 100000
+  set dscp af31
+ class class-default
+  bandwidth percent 20
+  queue-limit 256 packets
+!
+policy-map QOS-EGRESS
+ description Egress QoS shaping policy
+ class VOICE-OUT
+  priority level 1
+  shape average 10000000
+ class VIDEO-OUT
+  bandwidth percent 30
+ class class-default
+  bandwidth percent 25
+!
+policy-map SP-IN-POLICY
+ class CRITICAL
+  priority level 1
+ class BULK
+  bandwidth percent 10
+  police
+   police rate 20000 kbps
+!
+key chain KC-OSPF
+ key 1
+  accept-lifetime 00:00:00 january 01 2024 infinite
+  send-lifetime 00:00:00 january 01 2024 infinite
+  key-string OSPFKEY01
+  cryptographic-algorithm hmac-sha-256
+ key 2
+  accept-lifetime 00:00:00 july 01 2024 infinite
+  send-lifetime 00:00:00 july 01 2024 infinite
+  key-string OSPFKEY02
+  cryptographic-algorithm hmac-sha-512
+!
+key chain KC-BGP
+ key 1
+  accept-lifetime 00:00:00 january 01 2024 infinite
+  send-lifetime 00:00:00 january 01 2024 infinite
+  key-string BGPKEY001
+  cryptographic-algorithm hmac-sha-256
+!
+segment-routing
+ global-block 16000 23999
+ local-block 15000 15999
+ traffic-eng
+  segment-list SL-TO-CORE-02
+   index 10 mpls label 16001
+   index 20 mpls label 16002
+   index 30 mpls label 16003
+  segment-list SL-TO-CORE-03
+   index 10 mpls label 16010
+   index 20 mpls adjacency 10.2.0.2
+  policy SR-POL-CORE-02
+   color 100 end-point ipv4 10.255.0.2
+   candidate-paths
+    preference 200
+     constraints
+      affinity include-any
+       name GOLD
+     segment-list SL-TO-CORE-02
+    preference 100
+     segment-list SL-TO-CORE-03
+  policy SR-POL-CORE-03
+   color 200 end-point ipv4 10.255.0.3
+   candidate-paths
+    preference 100
+     segment-list SL-TO-CORE-03
+ mapping-server
+  prefix-sid-map
+   address-family ipv4
+    10.255.0.1/32 index 1 range 1
+    10.255.0.2/32 index 2 range 1
+    10.255.0.3/32 index 3 range 1
+!
+tpa
+ statistics update-frequency 60
+ vrf default
+  address-family ipv4
+   default-route mgmt
+   update-source Loopback0
+   protection
+    1 2 3 4 5 6 7 8 9 10
+ vrf CUST-A
+  address-family ipv4
+   default-route dataplane
+   update-source Loopback1
+!
+usecase
+ mode advanced
+ value production
+!
+banner motd ^
+************************************************************
+* WARNING: Authorized access only.                         *
+* All activity is monitored and logged.                    *
+* Unauthorized access will be prosecuted.                  *
+************************************************************
+^
+!
+banner login C
+Access restricted to authorized personnel.
+C
+!
+pool vrf CUST-A dhcp POOL-CUST-A
+ network 172.16.0.0/24
+ default-router 172.16.0.1
+ lease 86400
+ dns-server 10.200.0.53
+!
+pool vrf CUST-B dhcp POOL-CUST-B
+ network 172.17.0.0/24
+ default-router 172.17.0.1
+ dns-server 10.200.0.53
+ dns-server 10.200.0.54
+!
+pool GLOBAL-POOL
+ network 10.99.0.0/16
+ default-router 10.99.0.1
+ lease 43200
+!
+telnet vrf MGMT ipv4 server max-servers 5
+!
+domain example.net
+domain lookup disable
+domain name-server 10.200.0.53 10.200.0.54
+!
+ssh server v2
+ssh server rate-limit 60
+!
+tcp path-mtu-discovery
+tcp selective-ack
+!
+service timestamps debug datetime msec
+service timestamps log datetime msec localtime
+service password-encryption
+!
+clock timezone MET 1
+!
+alias exec sir show ip route
+alias exec sib show ip bgp
+alias exec sint show interfaces
+!
+ipv4 access-list ACL-MGMT-IN
+ permit tcp 10.10.0.0 0.0.0.255 eq 22
+ permit tcp 10.10.0.0 0.0.0.255 eq 443
+ permit icmp 10.10.0.0 0.0.0.255
+ deny any
+!
+ipv4 access-list ACL-CUST-A-IN
+ permit ip 172.16.0.0 0.0.255.255
+ permit tcp 172.16.0.0 0.0.255.255 10.0.0.0 0.255.255.255 eq 80
+ permit tcp 172.16.0.0 0.0.255.255 10.0.0.0 0.255.255.255 eq 443
+ deny any
+!
+ipv6 access-list ACL-V6-IN
+ permit ip 2001:db8:: ::ffff
+ deny any
+!
+ipv4 access-list ACL-INFRA
+ permit icmp 10.0.0.0 0.255.255.255
+ permit tcp 10.0.0.0 0.255.255.255 10.0.0.0 0.255.255.255 eq 179
+ permit udp 10.0.0.0 0.255.255.255 10.0.0.0 0.255.255.255 eq 646
+ deny any
+!
+end

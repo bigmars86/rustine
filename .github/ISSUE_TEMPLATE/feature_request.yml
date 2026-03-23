@@ -1,0 +1,49 @@
+name: Feature Request
+description: Suggest a new feature or improvement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement!
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivation
+      description: What problem does this solve? Why is it needed?
+      placeholder: I'm always frustrated when...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the feature or change you'd like.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any other approaches you've thought about.
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      description: Which part of Rustine does this affect?
+      options:
+        - Grammar language (.gel syntax)
+        - Execution engine
+        - Output generation (JSON/XML/YAML)
+        - Python bindings
+        - CLI (rgel)
+        - Performance
+        - Documentation
+        - Other
+    validations:
+      required: true

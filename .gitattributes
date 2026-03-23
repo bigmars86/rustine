@@ -1,0 +1,12 @@
+# Normalize all text files to LF in the repository.
+# Contributors on Windows get CRLF in their working copy
+# only if their editor/git config requests it, but the
+# committed bytes are always LF.
+* text=auto eol=lf
+
+# Ensure these stay binary (no conversion)
+*.png binary
+*.ico binary
+*.whl binary
+*.so  binary
+*.pyd binary

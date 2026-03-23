@@ -1,0 +1,28 @@
+[build-system]
+requires = ["maturin>=1.6,<2"]
+build-backend = "maturin"
+
+[project]
+name = "rustine"
+version = "0.1.0"
+description = "High-performance Gel syntax parser transforming to JSON/XML (Rust + PyO3)"
+readme = "README.md"
+authors = [ { name = "Rustine Contributors" } ]
+requires-python = ">=3.9"
+license = {text = "MIT OR Apache-2.0"}
+classifiers = [
+  "Programming Language :: Python",
+  "Programming Language :: Rust",
+  "License :: OSI Approved :: MIT License",
+  "License :: OSI Approved :: Apache Software License"
+]
+
+[project.urls]
+Homepage = "https://github.com/bigmars86/rustine"
+Repository = "https://github.com/bigmars86/rustine"
+Documentation = "https://rustine.readthedocs.io"
+Changelog = "https://github.com/bigmars86/rustine/blob/main/CHANGELOG.md"
+
+[tool.maturin]
+features = ["python"]
+python-packages = ["Rustine"]
