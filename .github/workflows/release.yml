@@ -1,0 +1,240 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write          # create GitHub releases
+  id-token: write          # OIDC for trusted publishing
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # ── Gate: full CI checks before building ───────────────────────────
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --all-targets --features "parallel,cli,mmap,jemalloc" -- -D warnings
+
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --no-default-features --features "parallel,cli,mmap"
+
+  deny:
+    name: Cargo Deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check
+          arguments: --all-features
+          rust-version: stable
+
+  audit:
+    name: Cargo Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: rustsec/audit-check@v2
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  python:
+    name: Python smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Build and test import
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install maturin
+          maturin develop --features "python,jemalloc"
+          SO=$(find . -name 'rustine.abi3.so' -print -quit)
+          export LD_PRELOAD="${SO:+$SO}"
+          python -c "from Rustine import rustine; print('Rustine imported successfully')"
+          python -c "from Gelatin import util; print('Gelatin compat shim imported successfully')"
+
+  # ── Build wheels for each platform ─────────────────────────────────
+  build:
+    name: Build (${{ matrix.target }})
+    needs: [fmt, clippy, test, deny, audit, python]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64 — jemalloc for better memory return behavior
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            features: "python,jemalloc"
+          # Linux aarch64 — jemalloc for better memory return behavior
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            features: "python,jemalloc"
+          # macOS x86_64 (macos-14 is arm64 but can cross-compile)
+          - os: macos-14
+            target: x86_64-apple-darwin
+            features: python
+          # macOS Apple Silicon
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            features: python
+          # Windows x86_64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            features: python
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist --features ${{ matrix.features }}
+          manylinux: auto
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v5
+        with:
+          name: wheels-${{ matrix.target }}
+          path: dist/
+
+  # ── Build sdist ────────────────────────────────────────────────────
+  sdist:
+    name: Source distribution
+    needs: [fmt, clippy, test, deny, audit, python]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+      - name: Upload sdist
+        uses: actions/upload-artifact@v5
+        with:
+          name: wheels-sdist
+          path: dist/
+
+  # ── Publish to PyPI ────────────────────────────────────────────────
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [build, sdist]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/rustine
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v5
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # Uses trusted publishing (OIDC) — no API token needed.
+        # Configure at https://pypi.org/manage/project/rustine/settings/publishing/
+
+  # ── GitHub Release ─────────────────────────────────────────────────
+  github-release:
+    name: GitHub Release
+    needs: [build, sdist]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0       # full history needed for git-cliff
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v5
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist/
+
+      - name: Generate changelog for this release
+        uses: orhun/git-cliff-action@v4
+        id: cliff
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        env:
+          OUTPUT: CHANGES.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: CHANGES.md
+          files: dist/*
+
+  # ── Update CHANGELOG.md in main after release ─────────────────────
+  changelog:
+    name: Update CHANGELOG.md
+    needs: [github-release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Generate full changelog
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --output CHANGELOG.md
+
+      - name: Commit and push CHANGELOG.md
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git diff --cached --quiet && exit 0
+          git commit -m "docs: update CHANGELOG.md for ${{ github.ref_name }}"
+          git push

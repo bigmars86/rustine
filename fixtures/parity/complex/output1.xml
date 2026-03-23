@@ -1,0 +1,557 @@
+<device>
+  <hostname>CORE-RTR-01</hostname>
+  <logging>
+    <console>warnings</console>
+    <monitor>informational</monitor>
+    <buffered>1048576</buffered>
+    <source-interface>Loopback0</source-interface>
+    <host address="10.0.0.1"/>
+    <host address="10.0.0.2" port="5514"/>
+    <trap>debugging</trap>
+    <facility>local7</facility>
+  </logging>
+  <ntp>
+    <server address="10.100.1.1"/>
+    <server address="10.100.1.2" prefer="true"/>
+    <source-interface>Loopback0</source-interface>
+    <authenticate/>
+    <authentication-key id="1" type="md5">SECRETHASH01</authentication-key>
+  </ntp>
+  <snmp-server>
+    <community name="PUBLIC">
+      <view>ALLVIEW</view>
+      <permission>ro</permission>
+    </community>
+    <community name="PRIVATE">
+      <view>RESTRICTED</view>
+      <permission>rw</permission>
+      <access>deny</access>
+    </community>
+    <community name="MONITOR">
+      <view>ALLVIEW</view>
+      <permission>ro</permission>
+      <access>permit</access>
+    </community>
+    <contact>NOC ops@example.net 555-0199</contact>
+    <location>Main DC, Floor 3, Rack A7</location>
+    <trap-source>Loopback0</trap-source>
+    <host address="10.0.0.5" type="traps">SNMP-COMMUNITY</host>
+  </snmp-server>
+  <interface name="Loopback0">
+    <description>** Router Loopback **</description>
+    <ipv4>
+      <address ip="10.255.0.1" prefix-length="32"/>
+    </ipv4>
+  </interface>
+  <interface name="Loopback1">
+    <description>Management Loopback</description>
+    <ipv4>
+      <address ip="10.255.1.1" mask="255.255.255.255"/>
+    </ipv4>
+  </interface>
+  <interface name="MgmtEth0/RSP0/CPU0/0">
+    <description>OOB-MANAGEMENT</description>
+    <ipv4>
+      <address>
+        <address ip="10.10.0.1" prefix-length="24"/>
+      </address>
+      <mtu>1500</mtu>
+    </ipv4>
+    <shutdown/>
+  </interface>
+  <interface name="GigabitEthernet0/0/0/0">
+    <description>TO-DIST-SW-01:Gi0/1</description>
+    <mtu>9216</mtu>
+    <speed>1000</speed>
+    <duplex>full</duplex>
+    <ipv4>
+      <address ip="10.1.0.1" mask="255.255.255.252"/>
+    </ipv4>
+    <ipv6>
+      <address ip="2001:db8:1::1" prefix-length="64"/>
+    </ipv6>
+    <load-interval>30</load-interval>
+    <negotiation>auto</negotiation>
+    <carrier-delay>
+      <up>2000</up>
+    </carrier-delay>
+    <dampening half-life="5" reuse="1000" suppress="2000" max="20"/>
+  </interface>
+  <interface name="GigabitEthernet0/0/0/1">
+    <description>TO-DIST-SW-02:Gi0/1</description>
+    <mtu>9216</mtu>
+    <ipv4>
+      <address ip="10.1.0.5" mask="255.255.255.252"/>
+    </ipv4>
+    <ipv6>
+      <address ip="2001:db8:2::1" prefix-length="64"/>
+    </ipv6>
+    <service-policy>
+      <input>QOS-INGRESS</input>
+      <output>QOS-EGRESS</output>
+    </service-policy>
+    <load-interval>30</load-interval>
+  </interface>
+  <interface name="GigabitEthernet0/0/0/2">
+    <description>TO-CORE-RTR-02:Gi0/0/0/2</description>
+    <mtu>9216</mtu>
+    <ipv4>
+      <address ip="10.1.0.9" mask="255.255.255.252"/>
+    </ipv4>
+    <service-policy>
+      <input>SP-IN-POLICY</input>
+      <output>SP-OUT-POLICY</output>
+    </service-policy>
+    <load-interval>30</load-interval>
+  </interface>
+  <interface name="GigabitEthernet0/0/0/3">
+    <description>TO-PE-RTR-01:Gi0/0/0/0</description>
+    <mtu>9216</mtu>
+    <encapsulation>dot1q 100</encapsulation>
+    <ipv4>
+      <address ip="10.1.0.13" mask="255.255.255.252"/>
+    </ipv4>
+    <load-interval>30</load-interval>
+  </interface>
+  <interface name="GigabitEthernet0/0/0/4">
+    <description>CUSTOMER-A-HANDOFF</description>
+    <ipv4>
+      <address>
+        <address ip="172.16.0.1" prefix-length="30"/>
+        <address ip="172.16.0.5" mask="255.255.255.252" secondary="true"/>
+      </address>
+      <mtu>1400</mtu>
+      <helper-address vrf="CUST-A" address="10.200.0.1"/>
+    </ipv4>
+  </interface>
+  <interface name="GigabitEthernet0/0/0/5">
+    <description>TO-AGG-SW-01:Eth1/1</description>
+    <ipv4>
+      <address ip="10.1.0.17" mask="255.255.255.252"/>
+    </ipv4>
+    <ethernet-cfm>
+      <domain name="CFM-L2">
+        <service name="SVC-A">
+          <efd/>
+        </service>
+        <mep>
+          <crosscheck/>
+        </mep>
+        <mep-id>100</mep-id>
+      </domain>
+    </ethernet-cfm>
+  </interface>
+  <interface name="TenGigE0/0/0/0">
+    <description>UPLINK-TO-SPINE-01</description>
+    <mtu>9216</mtu>
+    <ipv4>
+      <address ip="10.2.0.1" mask="255.255.255.252"/>
+    </ipv4>
+    <ipv6>
+      <address ip="2001:db8:10::1" prefix-length="64"/>
+    </ipv6>
+    <load-interval>30</load-interval>
+  </interface>
+  <interface name="TenGigE0/0/0/1">
+    <description>UPLINK-TO-SPINE-02</description>
+    <mtu>9216</mtu>
+    <ipv4>
+      <address ip="10.2.0.5" mask="255.255.255.252"/>
+    </ipv4>
+    <load-interval>30</load-interval>
+  </interface>
+  <interface name="TenGigE0/0/0/2">
+    <description>MPLS-CORE-LINK</description>
+    <mtu>92169000</mtu>
+    <ipv4>
+      <address ip="10.2.0.9" mask="255.255.255.252"/>
+    </ipv4>
+    <load-interval>30</load-interval>
+  </interface>
+  <interface name="BVI100">
+    <description>BRIDGE-VLAN-100</description>
+    <ipv4>
+      <address ip="192.168.100.1" mask="255.255.255.0"/>
+    </ipv4>
+  </interface>
+  <interface name="BVI200">
+    <description>BRIDGE-VLAN-200</description>
+    <ipv4>
+      <address ip="192.168.200.1" mask="255.255.255.0"/>
+    </ipv4>
+  </interface>
+  <interface name="Bundle-Ether1">
+    <description>LAG-TO-CORE-RTR-03</description>
+    <mtu>9216</mtu>
+    <ipv4>
+      <address ip="10.3.0.1" mask="255.255.255.252"/>
+    </ipv4>
+    <load-interval>30</load-interval>
+  </interface>
+  <interface name="Bundle-Ether1.100">
+    <description>SUB-IF-VLAN-100</description>
+    <encapsulation>dot1q 100</encapsulation>
+    <ipv4>
+      <address ip="10.3.100.1" mask="255.255.255.252"/>
+    </ipv4>
+  </interface>
+  <interface name="Bundle-Ether1.200">
+    <description>SUB-IF-VLAN-200</description>
+    <encapsulation>dot1q 200</encapsulation>
+    <ipv4>
+      <address ip="10.3.200.1" mask="255.255.255.252"/>
+    </ipv4>
+  </interface>
+  <interface name="Bundle-Ether2">
+    <description>LAG-TO-CORE-RTR-04</description>
+    <mtu>9216</mtu>
+    <ipv4>
+      <address ip="10.3.0.5" mask="255.255.255.252"/>
+    </ipv4>
+    <load-interval>30</load-interval>
+  </interface>
+  <interface name="HundredGigE0/0/1/0">
+    <description>BACKBONE-LINK-NORTH</description>
+    <mtu>9216</mtu>
+    <ipv4>
+      <address ip="10.4.0.1" mask="255.255.255.252"/>
+    </ipv4>
+    <ipv6>
+      <address ip="2001:db8:40::1" prefix-length="64"/>
+    </ipv6>
+    <load-interval>30</load-interval>
+  </interface>
+  <interface name="HundredGigE0/0/1/1">
+    <description>BACKBONE-LINK-SOUTH</description>
+    <mtu>9216</mtu>
+    <ipv4>
+      <address ip="10.4.0.5" mask="255.255.255.252"/>
+    </ipv4>
+    <load-interval>30</load-interval>
+  </interface>
+  <interface name="Tunnel-te10">
+    <description>TE-TUNNEL-TO-CORE-02</description>
+    <ipv4>
+      <address ip="10.5.0.1" mask="255.255.255.252"/>
+    </ipv4>
+  </interface>
+  <interface name="Tunnel-te20">
+    <description>TE-TUNNEL-TO-CORE-03</description>
+    <ipv4>
+      <address ip="10.5.0.5" mask="255.255.255.252"/>
+    </ipv4>
+  </interface>
+  <interface name="Null0">
+    <description>BLACKHOLE</description>
+  </interface>
+  <interface name="GigabitEthernet0/0/0/6">
+    <disable/>
+  </interface>
+  <interface name="GigabitEthernet0/0/0/7">
+    <disable/>
+  </interface>
+  <router-bgp as="65000">
+    <router-id>10.255.0.1</router-id>
+    <log-neighbor-changes/>
+    <bestpath>
+      <med-always/>
+    </bestpath>
+    <timers keepalive="30" hold="90"/>
+    <address-family name="ipv4 unicast">
+      <network>
+        <network prefix="10.255.0.0/16"/>
+        <network prefix="172.16.0.0/12"/>
+      </network>
+      <redistribute>
+        <protocol name="connected"/>
+        <protocol name="static" route-policy="RPL-STATIC-TO-BGP"/>
+      </redistribute>
+      <aggregate-address prefix="10.0.0.0/8" summary-only="true"/>
+      <aggregate-address prefix="172.16.0.0/12"/>
+      <maximum-paths type="ebgp">8</maximum-paths>
+    </address-family>
+    <address-family name="ipv6 unicast">
+      <network>
+        <network prefix="2001:db8::/32"/>
+      </network>
+      <redistribute>
+        <protocol name="connected"/>
+      </redistribute>
+      <maximum-paths type="ibgp">4</maximum-paths>
+    </address-family>
+    <neighbor address="10.1.0.2">
+      <remote-as>65001</remote-as>
+      <password type="encrypted">BGPKEY001</password>
+      <update-source>Loopback0</update-source>
+      <description>DIST-SW-01</description>
+      <ebgp-multihop>2</ebgp-multihop>
+      <address-family name="ipv4 unicast">
+        <maximum-prefix limit="1000" threshold="75"/>
+        <route-policy name="RPL-CUST-IN" direction="in"/>
+        <soft-reconfiguration>inbound</soft-reconfiguration>
+        <next-hop-self/>
+        <as-override/>
+      </address-family>
+      <timers keepalive="10" hold="30"/>
+      <bfd>
+        <minimum-interval>300</minimum-interval>
+        <multiplier>3</multiplier>
+      </bfd>
+    </neighbor>
+    <neighbor address="10.1.0.6">
+      <remote-as>65002</remote-as>
+      <update-source>Loopback0</update-source>
+      <description>DIST-SW-02</description>
+      <address-family name="ipv4 unicast">
+        <maximum-prefix limit="500" threshold="80"/>
+        <route-policy name="RPL-PEER-IN" direction="in"/>
+        <route-policy name="RPL-PEER-OUT" direction="out"/>
+        <soft-reconfiguration>inbound</soft-reconfiguration>
+      </address-family>
+      <timers keepalive="10" hold="30"/>
+    </neighbor>
+    <neighbor address="10.2.0.2">
+      <remote-as>65000</remote-as>
+      <update-source>Loopback0</update-source>
+      <description>SPINE-01 (iBGP)</description>
+      <address-family name="ipv4 unicast">
+        <next-hop-self/>
+      </address-family>
+      <address-family name="ipv6 unicast">
+        <next-hop-self/>
+      </address-family>
+    </neighbor>
+    <neighbor address="10.2.0.6">
+      <remote-as>65000</remote-as>
+      <update-source>Loopback0</update-source>
+      <description>SPINE-02 (iBGP)</description>
+      <address-family name="ipv4 unicast">
+        <next-hop-self/>
+      </address-family>
+    </neighbor>
+    <neighbor address="2001:db8:1::2">
+      <remote-as>65001</remote-as>
+      <description>DIST-SW-01-v6</description>
+      <address-family name="ipv6 unicast">
+        <route-policy name="RPL-V6-IN" direction="in"/>
+        <route-policy name="RPL-V6-OUT" direction="out"/>
+      </address-family>
+    </neighbor>
+    <neighbor address="10.4.0.2">
+      <remote-as>65100</remote-as>
+      <password type="clear">BACKBONE-KEY</password>
+      <update-source>Loopback0</update-source>
+      <description>BACKBONE-NORTH</description>
+      <ebgp-multihop>4</ebgp-multihop>
+      <address-family name="ipv4 unicast">
+        <maximum-prefix limit="50000" threshold="90"/>
+        <route-policy name="RPL-BACKBONE-IN" direction="in"/>
+        <route-policy name="RPL-BACKBONE-OUT" direction="out"/>
+        <soft-reconfiguration>inbound</soft-reconfiguration>
+        <next-hop-self/>
+      </address-family>
+      <timers keepalive="15" hold="45"/>
+      <bfd>
+        <minimum-interval>100</minimum-interval>
+        <multiplier>5</multiplier>
+      </bfd>
+    </neighbor>
+    <neighbor address="10.4.0.6">
+      <remote-as>65200</remote-as>
+      <update-source>Loopback0</update-source>
+      <description>BACKBONE-SOUTH</description>
+      <address-family name="ipv4 unicast">
+        <maximum-prefix limit="50000" threshold="90"/>
+        <route-policy name="RPL-BACKBONE-IN" direction="in"/>
+        <route-policy name="RPL-BACKBONE-OUT" direction="out"/>
+        <soft-reconfiguration>inbound</soft-reconfiguration>
+      </address-family>
+      <timers keepalive="15" hold="45"/>
+    </neighbor>
+    <vrf name="CUST-A">
+      <rd>65000:100</rd>
+      <address-family name="ipv4 unicast">
+        <redistribute>
+          <protocol name="connected"/>
+          <protocol name="static" route-policy="RPL-VRF-STATIC"/>
+        </redistribute>
+        <aggregate-address prefix="172.16.0.0/16" summary-only="true"/>
+      </address-family>
+    </vrf>
+    <vrf name="CUST-B">
+      <rd>65000:200</rd>
+      <address-family name="ipv4 unicast">
+        <redistribute>
+          <protocol name="connected"/>
+        </redistribute>
+      </address-family>
+    </vrf>
+    <vrf name="MGMT">
+      <rd>65000:999</rd>
+      <address-family name="ipv4 unicast">
+        <network>
+          <network prefix="10.10.0.0/24"/>
+        </network>
+      </address-family>
+    </vrf>
+  </router-bgp>
+  <router-ospf id="1">
+    <router-id>10.255.0.1</router-id>
+    <log-adjacency-changes>detail</log-adjacency-changes>
+    <auto-cost>
+      <reference-bandwidth>100000</reference-bandwidth>
+    </auto-cost>
+    <default-information>
+      <originate/>
+    </default-information>
+    <redistribute protocol="bgp"/>
+    <redistribute protocol="static" route-policy="RPL-STATIC-OSPF"/>
+    <area id="0">
+      <interface name="Loopback0">
+        <cost>1</cost>
+        <network>point-to-point</network>
+        <passive/>
+      </interface>
+      <interface name="GigabitEthernet0/0/0/0">
+        <cost>10</cost>
+        <network>point-to-point</network>
+        <authentication>message-digest</authentication>
+        <authentication-key id="1">OSPFKEY01</authentication-key>
+        <dead-interval>40</dead-interval>
+        <hello-interval>10</hello-interval>
+      </interface>
+      <interface name="GigabitEthernet0/0/0/1">
+        <cost>10</cost>
+        <network>point-to-point</network>
+        <dead-interval>40</dead-interval>
+        <hello-interval>10</hello-interval>
+      </interface>
+      <interface name="GigabitEthernet0/0/0/2">
+        <cost>5</cost>
+        <network>point-to-point</network>
+      </interface>
+      <interface name="TenGigE0/0/0/0">
+        <cost>1</cost>
+        <network>point-to-point</network>
+        <dead-interval>12</dead-interval>
+        <hello-interval>3</hello-interval>
+      </interface>
+      <interface name="TenGigE0/0/0/1">
+        <cost>1</cost>
+        <network>point-to-point</network>
+      </interface>
+    </area>
+    <area id="1">
+      <stub/>
+      <default-cost>10</default-cost>
+      <interface name="GigabitEthernet0/0/0/3">
+        <cost>20</cost>
+        <network>broadcast</network>
+      </interface>
+    </area>
+    <area id="2">
+      <nssa/>
+      <interface name="Bundle-Ether1">
+        <cost>5</cost>
+        <network>point-to-point</network>
+        <dead-interval>40</dead-interval>
+        <hello-interval>10</hello-interval>
+      </interface>
+    </area>
+  </router-ospf>
+  <router-ospf id="2">
+    <router-id>10.255.1.1</router-id>
+    <area id="0">
+      <interface name="Loopback1">
+        <passive/>
+      </interface>
+      <interface name="HundredGigE0/0/1/0">
+        <cost>1</cost>
+        <network>point-to-point</network>
+      </interface>
+      <interface name="HundredGigE0/0/1/1">
+        <cost>1</cost>
+        <network>point-to-point</network>
+      </interface>
+    </area>
+  </router-ospf>
+  <mpls>
+    <traffic-eng/>
+    <tunnel-te id="10">
+      <destination>10.255.0.2</destination>
+      <bandwidth>1000000</bandwidth>
+      <priority setup="1" hold="1"/>
+      <path-option preference="10">dynamic</path-option>
+      <signalled-bandwidth>500000</signalled-bandwidth>
+      <autoroute-announce/>
+    </tunnel-te>
+    <tunnel-te id="20">
+      <destination>10.255.0.3</destination>
+      <bandwidth>500000</bandwidth>
+      <priority setup="2" hold="2"/>
+      <path-option preference="10">explicit-path-A</path-option>
+    </tunnel-te>
+    <path-option name="EXPLICIT-A">
+      <hop index="10">
+        <next-address type="strict" address="10.1.0.2"/>
+      </hop>
+      <hop index="20">
+        <next-address type="loose" address="10.2.0.2"/>
+      </hop>
+      <hop index="30">
+        <next-address type="strict" address="10.255.0.2"/>
+      </hop>
+    </path-option>
+    <static>
+      <local-label value="16001">
+        <forward path="1" next-hop="10.1.0.2" out-label="24001"/>
+        <forward path="2" next-hop="10.2.0.2" out-label="24002"/>
+      </local-label>
+      <local-label value="16002">
+        <forward path="1" next-hop="10.1.0.6" out-label="24010"/>
+      </local-label>
+      <local-label value="16003">
+        <forward path="1" next-hop="GigabitEthernet0%2F0%2F0%2F3" out-label="pop" backup="backup"/>
+      </local-label>
+    </static>
+    <ldp>
+      <router-id>10.255.0.1</router-id>
+      <address-family name="ipv4">
+        <discovery>
+          <transport-address>10.255.0.1</transport-address>
+        </discovery>
+        <label>
+          <local>
+            <allocate>
+              <for>LDP-ACL</for>
+            </allocate>
+          </local>
+        </label>
+      </address-family>
+      <interface name="GigabitEthernet0/0/0/0"/>
+      <interface name="GigabitEthernet0/0/0/1"/>
+      <interface name="TenGigE0/0/0/0"/>
+    </ldp>
+  </mpls>
+  <imatch-test>
+    <status>enabled</status>
+    <status>disabled</status>
+    <priority>HIGH</priority>
+  </imatch-test>
+  <escape-test>
+    <literal-dollar>$2 is HELLO</literal-dollar>
+    <quoted-value>world</quoted-value>
+    <with-apos>it\'s test123</with-apos>
+  </escape-test>
+  <warn-test>
+    <warning>something looks oddcheck this too</warning>
+  </warn-test>
+  <trigger-test>
+    <arm-before pattern="MARKER1"/>
+    <arm-after pattern="MARKER2"/>
+    <event>alphabetagamma</event>
+  </trigger-test>
+  <route-policy name="RPL-STATIC-TO-BGP">
+    <line>if destination in PREFIX-LIST-STATICS thenset local-preference 200passendifroute-policy RPL-CUST-INif community matches-any COMM-CUST-A thenset local-preference 150passelsedropendifroute-policy RPL-PEER-INif destination in PREFIX-LIST-PEERS thenset med 100passendifroute-policy RPL-PEER-OUTif community matches-any COMM-LOCAL thenpassendifroute-policy RPL-V6-INpassroute-policy RPL-V6-OUTif community matches-any COMM-V6-LOCAL thenpassendifroute-policy RPL-BACKBONE-INif destination in BACKBONE-PREFIXES thenset local-preference 300passelseset local-preference 100passendifroute-policy RPL-BACKBONE-OUTif community matches-any COMM-TRANSIT thenset med 50passendifroute-policy RPL-VRF-STATICpassroute-policy RPL-STATIC-OSPFset tag 100passvrf CUST-Ard 65000:100description Customer A production VRFaddress-family ipv4 unicastimport route-target65000:10065000:101export route-target65000:100vrf CUST-Brd 65000:200description Customer B production VRFaddress-family ipv4 unicastimport route-target65000:200export route-target65000:20065000:201vrf MGMTrd 65000:999description Management VRFaddress-family ipv4 unicastimport route-target65000:999export route-target65000:999l2vpnpw-class MPLS-PWencapsulation mplsbridge group BG-CUST-Abridge-domain BD-100macagingtime 300type inactivityvfi VFI-100vpn-id 100autodiscovery bgprd 65000:100signaling-protocol bgppw-idneighbor 10.255.0.2 pw-id 100pw-class MPLS-PWinterface GigabitEthernet0/0/0/3.100split-horizon groupstorm-control broadcast pps 1000routed interface BVI100bridge-domain BD-200macagingtime 600vfi VFI-200vpn-id 200autodiscovery bgprd 65000:200signaling-protocol ldpinterface GigabitEthernet0/0/0/3.200storm-control broadcast pps 500routed interface BVI200bridge group BG-CUST-Bbridge-domain BD-300macagingtime 300type inactivityvfi VFI-300vpn-id 300autodiscovery bgprd 65000:300signaling-protocol bgppw-idneighbor 10.255.0.3 pw-id 300policy-map QOS-INGRESSdescription Ingress QoS policy for customer trafficclass VOICEpriority level 1police rate 10000000class VIDEObandwidth percent 30policepolice rate 50000000queue-limit 512 packetsclass BUSINESSbandwidth 100000set dscp af31class class-defaultbandwidth percent 20queue-limit 256 packetspolicy-map QOS-EGRESSdescription Egress QoS shaping policyclass VOICE-OUTpriority level 1shape average 10000000class VIDEO-OUTbandwidth percent 30class class-defaultbandwidth percent 25policy-map SP-IN-POLICYclass CRITICALpriority level 1class BULKbandwidth percent 10policepolice rate 20000 kbpskey chain KC-OSPFkey 1accept-lifetime 00:00:00 january 01 2024 infinitesend-lifetime 00:00:00 january 01 2024 infinitekey-string OSPFKEY01cryptographic-algorithm hmac-sha-256key 2accept-lifetime 00:00:00 july 01 2024 infinitesend-lifetime 00:00:00 july 01 2024 infinitekey-string OSPFKEY02cryptographic-algorithm hmac-sha-512key chain KC-BGPkey 1accept-lifetime 00:00:00 january 01 2024 infinitesend-lifetime 00:00:00 january 01 2024 infinitekey-string BGPKEY001cryptographic-algorithm hmac-sha-256segment-routingglobal-block 16000 23999local-block 15000 15999traffic-engsegment-list SL-TO-CORE-02index 10 mpls label 16001index 20 mpls label 16002index 30 mpls label 16003segment-list SL-TO-CORE-03index 10 mpls label 16010index 20 mpls adjacency 10.2.0.2policy SR-POL-CORE-02color 100 end-point ipv4 10.255.0.2candidate-pathspreference 200constraintsaffinity include-anyname GOLDsegment-list SL-TO-CORE-02preference 100segment-list SL-TO-CORE-03policy SR-POL-CORE-03color 200 end-point ipv4 10.255.0.3candidate-pathspreference 100segment-list SL-TO-CORE-03mapping-serverprefix-sid-mapaddress-family ipv410.255.0.1/32 index 1 range 110.255.0.2/32 index 2 range 110.255.0.3/32 index 3 range 1tpastatistics update-frequency 60vrf defaultaddress-family ipv4default-route mgmtupdate-source Loopback0protection1 2 3 4 5 6 7 8 9 10vrf CUST-Aaddress-family ipv4default-route dataplaneupdate-source Loopback1usecasemode advancedvalue productionbanner motd ^************************************************************* WARNING: Authorized access only.                         ** All activity is monitored and logged.                    ** Unauthorized access will be prosecuted.                  *************************************************************^banner login CAccess restricted to authorized personnel.Cpool vrf CUST-A dhcp POOL-CUST-Anetwork 172.16.0.0/24default-router 172.16.0.1lease 86400dns-server 10.200.0.53pool vrf CUST-B dhcp POOL-CUST-Bnetwork 172.17.0.0/24default-router 172.17.0.1dns-server 10.200.0.53dns-server 10.200.0.54pool GLOBAL-POOLnetwork 10.99.0.0/16default-router 10.99.0.1lease 43200telnet vrf MGMT ipv4 server max-servers 5domain example.netdomain lookup disabledomain name-server 10.200.0.53 10.200.0.54ssh server v2ssh server rate-limit 60tcp path-mtu-discoverytcp selective-ackservice timestamps debug datetime msecservice timestamps log datetime msec localtimeservice password-encryptionclock timezone MET 1alias exec sir show ip routealias exec sib show ip bgpalias exec sint show interfacesipv4 access-list ACL-MGMT-INpermit tcp 10.10.0.0 0.0.0.255 eq 22permit tcp 10.10.0.0 0.0.0.255 eq 443permit icmp 10.10.0.0 0.0.0.255deny anyipv4 access-list ACL-CUST-A-INpermit ip 172.16.0.0 0.0.255.255permit tcp 172.16.0.0 0.0.255.255 10.0.0.0 0.255.255.255 eq 80permit tcp 172.16.0.0 0.0.255.255 10.0.0.0 0.255.255.255 eq 443deny anyipv6 access-list ACL-V6-INpermit ip 2001:db8:: ::ffffdeny anyipv4 access-list ACL-INFRApermit icmp 10.0.0.0 0.255.255.255permit tcp 10.0.0.0 0.255.255.255 10.0.0.0 0.255.255.255 eq 179permit udp 10.0.0.0 0.255.255.255 10.0.0.0 0.255.255.255 eq 646deny anyend</line>
+  </route-policy>
+</device>

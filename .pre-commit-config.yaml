@@ -1,0 +1,57 @@
+# pre-commit hooks for Rustine
+# Install: pip install pre-commit && pre-commit install
+# Run all: pre-commit run --all-files
+# https://pre-commit.com
+
+repos:
+  # ── General file hygiene ───────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+
+  # ── Rust formatting ────────────────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt --all --
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: cargo clippy --no-default-features --features "parallel,cli,mmap" -- -D warnings
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: cargo-test
+        name: cargo test
+        entry: cargo test --no-default-features --features "parallel,cli,mmap" --lib
+        language: system
+        types: [rust]
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: cargo-deny
+        name: cargo deny
+        entry: cargo deny check
+        language: system
+        pass_filenames: false
+        files: "(Cargo\\.toml|Cargo\\.lock|deny\\.toml)"
+
+      - id: git-cliff
+        name: changelog (git-cliff --dry-run)
+        entry: git cliff --dry-run
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

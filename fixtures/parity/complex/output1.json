@@ -1,0 +1,1281 @@
+{
+    "hostname": {
+        "#text": "CORE-RTR-01"
+    },
+    "logging": {
+        "console": {
+            "#text": "warnings"
+        },
+        "monitor": {
+            "#text": "informational"
+        },
+        "buffered": {
+            "#text": "1048576"
+        },
+        "source-interface": {
+            "#text": "Loopback0"
+        },
+        "host": [
+            {
+                "@address": "10.0.0.1"
+            },
+            {
+                "@address": "10.0.0.2",
+                "@port": "5514"
+            }
+        ],
+        "trap": {
+            "#text": "debugging"
+        },
+        "facility": {
+            "#text": "local7"
+        }
+    },
+    "ntp": {
+        "server": [
+            {
+                "@address": "10.100.1.1"
+            },
+            {
+                "@address": "10.100.1.2",
+                "@prefer": "true"
+            }
+        ],
+        "source-interface": {
+            "#text": "Loopback0"
+        },
+        "authenticate": {},
+        "authentication-key": {
+            "@id": "1",
+            "@type": "md5",
+            "#text": "SECRETHASH01"
+        }
+    },
+    "snmp-server": {
+        "community": [
+            {
+                "@name": "PUBLIC",
+                "view": {
+                    "#text": "ALLVIEW"
+                },
+                "permission": {
+                    "#text": "ro"
+                }
+            },
+            {
+                "@name": "PRIVATE",
+                "view": {
+                    "#text": "RESTRICTED"
+                },
+                "permission": {
+                    "#text": "rw"
+                },
+                "access": {
+                    "#text": "deny"
+                }
+            },
+            {
+                "@name": "MONITOR",
+                "view": {
+                    "#text": "ALLVIEW"
+                },
+                "permission": {
+                    "#text": "ro"
+                },
+                "access": {
+                    "#text": "permit"
+                }
+            }
+        ],
+        "contact": {
+            "#text": "NOC ops@example.net 555-0199"
+        },
+        "location": {
+            "#text": "Main DC, Floor 3, Rack A7"
+        },
+        "trap-source": {
+            "#text": "Loopback0"
+        },
+        "host": {
+            "@address": "10.0.0.5",
+            "@type": "traps",
+            "#text": "SNMP-COMMUNITY"
+        }
+    },
+    "interface": [
+        {
+            "@name": "Loopback0",
+            "description": {
+                "#text": "** Router Loopback **"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.255.0.1",
+                    "@prefix-length": "32"
+                }
+            }
+        },
+        {
+            "@name": "Loopback1",
+            "description": {
+                "#text": "Management Loopback"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.255.1.1",
+                    "@mask": "255.255.255.255"
+                }
+            }
+        },
+        {
+            "@name": "MgmtEth0/RSP0/CPU0/0",
+            "description": {
+                "#text": "OOB-MANAGEMENT"
+            },
+            "ipv4": {
+                "address": {
+                    "address": {
+                        "@ip": "10.10.0.1",
+                        "@prefix-length": "24"
+                    }
+                },
+                "mtu": {
+                    "#text": "1500"
+                }
+            },
+            "shutdown": {}
+        },
+        {
+            "@name": "GigabitEthernet0/0/0/0",
+            "description": {
+                "#text": "TO-DIST-SW-01:Gi0/1"
+            },
+            "mtu": {
+                "#text": "9216"
+            },
+            "speed": {
+                "#text": "1000"
+            },
+            "duplex": {
+                "#text": "full"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.1.0.1",
+                    "@mask": "255.255.255.252"
+                }
+            },
+            "ipv6": {
+                "address": {
+                    "@ip": "2001:db8:1::1",
+                    "@prefix-length": "64"
+                }
+            },
+            "load-interval": {
+                "#text": "30"
+            },
+            "negotiation": {
+                "#text": "auto"
+            },
+            "carrier-delay": {
+                "up": {
+                    "#text": "2000"
+                }
+            },
+            "dampening": {
+                "@half-life": "5",
+                "@reuse": "1000",
+                "@suppress": "2000",
+                "@max": "20"
+            }
+        },
+        {
+            "@name": "GigabitEthernet0/0/0/1",
+            "description": {
+                "#text": "TO-DIST-SW-02:Gi0/1"
+            },
+            "mtu": {
+                "#text": "9216"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.1.0.5",
+                    "@mask": "255.255.255.252"
+                }
+            },
+            "ipv6": {
+                "address": {
+                    "@ip": "2001:db8:2::1",
+                    "@prefix-length": "64"
+                }
+            },
+            "service-policy": {
+                "input": {
+                    "#text": "QOS-INGRESS"
+                },
+                "output": {
+                    "#text": "QOS-EGRESS"
+                }
+            },
+            "load-interval": {
+                "#text": "30"
+            }
+        },
+        {
+            "@name": "GigabitEthernet0/0/0/2",
+            "description": {
+                "#text": "TO-CORE-RTR-02:Gi0/0/0/2"
+            },
+            "mtu": {
+                "#text": "9216"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.1.0.9",
+                    "@mask": "255.255.255.252"
+                }
+            },
+            "service-policy": {
+                "input": {
+                    "#text": "SP-IN-POLICY"
+                },
+                "output": {
+                    "#text": "SP-OUT-POLICY"
+                }
+            },
+            "load-interval": {
+                "#text": "30"
+            }
+        },
+        {
+            "@name": "GigabitEthernet0/0/0/3",
+            "description": {
+                "#text": "TO-PE-RTR-01:Gi0/0/0/0"
+            },
+            "mtu": {
+                "#text": "9216"
+            },
+            "encapsulation": {
+                "#text": "dot1q 100"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.1.0.13",
+                    "@mask": "255.255.255.252"
+                }
+            },
+            "load-interval": {
+                "#text": "30"
+            }
+        },
+        {
+            "@name": "GigabitEthernet0/0/0/4",
+            "description": {
+                "#text": "CUSTOMER-A-HANDOFF"
+            },
+            "ipv4": {
+                "address": {
+                    "address": [
+                        {
+                            "@ip": "172.16.0.1",
+                            "@prefix-length": "30"
+                        },
+                        {
+                            "@ip": "172.16.0.5",
+                            "@mask": "255.255.255.252",
+                            "@secondary": "true"
+                        }
+                    ]
+                },
+                "mtu": {
+                    "#text": "1400"
+                },
+                "helper-address": {
+                    "@vrf": "CUST-A",
+                    "@address": "10.200.0.1"
+                }
+            }
+        },
+        {
+            "@name": "GigabitEthernet0/0/0/5",
+            "description": {
+                "#text": "TO-AGG-SW-01:Eth1/1"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.1.0.17",
+                    "@mask": "255.255.255.252"
+                }
+            },
+            "ethernet-cfm": {
+                "domain": {
+                    "@name": "CFM-L2",
+                    "service": {
+                        "@name": "SVC-A",
+                        "efd": {}
+                    },
+                    "mep": {
+                        "crosscheck": {}
+                    },
+                    "mep-id": {
+                        "#text": "100"
+                    }
+                }
+            }
+        },
+        {
+            "@name": "TenGigE0/0/0/0",
+            "description": {
+                "#text": "UPLINK-TO-SPINE-01"
+            },
+            "mtu": {
+                "#text": "9216"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.2.0.1",
+                    "@mask": "255.255.255.252"
+                }
+            },
+            "ipv6": {
+                "address": {
+                    "@ip": "2001:db8:10::1",
+                    "@prefix-length": "64"
+                }
+            },
+            "load-interval": {
+                "#text": "30"
+            }
+        },
+        {
+            "@name": "TenGigE0/0/0/1",
+            "description": {
+                "#text": "UPLINK-TO-SPINE-02"
+            },
+            "mtu": {
+                "#text": "9216"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.2.0.5",
+                    "@mask": "255.255.255.252"
+                }
+            },
+            "load-interval": {
+                "#text": "30"
+            }
+        },
+        {
+            "@name": "TenGigE0/0/0/2",
+            "description": {
+                "#text": "MPLS-CORE-LINK"
+            },
+            "mtu": {
+                "#text": "92169000"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.2.0.9",
+                    "@mask": "255.255.255.252"
+                }
+            },
+            "load-interval": {
+                "#text": "30"
+            }
+        },
+        {
+            "@name": "BVI100",
+            "description": {
+                "#text": "BRIDGE-VLAN-100"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "192.168.100.1",
+                    "@mask": "255.255.255.0"
+                }
+            }
+        },
+        {
+            "@name": "BVI200",
+            "description": {
+                "#text": "BRIDGE-VLAN-200"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "192.168.200.1",
+                    "@mask": "255.255.255.0"
+                }
+            }
+        },
+        {
+            "@name": "Bundle-Ether1",
+            "description": {
+                "#text": "LAG-TO-CORE-RTR-03"
+            },
+            "mtu": {
+                "#text": "9216"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.3.0.1",
+                    "@mask": "255.255.255.252"
+                }
+            },
+            "load-interval": {
+                "#text": "30"
+            }
+        },
+        {
+            "@name": "Bundle-Ether1.100",
+            "description": {
+                "#text": "SUB-IF-VLAN-100"
+            },
+            "encapsulation": {
+                "#text": "dot1q 100"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.3.100.1",
+                    "@mask": "255.255.255.252"
+                }
+            }
+        },
+        {
+            "@name": "Bundle-Ether1.200",
+            "description": {
+                "#text": "SUB-IF-VLAN-200"
+            },
+            "encapsulation": {
+                "#text": "dot1q 200"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.3.200.1",
+                    "@mask": "255.255.255.252"
+                }
+            }
+        },
+        {
+            "@name": "Bundle-Ether2",
+            "description": {
+                "#text": "LAG-TO-CORE-RTR-04"
+            },
+            "mtu": {
+                "#text": "9216"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.3.0.5",
+                    "@mask": "255.255.255.252"
+                }
+            },
+            "load-interval": {
+                "#text": "30"
+            }
+        },
+        {
+            "@name": "HundredGigE0/0/1/0",
+            "description": {
+                "#text": "BACKBONE-LINK-NORTH"
+            },
+            "mtu": {
+                "#text": "9216"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.4.0.1",
+                    "@mask": "255.255.255.252"
+                }
+            },
+            "ipv6": {
+                "address": {
+                    "@ip": "2001:db8:40::1",
+                    "@prefix-length": "64"
+                }
+            },
+            "load-interval": {
+                "#text": "30"
+            }
+        },
+        {
+            "@name": "HundredGigE0/0/1/1",
+            "description": {
+                "#text": "BACKBONE-LINK-SOUTH"
+            },
+            "mtu": {
+                "#text": "9216"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.4.0.5",
+                    "@mask": "255.255.255.252"
+                }
+            },
+            "load-interval": {
+                "#text": "30"
+            }
+        },
+        {
+            "@name": "Tunnel-te10",
+            "description": {
+                "#text": "TE-TUNNEL-TO-CORE-02"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.5.0.1",
+                    "@mask": "255.255.255.252"
+                }
+            }
+        },
+        {
+            "@name": "Tunnel-te20",
+            "description": {
+                "#text": "TE-TUNNEL-TO-CORE-03"
+            },
+            "ipv4": {
+                "address": {
+                    "@ip": "10.5.0.5",
+                    "@mask": "255.255.255.252"
+                }
+            }
+        },
+        {
+            "@name": "Null0",
+            "description": {
+                "#text": "BLACKHOLE"
+            }
+        },
+        {
+            "@name": "GigabitEthernet0/0/0/6",
+            "disable": {}
+        },
+        {
+            "@name": "GigabitEthernet0/0/0/7",
+            "disable": {}
+        }
+    ],
+    "router-bgp": {
+        "@as": "65000",
+        "router-id": {
+            "#text": "10.255.0.1"
+        },
+        "log-neighbor-changes": {},
+        "bestpath": {
+            "med-always": {}
+        },
+        "timers": {
+            "@keepalive": "30",
+            "@hold": "90"
+        },
+        "address-family": [
+            {
+                "@name": "ipv4 unicast",
+                "network": {
+                    "network": [
+                        {
+                            "@prefix": "10.255.0.0/16"
+                        },
+                        {
+                            "@prefix": "172.16.0.0/12"
+                        }
+                    ]
+                },
+                "redistribute": {
+                    "protocol": [
+                        {
+                            "@name": "connected"
+                        },
+                        {
+                            "@name": "static",
+                            "@route-policy": "RPL-STATIC-TO-BGP"
+                        }
+                    ]
+                },
+                "aggregate-address": [
+                    {
+                        "@prefix": "10.0.0.0/8",
+                        "@summary-only": "true"
+                    },
+                    {
+                        "@prefix": "172.16.0.0/12"
+                    }
+                ],
+                "maximum-paths": {
+                    "@type": "ebgp",
+                    "#text": "8"
+                }
+            },
+            {
+                "@name": "ipv6 unicast",
+                "network": {
+                    "network": {
+                        "@prefix": "2001:db8::/32"
+                    }
+                },
+                "redistribute": {
+                    "protocol": {
+                        "@name": "connected"
+                    }
+                },
+                "maximum-paths": {
+                    "@type": "ibgp",
+                    "#text": "4"
+                }
+            }
+        ],
+        "neighbor": [
+            {
+                "@address": "10.1.0.2",
+                "remote-as": {
+                    "#text": "65001"
+                },
+                "password": {
+                    "@type": "encrypted",
+                    "#text": "BGPKEY001"
+                },
+                "update-source": {
+                    "#text": "Loopback0"
+                },
+                "description": {
+                    "#text": "DIST-SW-01"
+                },
+                "ebgp-multihop": {
+                    "#text": "2"
+                },
+                "address-family": {
+                    "@name": "ipv4 unicast",
+                    "maximum-prefix": {
+                        "@limit": "1000",
+                        "@threshold": "75"
+                    },
+                    "route-policy": {
+                        "@name": "RPL-CUST-IN",
+                        "@direction": "in"
+                    },
+                    "soft-reconfiguration": {
+                        "#text": "inbound"
+                    },
+                    "next-hop-self": {},
+                    "as-override": {}
+                },
+                "timers": {
+                    "@keepalive": "10",
+                    "@hold": "30"
+                },
+                "bfd": {
+                    "minimum-interval": {
+                        "#text": "300"
+                    },
+                    "multiplier": {
+                        "#text": "3"
+                    }
+                }
+            },
+            {
+                "@address": "10.1.0.6",
+                "remote-as": {
+                    "#text": "65002"
+                },
+                "update-source": {
+                    "#text": "Loopback0"
+                },
+                "description": {
+                    "#text": "DIST-SW-02"
+                },
+                "address-family": {
+                    "@name": "ipv4 unicast",
+                    "maximum-prefix": {
+                        "@limit": "500",
+                        "@threshold": "80"
+                    },
+                    "route-policy": [
+                        {
+                            "@name": "RPL-PEER-IN",
+                            "@direction": "in"
+                        },
+                        {
+                            "@name": "RPL-PEER-OUT",
+                            "@direction": "out"
+                        }
+                    ],
+                    "soft-reconfiguration": {
+                        "#text": "inbound"
+                    }
+                },
+                "timers": {
+                    "@keepalive": "10",
+                    "@hold": "30"
+                }
+            },
+            {
+                "@address": "10.2.0.2",
+                "remote-as": {
+                    "#text": "65000"
+                },
+                "update-source": {
+                    "#text": "Loopback0"
+                },
+                "description": {
+                    "#text": "SPINE-01 (iBGP)"
+                },
+                "address-family": [
+                    {
+                        "@name": "ipv4 unicast",
+                        "next-hop-self": {}
+                    },
+                    {
+                        "@name": "ipv6 unicast",
+                        "next-hop-self": {}
+                    }
+                ]
+            },
+            {
+                "@address": "10.2.0.6",
+                "remote-as": {
+                    "#text": "65000"
+                },
+                "update-source": {
+                    "#text": "Loopback0"
+                },
+                "description": {
+                    "#text": "SPINE-02 (iBGP)"
+                },
+                "address-family": {
+                    "@name": "ipv4 unicast",
+                    "next-hop-self": {}
+                }
+            },
+            {
+                "@address": "2001:db8:1::2",
+                "remote-as": {
+                    "#text": "65001"
+                },
+                "description": {
+                    "#text": "DIST-SW-01-v6"
+                },
+                "address-family": {
+                    "@name": "ipv6 unicast",
+                    "route-policy": [
+                        {
+                            "@name": "RPL-V6-IN",
+                            "@direction": "in"
+                        },
+                        {
+                            "@name": "RPL-V6-OUT",
+                            "@direction": "out"
+                        }
+                    ]
+                }
+            },
+            {
+                "@address": "10.4.0.2",
+                "remote-as": {
+                    "#text": "65100"
+                },
+                "password": {
+                    "@type": "clear",
+                    "#text": "BACKBONE-KEY"
+                },
+                "update-source": {
+                    "#text": "Loopback0"
+                },
+                "description": {
+                    "#text": "BACKBONE-NORTH"
+                },
+                "ebgp-multihop": {
+                    "#text": "4"
+                },
+                "address-family": {
+                    "@name": "ipv4 unicast",
+                    "maximum-prefix": {
+                        "@limit": "50000",
+                        "@threshold": "90"
+                    },
+                    "route-policy": [
+                        {
+                            "@name": "RPL-BACKBONE-IN",
+                            "@direction": "in"
+                        },
+                        {
+                            "@name": "RPL-BACKBONE-OUT",
+                            "@direction": "out"
+                        }
+                    ],
+                    "soft-reconfiguration": {
+                        "#text": "inbound"
+                    },
+                    "next-hop-self": {}
+                },
+                "timers": {
+                    "@keepalive": "15",
+                    "@hold": "45"
+                },
+                "bfd": {
+                    "minimum-interval": {
+                        "#text": "100"
+                    },
+                    "multiplier": {
+                        "#text": "5"
+                    }
+                }
+            },
+            {
+                "@address": "10.4.0.6",
+                "remote-as": {
+                    "#text": "65200"
+                },
+                "update-source": {
+                    "#text": "Loopback0"
+                },
+                "description": {
+                    "#text": "BACKBONE-SOUTH"
+                },
+                "address-family": {
+                    "@name": "ipv4 unicast",
+                    "maximum-prefix": {
+                        "@limit": "50000",
+                        "@threshold": "90"
+                    },
+                    "route-policy": [
+                        {
+                            "@name": "RPL-BACKBONE-IN",
+                            "@direction": "in"
+                        },
+                        {
+                            "@name": "RPL-BACKBONE-OUT",
+                            "@direction": "out"
+                        }
+                    ],
+                    "soft-reconfiguration": {
+                        "#text": "inbound"
+                    }
+                },
+                "timers": {
+                    "@keepalive": "15",
+                    "@hold": "45"
+                }
+            }
+        ],
+        "vrf": [
+            {
+                "@name": "CUST-A",
+                "rd": {
+                    "#text": "65000:100"
+                },
+                "address-family": {
+                    "@name": "ipv4 unicast",
+                    "redistribute": {
+                        "protocol": [
+                            {
+                                "@name": "connected"
+                            },
+                            {
+                                "@name": "static",
+                                "@route-policy": "RPL-VRF-STATIC"
+                            }
+                        ]
+                    },
+                    "aggregate-address": {
+                        "@prefix": "172.16.0.0/16",
+                        "@summary-only": "true"
+                    }
+                }
+            },
+            {
+                "@name": "CUST-B",
+                "rd": {
+                    "#text": "65000:200"
+                },
+                "address-family": {
+                    "@name": "ipv4 unicast",
+                    "redistribute": {
+                        "protocol": {
+                            "@name": "connected"
+                        }
+                    }
+                }
+            },
+            {
+                "@name": "MGMT",
+                "rd": {
+                    "#text": "65000:999"
+                },
+                "address-family": {
+                    "@name": "ipv4 unicast",
+                    "network": {
+                        "network": {
+                            "@prefix": "10.10.0.0/24"
+                        }
+                    }
+                }
+            }
+        ]
+    },
+    "router-ospf": [
+        {
+            "@id": "1",
+            "router-id": {
+                "#text": "10.255.0.1"
+            },
+            "log-adjacency-changes": {
+                "#text": "detail"
+            },
+            "auto-cost": {
+                "reference-bandwidth": {
+                    "#text": "100000"
+                }
+            },
+            "default-information": {
+                "originate": {}
+            },
+            "redistribute": [
+                {
+                    "@protocol": "bgp"
+                },
+                {
+                    "@protocol": "static",
+                    "@route-policy": "RPL-STATIC-OSPF"
+                }
+            ],
+            "area": [
+                {
+                    "@id": "0",
+                    "interface": [
+                        {
+                            "@name": "Loopback0",
+                            "cost": {
+                                "#text": "1"
+                            },
+                            "network": {
+                                "#text": "point-to-point"
+                            },
+                            "passive": {}
+                        },
+                        {
+                            "@name": "GigabitEthernet0/0/0/0",
+                            "cost": {
+                                "#text": "10"
+                            },
+                            "network": {
+                                "#text": "point-to-point"
+                            },
+                            "authentication": {
+                                "#text": "message-digest"
+                            },
+                            "authentication-key": {
+                                "@id": "1",
+                                "#text": "OSPFKEY01"
+                            },
+                            "dead-interval": {
+                                "#text": "40"
+                            },
+                            "hello-interval": {
+                                "#text": "10"
+                            }
+                        },
+                        {
+                            "@name": "GigabitEthernet0/0/0/1",
+                            "cost": {
+                                "#text": "10"
+                            },
+                            "network": {
+                                "#text": "point-to-point"
+                            },
+                            "dead-interval": {
+                                "#text": "40"
+                            },
+                            "hello-interval": {
+                                "#text": "10"
+                            }
+                        },
+                        {
+                            "@name": "GigabitEthernet0/0/0/2",
+                            "cost": {
+                                "#text": "5"
+                            },
+                            "network": {
+                                "#text": "point-to-point"
+                            }
+                        },
+                        {
+                            "@name": "TenGigE0/0/0/0",
+                            "cost": {
+                                "#text": "1"
+                            },
+                            "network": {
+                                "#text": "point-to-point"
+                            },
+                            "dead-interval": {
+                                "#text": "12"
+                            },
+                            "hello-interval": {
+                                "#text": "3"
+                            }
+                        },
+                        {
+                            "@name": "TenGigE0/0/0/1",
+                            "cost": {
+                                "#text": "1"
+                            },
+                            "network": {
+                                "#text": "point-to-point"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "@id": "1",
+                    "stub": {},
+                    "default-cost": {
+                        "#text": "10"
+                    },
+                    "interface": {
+                        "@name": "GigabitEthernet0/0/0/3",
+                        "cost": {
+                            "#text": "20"
+                        },
+                        "network": {
+                            "#text": "broadcast"
+                        }
+                    }
+                },
+                {
+                    "@id": "2",
+                    "nssa": {},
+                    "interface": {
+                        "@name": "Bundle-Ether1",
+                        "cost": {
+                            "#text": "5"
+                        },
+                        "network": {
+                            "#text": "point-to-point"
+                        },
+                        "dead-interval": {
+                            "#text": "40"
+                        },
+                        "hello-interval": {
+                            "#text": "10"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "@id": "2",
+            "router-id": {
+                "#text": "10.255.1.1"
+            },
+            "area": {
+                "@id": "0",
+                "interface": [
+                    {
+                        "@name": "Loopback1",
+                        "passive": {}
+                    },
+                    {
+                        "@name": "HundredGigE0/0/1/0",
+                        "cost": {
+                            "#text": "1"
+                        },
+                        "network": {
+                            "#text": "point-to-point"
+                        }
+                    },
+                    {
+                        "@name": "HundredGigE0/0/1/1",
+                        "cost": {
+                            "#text": "1"
+                        },
+                        "network": {
+                            "#text": "point-to-point"
+                        }
+                    }
+                ]
+            }
+        }
+    ],
+    "mpls": {
+        "traffic-eng": {},
+        "tunnel-te": [
+            {
+                "@id": "10",
+                "destination": {
+                    "#text": "10.255.0.2"
+                },
+                "bandwidth": {
+                    "#text": "1000000"
+                },
+                "priority": {
+                    "@setup": "1",
+                    "@hold": "1"
+                },
+                "path-option": {
+                    "@preference": "10",
+                    "#text": "dynamic"
+                },
+                "signalled-bandwidth": {
+                    "#text": "500000"
+                },
+                "autoroute-announce": {}
+            },
+            {
+                "@id": "20",
+                "destination": {
+                    "#text": "10.255.0.3"
+                },
+                "bandwidth": {
+                    "#text": "500000"
+                },
+                "priority": {
+                    "@setup": "2",
+                    "@hold": "2"
+                },
+                "path-option": {
+                    "@preference": "10",
+                    "#text": "explicit-path-A"
+                }
+            }
+        ],
+        "path-option": {
+            "@name": "EXPLICIT-A",
+            "hop": [
+                {
+                    "@index": "10",
+                    "next-address": {
+                        "@type": "strict",
+                        "@address": "10.1.0.2"
+                    }
+                },
+                {
+                    "@index": "20",
+                    "next-address": {
+                        "@type": "loose",
+                        "@address": "10.2.0.2"
+                    }
+                },
+                {
+                    "@index": "30",
+                    "next-address": {
+                        "@type": "strict",
+                        "@address": "10.255.0.2"
+                    }
+                }
+            ]
+        },
+        "static": {
+            "local-label": [
+                {
+                    "@value": "16001",
+                    "forward": [
+                        {
+                            "@path": "1",
+                            "@next-hop": "10.1.0.2",
+                            "@out-label": "24001"
+                        },
+                        {
+                            "@path": "2",
+                            "@next-hop": "10.2.0.2",
+                            "@out-label": "24002"
+                        }
+                    ]
+                },
+                {
+                    "@value": "16002",
+                    "forward": {
+                        "@path": "1",
+                        "@next-hop": "10.1.0.6",
+                        "@out-label": "24010"
+                    }
+                },
+                {
+                    "@value": "16003",
+                    "forward": {
+                        "@path": "1",
+                        "@next-hop": "GigabitEthernet0%2F0%2F0%2F3",
+                        "@out-label": "pop",
+                        "@backup": "backup"
+                    }
+                }
+            ]
+        },
+        "ldp": {
+            "router-id": {
+                "#text": "10.255.0.1"
+            },
+            "address-family": {
+                "@name": "ipv4",
+                "discovery": {
+                    "transport-address": {
+                        "#text": "10.255.0.1"
+                    }
+                },
+                "label": {
+                    "local": {
+                        "allocate": {
+                            "for": {
+                                "#text": "LDP-ACL"
+                            }
+                        }
+                    }
+                }
+            },
+            "interface": [
+                {
+                    "@name": "GigabitEthernet0/0/0/0"
+                },
+                {
+                    "@name": "GigabitEthernet0/0/0/1"
+                },
+                {
+                    "@name": "TenGigE0/0/0/0"
+                }
+            ]
+        }
+    },
+    "imatch-test": {
+        "status": [
+            {
+                "#text": "enabled"
+            },
+            {
+                "#text": "disabled"
+            }
+        ],
+        "priority": {
+            "#text": "HIGH"
+        }
+    },
+    "escape-test": {
+        "literal-dollar": {
+            "#text": "$2 is HELLO"
+        },
+        "quoted-value": {
+            "#text": "world"
+        },
+        "with-apos": {
+            "#text": "it\\'s test123"
+        }
+    },
+    "warn-test": {
+        "warning": {
+            "#text": "something looks oddcheck this too"
+        }
+    },
+    "trigger-test": {
+        "arm-before": {
+            "@pattern": "MARKER1"
+        },
+        "arm-after": {
+            "@pattern": "MARKER2"
+        },
+        "event": {
+            "#text": "alphabetagamma"
+        }
+    },
+    "route-policy": {
+        "@name": "RPL-STATIC-TO-BGP",
+        "line": {
+            "#text": "if destination in PREFIX-LIST-STATICS thenset local-preference 200passendifroute-policy RPL-CUST-INif community matches-any COMM-CUST-A thenset local-preference 150passelsedropendifroute-policy RPL-PEER-INif destination in PREFIX-LIST-PEERS thenset med 100passendifroute-policy RPL-PEER-OUTif community matches-any COMM-LOCAL thenpassendifroute-policy RPL-V6-INpassroute-policy RPL-V6-OUTif community matches-any COMM-V6-LOCAL thenpassendifroute-policy RPL-BACKBONE-INif destination in BACKBONE-PREFIXES thenset local-preference 300passelseset local-preference 100passendifroute-policy RPL-BACKBONE-OUTif community matches-any COMM-TRANSIT thenset med 50passendifroute-policy RPL-VRF-STATICpassroute-policy RPL-STATIC-OSPFset tag 100passvrf CUST-Ard 65000:100description Customer A production VRFaddress-family ipv4 unicastimport route-target65000:10065000:101export route-target65000:100vrf CUST-Brd 65000:200description Customer B production VRFaddress-family ipv4 unicastimport route-target65000:200export route-target65000:20065000:201vrf MGMTrd 65000:999description Management VRFaddress-family ipv4 unicastimport route-target65000:999export route-target65000:999l2vpnpw-class MPLS-PWencapsulation mplsbridge group BG-CUST-Abridge-domain BD-100macagingtime 300type inactivityvfi VFI-100vpn-id 100autodiscovery bgprd 65000:100signaling-protocol bgppw-idneighbor 10.255.0.2 pw-id 100pw-class MPLS-PWinterface GigabitEthernet0/0/0/3.100split-horizon groupstorm-control broadcast pps 1000routed interface BVI100bridge-domain BD-200macagingtime 600vfi VFI-200vpn-id 200autodiscovery bgprd 65000:200signaling-protocol ldpinterface GigabitEthernet0/0/0/3.200storm-control broadcast pps 500routed interface BVI200bridge group BG-CUST-Bbridge-domain BD-300macagingtime 300type inactivityvfi VFI-300vpn-id 300autodiscovery bgprd 65000:300signaling-protocol bgppw-idneighbor 10.255.0.3 pw-id 300policy-map QOS-INGRESSdescription Ingress QoS policy for customer trafficclass VOICEpriority level 1police rate 10000000class VIDEObandwidth percent 30policepolice rate 50000000queue-limit 512 packetsclass BUSINESSbandwidth 100000set dscp af31class class-defaultbandwidth percent 20queue-limit 256 packetspolicy-map QOS-EGRESSdescription Egress QoS shaping policyclass VOICE-OUTpriority level 1shape average 10000000class VIDEO-OUTbandwidth percent 30class class-defaultbandwidth percent 25policy-map SP-IN-POLICYclass CRITICALpriority level 1class BULKbandwidth percent 10policepolice rate 20000 kbpskey chain KC-OSPFkey 1accept-lifetime 00:00:00 january 01 2024 infinitesend-lifetime 00:00:00 january 01 2024 infinitekey-string OSPFKEY01cryptographic-algorithm hmac-sha-256key 2accept-lifetime 00:00:00 july 01 2024 infinitesend-lifetime 00:00:00 july 01 2024 infinitekey-string OSPFKEY02cryptographic-algorithm hmac-sha-512key chain KC-BGPkey 1accept-lifetime 00:00:00 january 01 2024 infinitesend-lifetime 00:00:00 january 01 2024 infinitekey-string BGPKEY001cryptographic-algorithm hmac-sha-256segment-routingglobal-block 16000 23999local-block 15000 15999traffic-engsegment-list SL-TO-CORE-02index 10 mpls label 16001index 20 mpls label 16002index 30 mpls label 16003segment-list SL-TO-CORE-03index 10 mpls label 16010index 20 mpls adjacency 10.2.0.2policy SR-POL-CORE-02color 100 end-point ipv4 10.255.0.2candidate-pathspreference 200constraintsaffinity include-anyname GOLDsegment-list SL-TO-CORE-02preference 100segment-list SL-TO-CORE-03policy SR-POL-CORE-03color 200 end-point ipv4 10.255.0.3candidate-pathspreference 100segment-list SL-TO-CORE-03mapping-serverprefix-sid-mapaddress-family ipv410.255.0.1/32 index 1 range 110.255.0.2/32 index 2 range 110.255.0.3/32 index 3 range 1tpastatistics update-frequency 60vrf defaultaddress-family ipv4default-route mgmtupdate-source Loopback0protection1 2 3 4 5 6 7 8 9 10vrf CUST-Aaddress-family ipv4default-route dataplaneupdate-source Loopback1usecasemode advancedvalue productionbanner motd ^************************************************************* WARNING: Authorized access only.                         ** All activity is monitored and logged.                    ** Unauthorized access will be prosecuted.                  *************************************************************^banner login CAccess restricted to authorized personnel.Cpool vrf CUST-A dhcp POOL-CUST-Anetwork 172.16.0.0/24default-router 172.16.0.1lease 86400dns-server 10.200.0.53pool vrf CUST-B dhcp POOL-CUST-Bnetwork 172.17.0.0/24default-router 172.17.0.1dns-server 10.200.0.53dns-server 10.200.0.54pool GLOBAL-POOLnetwork 10.99.0.0/16default-router 10.99.0.1lease 43200telnet vrf MGMT ipv4 server max-servers 5domain example.netdomain lookup disabledomain name-server 10.200.0.53 10.200.0.54ssh server v2ssh server rate-limit 60tcp path-mtu-discoverytcp selective-ackservice timestamps debug datetime msecservice timestamps log datetime msec localtimeservice password-encryptionclock timezone MET 1alias exec sir show ip routealias exec sib show ip bgpalias exec sint show interfacesipv4 access-list ACL-MGMT-INpermit tcp 10.10.0.0 0.0.0.255 eq 22permit tcp 10.10.0.0 0.0.0.255 eq 443permit icmp 10.10.0.0 0.0.0.255deny anyipv4 access-list ACL-CUST-A-INpermit ip 172.16.0.0 0.0.255.255permit tcp 172.16.0.0 0.0.255.255 10.0.0.0 0.255.255.255 eq 80permit tcp 172.16.0.0 0.0.255.255 10.0.0.0 0.255.255.255 eq 443deny anyipv6 access-list ACL-V6-INpermit ip 2001:db8:: ::ffffdeny anyipv4 access-list ACL-INFRApermit icmp 10.0.0.0 0.255.255.255permit tcp 10.0.0.0 0.255.255.255 10.0.0.0 0.255.255.255 eq 179permit udp 10.0.0.0 0.255.255.255 10.0.0.0 0.255.255.255 eq 646deny anyend"
+        }
+    }
+}

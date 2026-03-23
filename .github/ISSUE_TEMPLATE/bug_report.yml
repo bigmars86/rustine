@@ -1,0 +1,64 @@
+name: Bug Report
+description: Report a bug in Rustine
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug!
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of the bug.
+      placeholder: What happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Minimal steps or code to reproduce the issue.
+      placeholder: |
+        1. Grammar file: ...
+        2. Input text: ...
+        3. Command or Python code: ...
+        4. Expected output: ...
+        5. Actual output: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Your setup details.
+      value: |
+        - Rustine version:
+        - Python version (if applicable):
+        - Rust toolchain (`rustc --version`):
+        - OS:
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Output / Logs
+      description: Paste any error messages or stack traces.
+      render: shell
+
+  - type: dropdown
+    id: interface
+    attributes:
+      label: Interface
+      description: How are you using Rustine?
+      options:
+        - Python bindings (PyO3)
+        - Rust library
+        - CLI (rgel)
+    validations:
+      required: true
