@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "rustine"
-version = "0.1.0"
+version = "0.1.1"
 description = "High-performance Gel syntax parser transforming to JSON/XML (Rust + PyO3)"
 readme = "README.md"
 authors = [ { name = "Rustine Contributors" } ]
