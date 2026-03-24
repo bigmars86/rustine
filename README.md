@@ -1,10 +1,9 @@
 # Rustine
 
-[![CI](https://github.com/bigmars86/rustine/actions/workflows/ci.yml/badge.svg)](https://github.com/bigmars86/rustine/actions/workflows/ci.yml)
-[![crates.io](https://img.shields.io/crates/v/rustine.svg)](https://crates.io/crates/rustine)
+[![CI](https://github.com/bigmars86/rustine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/bigmars86/rustine/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/rustine.svg)](https://pypi.org/project/rustine/)
-[![docs.rs](https://docs.rs/rustine/badge.svg)](https://docs.rs/rustine)
-[![License](https://img.shields.io/crates/l/rustine.svg)](LICENSE-MIT)
+[![Docs](https://readthedocs.org/projects/rustine/badge/?version=latest)](https://rustine.readthedocs.io/en/latest/)
+[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE-MIT)
 
 **High-performance Gel syntax parser** that transforms unstructured text into
 JSON, XML, or YAML. A complete Rust rewrite of
@@ -22,7 +21,7 @@ modern Python versions.
 Rustine solves this by reimplementing the entire Gelatin engine in Rust:
 
 - **Drop-in replacement** — same Gel grammar language, same output format
-- **17–46× faster** than Python Gelatin (depending on workload and platform)
+- **10–19× faster** than Python Gelatin (depending on workload and platform)
 - **3–4× less memory** on large inputs
 - **Works on Python 3.9–3.13+** via PyO3 — no C extension dependency
 - **100% feature parity** with the original Python implementation
