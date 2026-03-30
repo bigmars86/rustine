@@ -168,7 +168,7 @@ jobs:
       url: https://pypi.org/p/rustine
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           pattern: wheels-*
           merge-multiple: true
@@ -202,7 +202,7 @@ jobs:
           fetch-depth: 0       # full history needed for git-cliff
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           pattern: wheels-*
           merge-multiple: true
