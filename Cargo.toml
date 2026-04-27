@@ -65,7 +65,7 @@ memmap2 = { version = "0.9.10", optional = true }
 regex = "1.12.3"
 smallvec = { version = "1", features = ["union"] }
 memchr = "2.8.0"
-clap = { version = "4.5.60", features = ["derive"], optional = true }
+clap = { version = "4.6.1", features = ["derive"], optional = true }
 bumpalo = { version = "3.20.2", features = ["collections"] }
 mimalloc-dep = { package = "mimalloc", version = "0.1", optional = true }
 
