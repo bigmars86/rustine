@@ -56,7 +56,7 @@ mimalloc = ["mimalloc-dep"]
 [dependencies]
 nom = "8"
 pyo3 = { version = "0.28.2", features = ["extension-module", "abi3-py39"], optional = true }
-rayon = { version = "1.10", optional = true }
+rayon = { version = "1.12", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 quick-xml = { version = "0.39.2", features = ["serialize"] }
