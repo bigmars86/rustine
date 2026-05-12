@@ -16,7 +16,7 @@ fn collect_tokens(path: &PathBuf, chunk: usize) -> Vec<rustine::stream::Borrowed
     let mut lex = StreamingLexer::new(reader);
     let mut out = Vec::new();
     while let Some(batch) = lex.next_batch().unwrap() {
-        out.extend(batch.tokens.into_iter());
+        out.extend(batch.tokens);
         if batch.finished {
             break;
         }
