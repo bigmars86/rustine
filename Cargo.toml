@@ -59,7 +59,7 @@ pyo3 = { version = "0.28.3", features = ["extension-module", "abi3-py39"], optio
 rayon = { version = "1.12", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
-quick-xml = { version = "0.39.4", features = ["serialize"] }
+quick-xml = { version = "0.40.1", features = ["serialize"] }
 thiserror = "2.0.18"
 memmap2 = { version = "0.9.10", optional = true }
 regex = "1.12.3"
