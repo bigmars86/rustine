@@ -64,7 +64,7 @@ thiserror = "2.0.18"
 memmap2 = { version = "0.9.10", optional = true }
 regex = "1.12.3"
 smallvec = { version = "1", features = ["union"] }
-memchr = "2.8.0"
+memchr = "2.8.1"
 clap = { version = "4.6.1", features = ["derive"], optional = true }
 bumpalo = { version = "3.20.2", features = ["collections"] }
 mimalloc-dep = { package = "mimalloc", version = "0.1", optional = true }
