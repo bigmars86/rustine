@@ -97,10 +97,26 @@ jobs:
           python -c "from Rustine import rustine; print('Rustine imported successfully')"
           python -c "from Gelatin import util; print('Gelatin compat shim imported successfully')"
 
-  # ── Build wheels for each platform ─────────────────────────────────
+  # ── Gate: the tag must match the package version ──────────────────
+  version-guard:
+    name: Verify tag matches version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Tag must equal Cargo.toml [package] version
+        run: |
+          pkg_version=$(grep -m1 '^version' Cargo.toml | sed -E 's/^version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/')
+          echo "Cargo.toml version : $pkg_version"
+          echo "Release tag        : ${RELEASE_TAG}"
+          if [ "v${pkg_version}" != "${RELEASE_TAG}" ]; then
+            echo "::error::Tag ${RELEASE_TAG} does not match Cargo.toml version v${pkg_version}. Bump Cargo.toml or retag."
+            exit 1
+          fi
+
+  # ── Build wheels for each platform ─────────────────────────
   build:
     name: Build (${{ matrix.target }})
-    needs: [fmt, clippy, test, deny, audit, python]
+    needs: [fmt, clippy, test, deny, audit, python, version-guard]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -175,7 +191,7 @@ jobs:
   # ── Build sdist ────────────────────────────────────────────────────
   sdist:
     name: Source distribution
-    needs: [fmt, clippy, test, deny, audit, python]
+    needs: [fmt, clippy, test, deny, audit, python, version-guard]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
