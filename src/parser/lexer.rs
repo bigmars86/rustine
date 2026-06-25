@@ -305,7 +305,15 @@ fn regex_literal(input: &str) -> LexResult<'_> {
 }
 
 fn number(input: &str) -> LexResult<'_> {
-    digit1.map(|s| tmp(TokenKind::Number, s)).parse(input)
+    let (rest, matched) = digit1(input)?;
+    // Grammar where `word := [a-zA-Z0-9_]+` and `number := [0-9]+`.
+    if rest.chars().next().is_some_and(|c| c.is_alphabetic() || c == '_') {
+        return Err(nom::Err::Error(nom::error::Error::new(
+            input,
+            nom::error::ErrorKind::Tag,
+        )));
+    }
+    Ok((rest, tmp(TokenKind::Number, matched)))
 }
 
 fn capture_ref(input: &str) -> LexResult<'_> {

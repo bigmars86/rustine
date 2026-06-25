@@ -33,6 +33,21 @@ action block executes, then the grammar restarts from the top.
 If the end of a grammar is reached before the input is consumed, an error is
 raised.
 
+### Names
+
+Grammar names (and other identifiers, such as `define` names and grammar-call
+targets) are `word` tokens drawn from the character set `[A-Za-z0-9_]+`. A name
+**may start with a digit**, so `7600_modules` is a valid grammar name:
+
+```gelatin
+grammar 7600_modules(default):
+    match /x/:
+        out.add('x')
+```
+
+A token consisting **only** of digits (e.g. `42`) is instead a numeric literal,
+not an identifier.
+
 ### Grammar Inheritance
 
 ```gelatin
