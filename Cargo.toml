@@ -55,22 +55,22 @@ mimalloc = ["mimalloc-dep"]
 
 [dependencies]
 nom = "8"
-pyo3 = { version = "0.28.3", features = ["extension-module", "abi3-py39"], optional = true }
+pyo3 = { version = "0.29.0", features = ["extension-module", "abi3-py39"], optional = true }
 rayon = { version = "1.12", optional = true }
 serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1.0.149", features = ["preserve_order"] }
-quick-xml = { version = "0.39.4", features = ["serialize"] }
+serde_json = { version = "1.0.150", features = ["preserve_order"] }
+quick-xml = { version = "0.40.1", features = ["serialize"] }
 thiserror = "2.0.18"
 memmap2 = { version = "0.9.10", optional = true }
-regex = "1.12.3"
+regex = "1.12.4"
 smallvec = { version = "1", features = ["union"] }
-memchr = "2.8.0"
+memchr = "2.8.2"
 clap = { version = "4.6.1", features = ["derive"], optional = true }
-bumpalo = { version = "3.20.2", features = ["collections"] }
+bumpalo = { version = "3.20.3", features = ["collections"] }
 mimalloc-dep = { package = "mimalloc", version = "0.1", optional = true }
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
-tikv-jemallocator = { version = "0.6", optional = true }
+tikv-jemallocator = { version = "0.7", optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1"
