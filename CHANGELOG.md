@@ -19,12 +19,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Update CHANGELOG.md for v0.1.1([d147532](https://github.com/bigmars86/rustine/commit/d1475322cb69749db03dca39468d950c220ef3ea))
+- Update CHANGELOG.md for v0.2.0([6fbb3c7](https://github.com/bigmars86/rustine/commit/6fbb3c7a5433d4071e313bbc0b538c2589a4f748))
+
+### CI/CD
+
+- **release:** Guard tag against version and derive wheel version from Cargo.toml([4723828](https://github.com/bigmars86/rustine/commit/4723828d969345cee5f1f06498be51cc440d6198))
+- **deps:** Bump actions/checkout from 6 to 7([2ffe122](https://github.com/bigmars86/rustine/commit/2ffe122490603e2f7b6524a5669a4270a86ff252))
 
 ### Miscellaneous
 
 - Update CI and release workflows to use latest action versions; bump dependencies in Cargo.toml and requirements.txt([0750f3e](https://github.com/bigmars86/rustine/commit/0750f3ed624899466c58fef93b43abdc7a849929))
 - Update dependencies in Cargo.toml, Cargo.lock, and requirements.txt([6b758f9](https://github.com/bigmars86/rustine/commit/6b758f99746ce9aaaadc698ebaacc1530c2f00dc))
 - Update memmap2 to version 0.9.11 in Cargo.toml and Cargo.lock([cc0d0a9](https://github.com/bigmars86/rustine/commit/cc0d0a97f7c1e66623075390c6a38b460a430017))
+- **release:** V0.2.0([9263bdc](https://github.com/bigmars86/rustine/commit/9263bdc8fb1b8cfed8daec28b4fe663c498f08c5))
 ## [0.1.1] - 2026-03-24
 
 ### Added
