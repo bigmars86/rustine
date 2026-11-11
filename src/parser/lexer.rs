@@ -47,22 +47,27 @@ pub struct Token<'a> {
 }
 pub type LexResult<'a> = IResult<&'a str, Token<'a>>;
 
-/// Compute (1-based line, 1-based column) from the full source and a byte offset.
-fn line_col(source: &str, offset: usize) -> (usize, usize) {
-    let mut line = 1usize;
-    let mut col = 1usize;
-    for (i, ch) in source.char_indices() {
-        if i >= offset {
-            break;
+/// 1-based line and column of byte offsets, which `lex` visits in increasing order.
+struct LineCol<'a> {
+    source: &'a str,
+    offset: usize,
+    line: usize,
+    col: usize,
+}
+
+impl LineCol<'_> {
+    fn at(&mut self, offset: usize) -> (usize, usize) {
+        for ch in self.source[self.offset..offset].chars() {
+            if ch == '\n' {
+                self.line += 1;
+                self.col = 1;
+            } else {
+                self.col += 1;
+            }
         }
-        if ch == '\n' {
-            line += 1;
-            col = 1;
-        } else {
-            col += 1;
-        }
+        self.offset = offset;
+        (self.line, self.col)
     }
-    (line, col)
 }
 
 /// Tokenize a complete Gel source string into a `Vec<Token>`.
@@ -73,6 +78,12 @@ pub fn lex(input: &str) -> Result<Vec<Token<'_>>, GelError> {
     let mut tokens = Vec::new();
     let mut remaining = input;
     let mut position = 0;
+    let mut lc = LineCol {
+        source: input,
+        offset: 0,
+        line: 1,
+        col: 1,
+    };
     let mut at_line_start = true; // Track start-of-line for indent detection
     while !remaining.is_empty() {
         // At start of line, try to consume indentation before other tokens
@@ -80,7 +91,7 @@ pub fn lex(input: &str) -> Result<Vec<Token<'_>>, GelError> {
             at_line_start = false;
             if let Ok((rest, tok)) = indent(remaining) {
                 let consumed = remaining.len() - rest.len();
-                let (line, col) = line_col(input, position);
+                let (line, col) = lc.at(position);
                 let span = Span::new(position, line, col, consumed);
                 tokens.push(Token {
                     kind: tok.kind,
@@ -100,7 +111,7 @@ pub fn lex(input: &str) -> Result<Vec<Token<'_>>, GelError> {
                     if tok.kind == TokenKind::Newline && !tok.slice.contains('\n') {
                         // skip intra-line whitespace
                     } else {
-                        let (line, col) = line_col(input, position);
+                        let (line, col) = lc.at(position);
                         let span = Span::new(position, line, col, consumed);
                         tokens.push(Token {
                             kind: tok.kind,
@@ -118,7 +129,7 @@ pub fn lex(input: &str) -> Result<Vec<Token<'_>>, GelError> {
                 position += consumed;
             }
             Err(_) => {
-                let (line, col) = line_col(input, position);
+                let (line, col) = lc.at(position);
                 return Err(GelError::lex(
                     format!("Unexpected character '{}'", &remaining[..remaining.len().min(1)]),
                     Span::new(position, line, col, 1),
@@ -126,7 +137,7 @@ pub fn lex(input: &str) -> Result<Vec<Token<'_>>, GelError> {
             }
         }
     }
-    let (eof_line, eof_col) = line_col(input, position);
+    let (eof_line, eof_col) = lc.at(position);
     tokens.push(Token {
         kind: TokenKind::EOF,
         slice: "",
