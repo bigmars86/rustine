@@ -1176,7 +1176,7 @@ impl<'a> Runner<'a> {
                         path: &path,
                         value: value_ref,
                     });
-                    if self.has_on_add_triggers() {
+                    if self.has_on_add_triggers() && names_node(&path) {
                         tree.exec(RuntimeAction::OutEnter { path: &path });
                         self.fire_triggers("on_add", tree);
                         tree.exec(RuntimeAction::OutLeave);
@@ -1191,7 +1191,7 @@ impl<'a> Runner<'a> {
                         path: &path,
                         value: value_ref,
                     });
-                    if self.has_on_add_triggers() {
+                    if self.has_on_add_triggers() && names_node(&path) {
                         tree.exec(RuntimeAction::OutEnter { path: &path });
                         self.fire_triggers("on_add", tree);
                         tree.exec(RuntimeAction::OutLeave);
@@ -1206,7 +1206,7 @@ impl<'a> Runner<'a> {
                         path: &path,
                         value: value_ref,
                     });
-                    if self.has_on_add_triggers() {
+                    if self.has_on_add_triggers() && names_node(&path) {
                         tree.exec(RuntimeAction::OutEnter { path: &path });
                         self.fire_triggers("on_add", tree);
                         tree.exec(RuntimeAction::OutLeave);
@@ -1562,6 +1562,11 @@ impl<'a> Runner<'a> {
             fire_persist(caps, names, &persist, text, tree);
         }
     }
+}
+
+/// Whether an `out.*` path names a node; `""` (e.g. an empty capture) or only slashes name none.
+fn names_node(path: &str) -> bool {
+    path.split('/').any(|part| !part.is_empty())
 }
 
 // Helper for trigger interpolation ($N and $name)

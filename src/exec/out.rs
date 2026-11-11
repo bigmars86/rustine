@@ -1069,7 +1069,7 @@ impl ActionExecutor for OutputTree {
                 if path == "." {
                     let cur = self.cursor();
                     self.arena[cur as usize].text = decoded.map(Box::new);
-                } else if !path.contains('/') && !path.starts_with('.') {
+                } else if !path.is_empty() && !path.contains('/') && !path.starts_with('.') {
                     let segs = self.cached_parse_path(path);
                     let name = intern(&mut self.name_intern, &segs[0].tag);
                     let node = Node::new(name);
@@ -1095,7 +1095,7 @@ impl ActionExecutor for OutputTree {
                             target.text = Some(Box::new(val));
                         }
                     }
-                } else if !path.contains('/') && !path.starts_with('.') {
+                } else if !path.is_empty() && !path.contains('/') && !path.starts_with('.') {
                     // relative add — use indexed or linear lookup
                     let segs = self.cached_parse_path(path);
                     let cur = self.cursor();
