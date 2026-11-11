@@ -1168,7 +1168,6 @@ impl<'a> Runner<'a> {
                 continue;
             }
             if &*act.name == "out.create" {
-                // on_add triggers run with the new node as the current node
                 if let Some(path_expr) = act.args.first() {
                     let path = self.expr_to_cow(path_expr);
                     let value = act.args.get(1).map(|v| self.expr_to_string(v));
@@ -1177,9 +1176,11 @@ impl<'a> Runner<'a> {
                         path: &path,
                         value: value_ref,
                     });
-                    tree.exec(RuntimeAction::OutEnter { path: &path });
-                    self.fire_triggers("on_add", tree);
-                    tree.exec(RuntimeAction::OutLeave);
+                    if self.has_on_add_triggers() {
+                        tree.exec(RuntimeAction::OutEnter { path: &path });
+                        self.fire_triggers("on_add", tree);
+                        tree.exec(RuntimeAction::OutLeave);
+                    }
                 }
             } else if &*act.name == "out.add" {
                 if let Some(path_expr) = act.args.first() {
@@ -1190,9 +1191,11 @@ impl<'a> Runner<'a> {
                         path: &path,
                         value: value_ref,
                     });
-                    tree.exec(RuntimeAction::OutEnter { path: &path });
-                    self.fire_triggers("on_add", tree);
-                    tree.exec(RuntimeAction::OutLeave);
+                    if self.has_on_add_triggers() {
+                        tree.exec(RuntimeAction::OutEnter { path: &path });
+                        self.fire_triggers("on_add", tree);
+                        tree.exec(RuntimeAction::OutLeave);
+                    }
                 }
             } else if &*act.name == "out.replace" {
                 if let Some(path_expr) = act.args.first() {
@@ -1203,9 +1206,11 @@ impl<'a> Runner<'a> {
                         path: &path,
                         value: value_ref,
                     });
-                    tree.exec(RuntimeAction::OutEnter { path: &path });
-                    self.fire_triggers("on_add", tree);
-                    tree.exec(RuntimeAction::OutLeave);
+                    if self.has_on_add_triggers() {
+                        tree.exec(RuntimeAction::OutEnter { path: &path });
+                        self.fire_triggers("on_add", tree);
+                        tree.exec(RuntimeAction::OutLeave);
+                    }
                 }
             } else if &*act.name == "out.add_attribute" {
                 if let (Some(path_expr), Some(name_expr), Some(val_expr)) =
@@ -1474,6 +1479,12 @@ impl<'a> Runner<'a> {
         // Consume one level for this grammar
         let remaining = (return_levels - 1).max(0);
         (self.ctx.pos - start, remaining)
+    }
+
+    /// Without `on_add` triggers, entering the node that create/add/replace just
+    /// made and leaving it again changes nothing.
+    fn has_on_add_triggers(&self) -> bool {
+        !self.trig_on_add.is_empty() || !self.trig_on_add_persist.is_empty()
     }
 
     fn fire_triggers(&mut self, kind: &str, tree: &mut OutputTree) {

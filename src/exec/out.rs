@@ -472,7 +472,7 @@ pub struct OutputTree {
     stack: Vec<NodeId>,
     name_intern: HashSet<Rc<str>>,
     /// Cache for parsed path segments.
-    path_cache: HashMap<Box<str>, Vec<PathSegment>>,
+    path_cache: HashMap<Box<str>, Rc<[PathSegment]>>,
     /// Keep the case of tag names and attribute keys in paths.
     preserve_case: bool,
 }
@@ -772,12 +772,12 @@ impl OutputTree {
 
     // === Path cache ===
 
-    fn cached_parse_path(&mut self, path: &str) -> Vec<PathSegment> {
+    fn cached_parse_path(&mut self, path: &str) -> Rc<[PathSegment]> {
         if let Some(cached) = self.path_cache.get(path) {
-            return cached.clone();
+            return Rc::clone(cached);
         }
-        let segs = parse_path_with_case(path, self.preserve_case);
-        self.path_cache.insert(path.into(), segs.clone());
+        let segs: Rc<[PathSegment]> = parse_path_with_case(path, self.preserve_case).into();
+        self.path_cache.insert(path.into(), Rc::clone(&segs));
         segs
     }
 
