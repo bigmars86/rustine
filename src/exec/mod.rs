@@ -1642,46 +1642,40 @@ impl<'a> Runner<'a> {
                 if !s.contains('$') {
                     return s.clone();
                 }
-                // Interpolate $N and $name using last_captures context
-                let mut out = String::with_capacity(s.len());
-                let mut chars = s.chars().peekable();
-                while let Some(c) = chars.next() {
-                    if c == '\\' && chars.peek() == Some(&'$') {
-                        // \$ → literal '$'
-                        out.push('$');
-                        chars.next();
-                    } else if c == '$' {
-                        let mut token = String::new();
-                        while let Some(&p) = chars.peek() {
-                            if p.is_ascii_alphanumeric() || p == '_' {
-                                token.push(p);
-                                chars.next();
-                            } else {
-                                break;
-                            }
-                        }
-                        if token.is_empty() {
+                // Interpolate $N and $name using last_captures context; `\$` is a literal `$`.
+                let bytes = s.as_bytes();
+                let mut out = String::with_capacity(s.len() + 16);
+                let mut lit = 0;
+                let mut i = 0;
+                while let Some(off) = memchr::memchr2(b'\\', b'$', &bytes[i..]) {
+                    let j = i + off;
+                    if bytes[j] == b'\\' {
+                        if bytes.get(j + 1) == Some(&b'$') {
+                            out.push_str(&s[lit..j]);
                             out.push('$');
-                        } else if token.chars().all(|d| d.is_ascii_digit()) {
-                            if let Ok(idx) = token.parse::<usize>() {
-                                if let Some(val) = self.last_captures.get(idx) {
-                                    out.push_str(&crate::exec::out::percent_encode(val));
-                                }
-                            }
-                        } else if let Some((i, _)) = self
-                            .last_capture_names
-                            .iter()
-                            .enumerate()
-                            .find(|(_, n)| n.as_deref() == Some(token.as_str()))
-                        {
-                            if let Some(val) = self.last_captures.get(i) {
-                                out.push_str(&crate::exec::out::percent_encode(val));
-                            }
+                            lit = j + 2;
+                            i = j + 2;
+                        } else {
+                            i = j + 1;
                         }
-                    } else {
-                        out.push(c);
+                        continue;
                     }
+                    out.push_str(&s[lit..j]);
+                    let start = j + 1;
+                    let len = bytes[start..]
+                        .iter()
+                        .take_while(|b| b.is_ascii_alphanumeric() || **b == b'_')
+                        .count();
+                    let token = &s[start..start + len];
+                    if token.is_empty() {
+                        out.push('$');
+                    } else if let Some(val) = self.capture_by_token(token) {
+                        crate::exec::out::percent_encode_into(&mut out, val);
+                    }
+                    lit = start + len;
+                    i = lit;
                 }
+                out.push_str(&s[lit..]);
                 out
             }
             Expression::Number(n) => n.to_string(),
@@ -1695,6 +1689,18 @@ impl<'a> Runner<'a> {
             }
             Expression::Capture(_) | Expression::CaptureName(_) => String::new(), // should have been substituted already
         }
+    }
+
+    /// Value of `$N` (all digits) or `$name` in the last match.
+    fn capture_by_token(&self, token: &str) -> Option<&str> {
+        let idx = if token.bytes().all(|d| d.is_ascii_digit()) {
+            token.parse::<usize>().ok()?
+        } else {
+            self.last_capture_names
+                .iter()
+                .position(|n| n.as_deref() == Some(token))?
+        };
+        self.last_captures.get(idx).map(|c| c.as_ref())
     }
 }
 

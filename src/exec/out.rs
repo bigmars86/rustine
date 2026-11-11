@@ -366,27 +366,28 @@ fn percent_decode_slow(input: &str) -> String {
 
 /// Percent-encode every byte except ASCII letters, digits, `-_.~` and space.
 pub fn percent_encode(input: &str) -> String {
-    let needs_encoding = input.bytes().any(|b| {
-        !matches!(b,
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9'
-            | b'-' | b'_' | b'.' | b'~' | b' '
-        )
-    });
-    if !needs_encoding {
-        return input.to_string();
-    }
-    let mut out = String::with_capacity(input.len() + input.len() / 4);
-    for b in input.bytes() {
-        match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b' ' => out.push(b as char),
-            _ => {
-                out.push('%');
-                out.push(char::from(HEX_UPPER[(b >> 4) as usize]));
-                out.push(char::from(HEX_UPPER[(b & 0xF) as usize]));
+    let mut out = String::with_capacity(input.len());
+    percent_encode_into(&mut out, input);
+    out
+}
+
+/// [`percent_encode`] appending to `out`.
+pub fn percent_encode_into(out: &mut String, input: &str) {
+    let mut run = 0;
+    for (i, b) in input.bytes().enumerate() {
+        if !matches!(b, b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b' ') {
+            if run < i {
+                out.push_str(&input[run..i]);
             }
+            out.push('%');
+            out.push(char::from(HEX_UPPER[(b >> 4) as usize]));
+            out.push(char::from(HEX_UPPER[(b & 0xF) as usize]));
+            run = i + 1;
         }
     }
-    out
+    if run < input.len() {
+        out.push_str(&input[run..]);
+    }
 }
 
 static HEX_UPPER: [u8; 16] = *b"0123456789ABCDEF";
