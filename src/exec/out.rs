@@ -103,10 +103,6 @@ impl Hasher for KeyHasher {
 /// Minimum number of children before a [`NodeIndex`] is created.
 const INDEX_THRESHOLD: usize = 8;
 
-/// Entries kept in the path cache. Paths with substituted captures are mostly
-/// unique, so the cache is cleared when full instead of growing with the input.
-const PATH_CACHE_LIMIT: usize = 4096;
-
 impl NodeIndex {
     fn new() -> Self {
         Self {
@@ -512,8 +508,6 @@ pub struct OutputTree {
     name_intern: HashSet<Rc<str>>,
     /// Random keys for [`child_hash_key`].
     key_state: RandomState,
-    /// Cache for parsed path segments.
-    path_cache: HashMap<Box<str>, Rc<[PathSegment]>>,
     /// Keep the case of tag names and attribute keys in paths.
     preserve_case: bool,
 }
@@ -556,7 +550,6 @@ impl OutputTree {
             stack: vec![root_id],
             name_intern,
             key_state: RandomState::new(),
-            path_cache: HashMap::with_capacity(128),
             preserve_case: false,
         }
     }
@@ -565,7 +558,6 @@ impl OutputTree {
     /// of lowercasing them.
     pub fn set_preserve_case(&mut self, preserve_case: bool) {
         self.preserve_case = preserve_case;
-        self.path_cache.clear();
     }
 
     /// Parse `path` with this tree's case setting.
@@ -789,20 +781,6 @@ impl OutputTree {
 
         let node = &mut self.arena[node_id as usize];
         node.children.shrink_to_fit();
-    }
-
-    // === Path cache ===
-
-    fn cached_parse_path(&mut self, path: &str) -> Rc<[PathSegment]> {
-        if let Some(cached) = self.path_cache.get(path) {
-            return Rc::clone(cached);
-        }
-        let segs: Rc<[PathSegment]> = parse_path_with_case(path, self.preserve_case).into();
-        if self.path_cache.len() >= PATH_CACHE_LIMIT {
-            self.path_cache.clear();
-        }
-        self.path_cache.insert(path.into(), Rc::clone(&segs));
-        segs
     }
 
     // === Tree navigation and mutation ===
@@ -1069,7 +1047,7 @@ impl ActionExecutor for OutputTree {
                     let cur = self.cursor();
                     self.arena[cur as usize].text = decoded.map(Box::new);
                 } else if !path.is_empty() && !path.contains('/') && !path.starts_with('.') {
-                    let segs = self.cached_parse_path(path);
+                    let segs = self.path_segments(path);
                     let name = intern(&mut self.name_intern, &segs[0].tag);
                     let node = Node::new(name);
                     let nid = self.alloc(node);
@@ -1078,7 +1056,7 @@ impl ActionExecutor for OutputTree {
                     let cur = self.cursor();
                     self.push_child(cur, nid);
                 } else {
-                    let segs = self.cached_parse_path(path);
+                    let segs = self.path_segments(path);
                     self.create_path(&segs, decoded);
                 }
             }
@@ -1096,7 +1074,7 @@ impl ActionExecutor for OutputTree {
                     }
                 } else if !path.is_empty() && !path.contains('/') && !path.starts_with('.') {
                     // relative add — use indexed or linear lookup
-                    let segs = self.cached_parse_path(path);
+                    let segs = self.path_segments(path);
                     let cur = self.cursor();
                     let (existing_child_id, key) = {
                         let arena = &self.arena;
@@ -1136,7 +1114,7 @@ impl ActionExecutor for OutputTree {
                         self.push_child_keyed(cur, nid, key);
                     }
                 } else {
-                    let segs = self.cached_parse_path(path);
+                    let segs = self.path_segments(path);
                     self.add_path(&segs, decoded);
                 }
             }
@@ -1146,7 +1124,7 @@ impl ActionExecutor for OutputTree {
                     let cur = self.cursor();
                     self.arena[cur as usize].text = decoded.map(Box::new);
                 } else {
-                    let segs = self.cached_parse_path(path);
+                    let segs = self.path_segments(path);
                     self.replace_path(&segs, decoded);
                 }
             }
@@ -1156,7 +1134,7 @@ impl ActionExecutor for OutputTree {
                     let cur = self.cursor();
                     self.push_node_attr(cur, attr_key, value.to_string());
                 } else {
-                    let segs = self.cached_parse_path(path);
+                    let segs = self.path_segments(path);
                     self.add_attribute(&segs, name, value);
                 }
             }
@@ -1164,36 +1142,16 @@ impl ActionExecutor for OutputTree {
                 self.set_root_name(name);
             }
             RuntimeAction::OutOpen { path } => {
-                let segs = self.cached_parse_path(path);
+                let segs = self.path_segments(path);
                 self.open_path(&segs);
             }
             RuntimeAction::OutEnter { path } => {
-                let segs = self.cached_parse_path(path);
+                let segs = self.path_segments(path);
                 self.enter_path(&segs);
             }
             RuntimeAction::OutLeave => {
                 self.leave();
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn path_cache_stays_bounded() {
-        let mut tree = OutputTree::new();
-        let n = PATH_CACHE_LIMIT * 2;
-        for i in 0..n {
-            let path = format!("entry?id=\"{i}\"");
-            tree.exec(RuntimeAction::OutAdd {
-                path: &path,
-                value: None,
-            });
-        }
-        assert!(tree.path_cache.len() <= PATH_CACHE_LIMIT);
-        assert_eq!(tree.root_child_count(), n);
     }
 }
