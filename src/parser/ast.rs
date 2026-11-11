@@ -478,41 +478,36 @@ impl GelDocument {
             return;
         }
 
-        // Phase 2: Compile all patterns (parallel when feature enabled).
-        let compiled: Vec<(String, usize, usize, Option<Regex>)>;
+        // Phase 2: Compile each distinct pattern once (parallel when feature enabled);
+        // identical field lists in different grammars share the compiled program.
+        let mut patterns: Vec<&str> = work.iter().map(|w| w.3.as_str()).collect();
+        patterns.sort_unstable();
+        patterns.dedup();
 
         #[cfg(feature = "parallel")]
-        {
+        let compiled: HashMap<&str, Regex> = {
             use rayon::prelude::*;
-            compiled = work
+            patterns
                 .into_par_iter()
-                .map(|(gn, si, ai, pat)| {
-                    let rx = Regex::new(&pat).ok();
-                    (gn, si, ai, rx)
-                })
-                .collect();
-        }
+                .filter_map(|p| Regex::new(p).ok().map(|rx| (p, rx)))
+                .collect()
+        };
         #[cfg(not(feature = "parallel"))]
-        {
-            compiled = work
-                .into_iter()
-                .map(|(gn, si, ai, pat)| {
-                    let rx = Regex::new(&pat).ok();
-                    (gn, si, ai, rx)
-                })
-                .collect();
-        }
+        let compiled: HashMap<&str, Regex> = patterns
+            .into_iter()
+            .filter_map(|p| Regex::new(p).ok().map(|rx| (p, rx)))
+            .collect();
 
         // Phase 3: Assign compiled regexes back to their field lists.
-        for (gname, si, ai, rx) in compiled {
-            if let Some(rx) = rx {
-                let grammar = self.grammars.get_mut(&gname).unwrap();
-                let fl = match &mut grammar.statements[si] {
-                    Statement::Match(m) => &mut m.match_list.alternatives[ai],
-                    Statement::When(w) => &mut w.match_list.alternatives[ai],
+        for (gname, si, ai, pat) in &work {
+            if let Some(rx) = compiled.get(pat.as_str()) {
+                let grammar = self.grammars.get_mut(gname).unwrap();
+                let fl = match &mut grammar.statements[*si] {
+                    Statement::Match(m) => &mut m.match_list.alternatives[*ai],
+                    Statement::When(w) => &mut w.match_list.alternatives[*ai],
                     _ => continue,
                 };
-                fl.compiled_regex = Some(rx);
+                fl.compiled_regex = Some(rx.clone());
             }
         }
     }
