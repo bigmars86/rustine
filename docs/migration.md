@@ -124,12 +124,15 @@ not in Rustine.
 
 ## Performance Gains
 
+Same machine (Linux), Python Gelatin on CPython 3.10; details in
+[BENCHMARKS.md](../BENCHMARKS.md).
+
 | Metric | Python Gelatin | Rustine (best) | Improvement |
 |--------|---------------|----------------|-------------|
-| 25 MB scale (JSON) | 77.6 s | 4.11 s | **19×** |
-| 20.9 MB real-data | 66.3 s | 2.29 s | **29×** |
-| Peak RSS (25 MB) | 3 075 MB | 739 MB | **4× less** |
-| Fixture: complex | 43 ms | 2.59 ms | **17×** |
+| 25 MB scale (JSON) | 50.2 s | 1.41 s | **36×** |
+| 20.0 MB real data (CLI, JSON) | 49.9 s | 1.08 s | **46×** |
+| Peak RSS (25 MB) | 3 095 MB | 358 MB | **9× less** |
+| Fixture: complex | 23.3 ms | 1.60 ms | **15×** |
 
 ---
 

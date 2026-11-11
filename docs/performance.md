@@ -10,21 +10,24 @@ benchmark data across all platforms, see [BENCHMARKS.md](../BENCHMARKS.md).
 
 | Comparison | Speedup | RSS Improvement |
 |------------|---------|-----------------|
-| Rustine vs Python Gelatin (25 MB scale) | **17–19×** | **3–4× less** |
-| Rustine vs Python Gelatin (CLI, 20.9 MB) | **11–13×** | **6× less** |
-| Rustine vs textfsm (25 MB synthetic) | **1.6×** | — |
-| Rustine vs textfsm (20.9 MB real) | **1.9×** | — |
+| Rustine vs Python Gelatin (25 MB scale) | **35–36×** | **6–9× less** |
+| Rustine vs Python Gelatin (CLI, 20.0 MB real data) | **38–46×** | **4–5× less** |
+| Rustine vs Python Gelatin (small fixtures) | **7–23×** | — |
+| Rustine vs textfsm (25 MB synthetic, 2026-03-23) | **1.6×** | — |
+| Rustine vs textfsm (20.9 MB real, 2026-03-23) | **1.9×** | — |
 
-### Platform Comparison (Rustine only)
+All tools were measured on the same machine (Linux), except textfsm.
 
-| Platform | 25 MB Scale (best total) | 20.9 MB Real-Data (exec) |
-|----------|--------------------------|--------------------------|
-| Windows (MSVC) | 5.52 s | 3.76 s |
-| Linux (glibc) | 4.52 s | 2.69 s |
-| **Linux (jemalloc)** | **3.79 s** | **2.08 s** |
+### Allocator Comparison (Rustine, Linux)
 
-jemalloc is the fastest allocator across all workloads — 1.5–1.8× faster
-than Windows MSVC, 1.1–1.3× faster than glibc.
+| Allocator | 25 MB One-Shot (best total) | 20.0 MB Real Data (exec) |
+|-----------|-----------------------------|--------------------------|
+| glibc | 1.49 s | 0.93 s |
+| **jemalloc** | **1.22 s** | **0.85 s** |
+
+jemalloc executes about 1.1× faster than glibc. Windows (MSVC) was not
+measured again; in the 2026-03-23 numbers jemalloc was 1.5–1.8× faster than
+MSVC.
 
 ---
 
@@ -80,9 +83,9 @@ RSS scales linearly with input size:
 
 | Input Size | Rustine (jemalloc) | Python Gelatin |
 |------------|--------------------:|---------------:|
-| 25 MB      | 739 MB             | 3 075 MB       |
-| 50 MB      | 1 213 MB           | —              |
-| 100 MB     | 2 164 MB           | —              |
+| 25 MB      | 358 MB             | 3 095 MB       |
+| 50 MB      | 716 MB             | —              |
+| 100 MB     | 1 284 MB           | —              |
 
 The difference is primarily due to:
 

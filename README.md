@@ -16,7 +16,7 @@ Python module, a Rust library, or a standalone CLI tool.
 does not support Python 3.12+. Rustine reimplements the engine in Rust:
 
 - **Drop-in replacement** — same Gel grammar language, same output
-- **10–19× faster** than Python Gelatin, **3–4× less memory** on large inputs
+- **35–46× faster** than Python Gelatin on large inputs, **4–9× less memory**
 - **Python 3.9+** — abi3 wheels, no SimpleParse
 
 ## Quick Start
@@ -78,24 +78,26 @@ rgel -s syntax.gel --preserve-case input.txt
 
 ## Performance
 
-Benchmarked on 20.9 MB real-world IOS XR configuration
-(263 grammars, 113 regex patterns, 899 757 output nodes):
+Benchmarked on a 20.0 MB real-world IOS XR configuration
+(263 grammars, 113 regex patterns, 862 754 output nodes), CLI end to end to
+JSON, all tools on the same machine (Linux):
 
-| Tool / Platform        | Time       | Throughput     | Peak RSS   |
-| ---------------------- | ---------- | -------------- | ---------- |
-| Python Gelatin (Win)   | 66.3 s     | 0.33 MB/s      | 3 075 MB   |
-| **Rustine** (Win)      | **4.10 s** | **5.1 MB/s**   | **496 MB** |
-| **Rustine** (jemalloc) | **2.31 s** | **9.1 MB/s**   | **456 MB** |
+| Tool                   | Time       | Throughput    | Peak RSS   |
+| ---------------------- | ---------- | ------------- | ---------- |
+| Python Gelatin (`gel`) | 49.9 s     | 0.40 MB/s     | 1 920 MB   |
+| **Rustine** (glibc)    | **1.16 s** | **17.3 MB/s** | **344 MB** |
+| **Rustine** (jemalloc) | **1.08 s** | **18.6 MB/s** | **374 MB** |
 
-| Comparison                        | Speedup    |
-| --------------------------------- | ---------- |
-| Rustine vs Python Gelatin (scale) | **17–19×** |
-| Rustine vs Python Gelatin (CLI)   | **11–13×** |
-| Rustine vs textfsm (25 MB)        | **1.6×**   |
+| Comparison                                 | Speedup    |
+| ------------------------------------------ | ---------- |
+| Rustine vs Python Gelatin (25 MB scale)    | **35–36×** |
+| Rustine vs Python Gelatin (CLI, real data) | **38–46×** |
+| Rustine vs Python Gelatin (small fixtures) | **7–23×**  |
+| Rustine vs textfsm (25 MB, 2026-03-23)     | **1.6×**   |
 
-See [BENCHMARKS.md](BENCHMARKS.md) for full cross-platform results
-(Windows, Linux glibc, Linux jemalloc), serialization timings, and
-reproduction instructions.
+See [BENCHMARKS.md](BENCHMARKS.md) for full results (Linux glibc and
+jemalloc, Python Gelatin, older Windows and textfsm numbers), serialization
+timings, and reproduction instructions.
 
 ## Alternatives
 
