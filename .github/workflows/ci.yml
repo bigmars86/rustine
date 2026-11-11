@@ -153,8 +153,10 @@ jobs:
       - name: Collect profile data
         run: |
           # Run the test suite against the instrumented build to generate profile data
+          # perf_budget is skipped (as in coverage): wall-clock budgets don't hold for instrumented builds.
           RUSTFLAGS="-Cprofile-generate=/tmp/pgo-data" \
-            cargo test --release --no-default-features --features "parallel,cli,mmap,jemalloc"
+            cargo test --release --no-default-features --features "parallel,cli,mmap,jemalloc" \
+            -- --skip perf_budget
       - name: Merge profiles
         run: ${{ env.PROFDATA }} merge -o /tmp/merged.profdata /tmp/pgo-data
       - name: Rebuild with PGO
