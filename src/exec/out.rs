@@ -81,6 +81,10 @@ struct NodeIndex {
 /// Minimum number of children before a [`NodeIndex`] is created.
 const INDEX_THRESHOLD: usize = 8;
 
+/// Entries kept in the path cache. Paths with substituted captures are mostly
+/// unique, so the cache is cleared when full instead of growing with the input.
+const PATH_CACHE_LIMIT: usize = 4096;
+
 impl NodeIndex {
     fn new() -> Self {
         Self {
@@ -777,6 +781,9 @@ impl OutputTree {
             return Rc::clone(cached);
         }
         let segs: Rc<[PathSegment]> = parse_path_with_case(path, self.preserve_case).into();
+        if self.path_cache.len() >= PATH_CACHE_LIMIT {
+            self.path_cache.clear();
+        }
         self.path_cache.insert(path.into(), Rc::clone(&segs));
         segs
     }
@@ -1152,5 +1159,25 @@ impl ActionExecutor for OutputTree {
                 self.leave();
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn path_cache_stays_bounded() {
+        let mut tree = OutputTree::new();
+        let n = PATH_CACHE_LIMIT * 2;
+        for i in 0..n {
+            let path = format!("entry?id=\"{i}\"");
+            tree.exec(RuntimeAction::OutAdd {
+                path: &path,
+                value: None,
+            });
+        }
+        assert!(tree.path_cache.len() <= PATH_CACHE_LIMIT);
+        assert_eq!(tree.root_child_count(), n);
     }
 }
