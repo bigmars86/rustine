@@ -8,7 +8,7 @@
 //! For 50 MB / 100 MB one-shot runs, use the `scale_oneshot` example instead.
 
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
-use rustine::exec::{execute_precompiled, serialize_tree, RuntimeFormat};
+use rustine::exec::{execute_tree, serialize_tree, RuntimeFormat};
 use rustine::parser::ast::GelDocument;
 use rustine::parser::lexer;
 use rustine::parser::syntax::parse_gel_document;
@@ -89,7 +89,7 @@ fn bench_scale(c: &mut Criterion) {
         group.sample_size(10);
         group.bench_function("execute_25MB", |b| {
             b.iter(|| {
-                let result = execute_precompiled(&doc, "input", &input).expect("execute");
+                let result = execute_tree(&doc, "input", &input).expect("execute");
                 std::hint::black_box(result.consumed);
             });
         });
@@ -97,7 +97,7 @@ fn bench_scale(c: &mut Criterion) {
     }
 
     // Pre-execute for serialisation benchmarks
-    let result = execute_precompiled(&doc, "input", &input).expect("execute");
+    let result = execute_tree(&doc, "input", &input).expect("execute");
     let node_count = result.flat.as_ref().map_or(0, |f| f.len());
     eprintln!("[scale] Tree nodes: {node_count}");
 
@@ -132,7 +132,7 @@ fn bench_scale(c: &mut Criterion) {
         group.sample_size(10);
         group.bench_function(format!("total_{fmt_name}_25MB"), |b| {
             b.iter(|| {
-                let res = execute_precompiled(&doc, "input", &input).expect("execute");
+                let res = execute_tree(&doc, "input", &input).expect("execute");
                 let out = serialize_tree(&res, *fmt);
                 std::hint::black_box(out.len());
             });

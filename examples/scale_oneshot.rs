@@ -5,7 +5,7 @@
 //!   cargo run --release --no-default-features --example scale_oneshot -- --sizes 50,100
 //!   cargo run --release --no-default-features --features jemalloc --example scale_oneshot
 
-use rustine::exec::{execute_precompiled, serialize_tree, RuntimeFormat};
+use rustine::exec::{execute_tree, serialize_tree, RuntimeFormat};
 use rustine::parser::lexer;
 use rustine::parser::syntax::parse_gel_document;
 use std::time::Instant;
@@ -94,7 +94,7 @@ fn main() {
 
         for (fmt_name, fmt) in &formats {
             let t0 = Instant::now();
-            let result = execute_precompiled(&doc, "input", &input).expect("execute");
+            let result = execute_tree(&doc, "input", &input).expect("execute");
             let exec_time = t0.elapsed();
 
             let node_count = result.flat.as_ref().map_or(0, |f| f.len());

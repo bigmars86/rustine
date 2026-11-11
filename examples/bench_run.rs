@@ -6,7 +6,7 @@
 //!   cargo run --release --no-default-features --example bench_run -- my.gel data.txt 5 --dump
 //!   cargo run --release --no-default-features --example bench_run -- my.gel data.txt 5 --stream
 
-use rustine::exec::{execute_precompiled, serialize_tree, serialize_tree_to_writer, RuntimeFormat};
+use rustine::exec::{execute_precompiled, execute_tree, serialize_tree, serialize_tree_to_writer, RuntimeFormat};
 use rustine::parser::lexer;
 use rustine::parser::syntax::parse_gel_document;
 use std::time::Instant;
@@ -26,7 +26,7 @@ fn main() {
         eprintln!();
         eprintln!("Options:");
         eprintln!("  --dump          Print the full JSON output after benchmarking");
-        eprintln!("  --diag          Run in diagnostic envelope mode (serialize_execution)");
+        eprintln!("  --diag          Record per-match metadata and report its memory use");
         eprintln!("  --stream        Use the streaming writer for serialization");
         eprintln!("  -h, --help      Show this help message");
         if args.iter().any(|a| a == "-h" || a == "--help") {
@@ -77,7 +77,12 @@ fn main() {
     for i in 0..iterations {
         // Execute
         let t0 = Instant::now();
-        let result = execute_precompiled(&doc, "input", &input).expect("execution error");
+        let result = if diag_mode {
+            execute_precompiled(&doc, "input", &input)
+        } else {
+            execute_tree(&doc, "input", &input)
+        }
+        .expect("execution error");
         let exec_time = t0.elapsed();
 
         if i == 0 {

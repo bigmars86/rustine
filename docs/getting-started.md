@@ -68,7 +68,8 @@ let json = serialize_tree(&result, RuntimeFormat::Json); // or Xml, Yaml
 `serialize_execution` writes the whole result instead of only the tree:
 `consumed`, `actions`, `traces`, `diagnostics`, `capture_history`, `output`
 and `error`. To run one grammar on many inputs, call `doc.compile_regexes()`
-once and then `execute_precompiled(&doc, "input", text)`.
+once and then `execute_tree(&doc, "input", text)`, which skips that per-match
+metadata, or `execute_precompiled` to keep it.
 
 ### Streaming Execution
 

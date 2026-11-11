@@ -208,6 +208,8 @@ pub struct Runner<'a> {
     stmt_cache: HashMap<String, Arc<Vec<Statement>>>,
     /// `do.fail` message from a sub-grammar; ends the run like a top-level `do.fail`.
     fail: Option<String>,
+    /// Record per-match actions, traces and captures (read by `serialize_execution`).
+    record: bool,
 }
 
 impl<'a> Runner<'a> {
@@ -233,6 +235,7 @@ impl<'a> Runner<'a> {
             last_capture_names: NameVec::new(),
             stmt_cache,
             fail: None,
+            record: true,
         }
     }
 
@@ -301,14 +304,16 @@ impl<'a> Runner<'a> {
                                 if did_next {
                                     break;
                                 }
-                                result.actions.extend(actions_to_run.iter().cloned());
-                                if !self.last_captures.is_empty() {
-                                    result
-                                        .capture_history
-                                        .push(self.last_captures.iter().map(|c| c.to_string()).collect());
-                                    result.capture_names_history.push(self.last_capture_names.to_vec());
+                                if self.record {
+                                    result.actions.extend(actions_to_run.iter().cloned());
+                                    if !self.last_captures.is_empty() {
+                                        result
+                                            .capture_history
+                                            .push(self.last_captures.iter().map(|c| c.to_string()).collect());
+                                        result.capture_names_history.push(self.last_capture_names.to_vec());
+                                    }
+                                    result.trace(Severity::Info, format!("match consumed {} chars", total_consumed));
                                 }
-                                result.trace(Severity::Info, format!("match consumed {} chars", total_consumed));
                                 self.fire_triggers("after", &mut result.output);
                                 break; // restart from the first statement
                             }
@@ -345,7 +350,9 @@ impl<'a> Runner<'a> {
                             if did_next {
                                 break;
                             }
-                            result.trace(Severity::Info, "when triggered".to_string());
+                            if self.record {
+                                result.trace(Severity::Info, "when triggered".to_string());
+                            }
                             self.fire_triggers("after", &mut result.output);
                             break; // restart from the first statement
                         }
@@ -1141,7 +1148,7 @@ impl<'a> Runner<'a> {
             // Inline grammar invocation: name matches a grammar defined in document (and not a built-in action prefix)
             if !act.name.contains('.') && self.ctx.doc.grammars.contains_key(&*act.name) {
                 let (sub_consumed, _remaining_levels) = self.run_inline_grammar(&act.name, tree, traces);
-                if sub_consumed > 0 {
+                if sub_consumed > 0 && self.record {
                     traces.push(format!("subgrammar {} consumed {} chars", act.name, sub_consumed));
                 }
                 if let Some(prev) = &last_action_name {
@@ -1692,7 +1699,19 @@ pub fn execute(doc: &mut GelDocument, grammar: &str, input: &str) -> Result<Exec
 /// Unlike [`execute`], this takes `&GelDocument` (no mutation required).
 /// The caller must ensure `doc.compile_regexes()` has already been called.
 pub fn execute_precompiled(doc: &GelDocument, grammar: &str, input: &str) -> Result<ExecutionResult> {
-    let mut result = Runner::new(doc, input).run_grammar(grammar)?;
+    flatten(Runner::new(doc, input).run_grammar(grammar)?)
+}
+
+/// Like [`execute_precompiled`], but records only the output tree and the error,
+/// not the per-match actions, traces and captures: less memory and time when
+/// [`serialize_execution`] is not needed.
+pub fn execute_tree(doc: &GelDocument, grammar: &str, input: &str) -> Result<ExecutionResult> {
+    let mut runner = Runner::new(doc, input);
+    runner.record = false;
+    flatten(runner.run_grammar(grammar)?)
+}
+
+fn flatten(mut result: ExecutionResult) -> Result<ExecutionResult> {
     // Compact the arena tree (reorder children by name-group, drop
     // build-time indices) and flatten into BFS-ordered Vec<FlatNode>.
     // The arena Vec<Node> is consumed and freed in one shot —

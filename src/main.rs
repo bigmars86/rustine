@@ -1,5 +1,5 @@
 use clap::Parser;
-use rustine::exec::{execute_precompiled, serialize_tree, RuntimeFormat};
+use rustine::exec::{execute_tree, serialize_tree, RuntimeFormat};
 use rustine::parser::lexer::lex;
 use rustine::parser::syntax::parse_gel_document;
 use rustine::parser::validate;
@@ -67,7 +67,7 @@ fn main() {
     }
     doc.compile_regexes();
 
-    let run = |input: &str, source: &str| match execute_precompiled(&doc, &cli.grammar, input) {
+    let run = |input: &str, source: &str| match execute_tree(&doc, &cli.grammar, input) {
         Ok(exec) => {
             if let Some(err) = &exec.error {
                 eprintln!("Runtime error{}: {}", source, err);

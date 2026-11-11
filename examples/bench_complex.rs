@@ -23,7 +23,7 @@ fn main() {
 
     #[cfg(feature = "bench")]
     {
-        use rustine::exec::{execute_precompiled, serialize_tree, RuntimeFormat};
+        use rustine::exec::{execute_tree, serialize_tree, RuntimeFormat};
         let grammar_src = std::fs::read_to_string(syntax_path).expect("read grammar");
         let input = std::fs::read_to_string(input_path).expect("read input");
         let tokens = lexer::lex(&grammar_src).expect("lex");
@@ -32,7 +32,7 @@ fn main() {
 
         let t0 = Instant::now();
         for _ in 0..iterations {
-            let result = execute_precompiled(&doc, "input", &input).expect("exec");
+            let result = execute_tree(&doc, "input", &input).expect("exec");
             let _json = serialize_tree(&result, RuntimeFormat::Json);
         }
         let elapsed = t0.elapsed();

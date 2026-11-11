@@ -180,7 +180,9 @@ pub mod errors {
 
 pub use errors::{Diagnostic, GelError, Result, Severity, Span};
 pub use exec::streaming::{StreamingEvent, StreamingRunner};
-pub use exec::{execute_precompiled, serialize_execution, serialize_tree, serialize_tree_to_writer, RuntimeFormat};
+pub use exec::{
+    execute_precompiled, execute_tree, serialize_execution, serialize_tree, serialize_tree_to_writer, RuntimeFormat,
+};
 pub use parser::{OutputFormat, Parser};
 
 /// Parse `source`, run `grammar` against `input` and return the execution envelope as JSON.
@@ -219,7 +221,8 @@ pub fn execute_and_serialize(
     input: &str,
     format: RuntimeFormat,
 ) -> Result<String> {
-    let exec = exec::execute(doc, grammar, input)?;
+    doc.compile_regexes();
+    let exec = exec::execute_tree(doc, grammar, input)?;
     Ok(serialize_tree(&exec, format))
 }
 

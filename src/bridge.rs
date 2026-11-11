@@ -1,6 +1,4 @@
-use crate::exec::{
-    execute, execute_precompiled, serialize_tree, serialize_tree_to_writer, ExecutionResult, RuntimeFormat,
-};
+use crate::exec::{execute_tree, serialize_tree, serialize_tree_to_writer, ExecutionResult, RuntimeFormat};
 use crate::parser::ast::GelDocument;
 use crate::parser::lexer::lex;
 use crate::parser::syntax::parse_gel_document;
@@ -96,7 +94,7 @@ impl GelContext {
                 )));
             }
         }
-        doc.compile_regexes(); // required by execute_precompiled
+        doc.compile_regexes(); // required by execute_tree
         Ok(Self { doc })
     }
 
@@ -150,7 +148,7 @@ impl GelContext {
 
 impl GelContext {
     fn exec_input(&self, input: &str, grammar: &str) -> PyResult<ExecutionResult> {
-        checked(execute_precompiled(&self.doc, grammar, input))
+        checked(execute_tree(&self.doc, grammar, input))
     }
 }
 
@@ -229,7 +227,8 @@ fn run_source(
     fmt: RuntimeFormat,
 ) -> PyResult<String> {
     let mut doc = parse_doc(gel_source, preserve_case)?;
-    Ok(serialize_tree(&checked(execute(&mut doc, grammar, input))?, fmt))
+    doc.compile_regexes();
+    Ok(serialize_tree(&checked(execute_tree(&doc, grammar, input))?, fmt))
 }
 
 /// Compile `gel_source`, run `grammar` on `runtime_input` and return JSON.

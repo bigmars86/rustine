@@ -6,7 +6,7 @@
 //! Run with:  `cargo bench --bench fixtures --no-default-features`
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use rustine::exec::{execute_precompiled, serialize_tree, RuntimeFormat};
+use rustine::exec::{execute_tree, serialize_tree, RuntimeFormat};
 use rustine::parser::lexer;
 use rustine::parser::syntax::parse_gel_document;
 use std::time::Duration;
@@ -71,7 +71,7 @@ fn bench_fixtures(c: &mut Criterion) {
 
             group.bench_function("execute", |b| {
                 b.iter(|| {
-                    let result = execute_precompiled(&doc, "input", input).expect("execute");
+                    let result = execute_tree(&doc, "input", input).expect("execute");
                     std::hint::black_box(result.consumed);
                 });
             });
@@ -87,7 +87,7 @@ fn bench_fixtures(c: &mut Criterion) {
 
             group.bench_with_input(BenchmarkId::new("total", *fmt_name), &(*fmt,), |b, (fmt,)| {
                 b.iter(|| {
-                    let result = execute_precompiled(&doc, "input", input).expect("execute");
+                    let result = execute_tree(&doc, "input", input).expect("execute");
                     let out = serialize_tree(&result, *fmt);
                     std::hint::black_box(out.len());
                 });
