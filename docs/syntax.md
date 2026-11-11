@@ -319,7 +319,8 @@ Appends a warning trace entry.
 
 ### do.fail([message])
 
-Records an error, appends failure traces, and terminates execution.
+Ends the run with an error, also from inside a called grammar: Python raises
+`RuntimeError`, `rgel` prints the message and exits with status 1.
 
 ---
 

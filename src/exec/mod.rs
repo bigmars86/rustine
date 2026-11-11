@@ -206,6 +206,8 @@ pub struct Runner<'a> {
     /// Wrapped in Arc to allow O(1) sharing with sub-grammar calls
     /// (avoids deep-cloning Statement trees millions of times).
     stmt_cache: HashMap<String, Arc<Vec<Statement>>>,
+    /// `do.fail` message from a sub-grammar; ends the run like a top-level `do.fail`.
+    fail: Option<String>,
 }
 
 impl<'a> Runner<'a> {
@@ -230,10 +232,19 @@ impl<'a> Runner<'a> {
             last_captures: CaptureVec::new(),
             last_capture_names: NameVec::new(),
             stmt_cache,
+            fail: None,
         }
     }
 
     pub fn run_grammar(mut self, name: &str) -> Result<ExecutionResult> {
+        let mut result = self.run_statements(name)?;
+        if result.error.is_none() {
+            result.error = self.fail.take();
+        }
+        Ok(result)
+    }
+
+    fn run_statements(&mut self, name: &str) -> Result<ExecutionResult> {
         if !self.ctx.doc.grammars.contains_key(name) {
             return Err(GelError::runtime(format!("Grammar not found: {}", name), None));
         }
@@ -1347,8 +1358,9 @@ impl<'a> Runner<'a> {
                                 self.last_captures = scope;
                                 self.last_capture_names = name_scope;
                                 self.fire_triggers("before", tree);
-                                let (ret_lvl, next, _, auto_leaves) =
+                                let (ret_lvl, next, fail, auto_leaves) =
                                     self.execute_runtime_actions(actions_to_run, tree, traces);
+                                self.fail = self.fail.take().or(fail);
                                 for _ in 0..auto_leaves {
                                     self.fire_triggers("on_leave", tree);
                                     tree.leave();
@@ -1381,8 +1393,9 @@ impl<'a> Runner<'a> {
                             self.last_captures = scope;
                             self.last_capture_names = name_scope;
                             self.fire_triggers("before", tree);
-                            let (ret_lvl, next, _, auto_leaves) =
+                            let (ret_lvl, next, fail, auto_leaves) =
                                 self.execute_runtime_actions(actions_to_run, tree, traces);
+                            self.fail = self.fail.take().or(fail);
                             for _ in 0..auto_leaves {
                                 self.fire_triggers("on_leave", tree);
                                 tree.leave();
@@ -1420,8 +1433,9 @@ impl<'a> Runner<'a> {
                             }
                         } else {
                             let substituted = self.substitute_action(a, &[], &[]);
-                            let (ret_lvl, next, _, auto_leaves) =
+                            let (ret_lvl, next, fail, auto_leaves) =
                                 self.execute_runtime_actions(std::slice::from_ref(&substituted), tree, traces);
+                            self.fail = self.fail.take().or(fail);
                             for _ in 0..auto_leaves {
                                 self.fire_triggers("on_leave", tree);
                                 tree.leave();

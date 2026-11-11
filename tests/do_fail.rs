@@ -11,3 +11,11 @@ fn test_do_fail_stops_execution() {
     assert!(!json.contains("after_fail"), "after_fail should not appear: {json}");
     assert!(!json.contains("\"bar\""), "bar should not appear after fail: {json}");
 }
+
+#[test]
+fn test_do_fail_in_sub_grammar_sets_error() {
+    let grammar =
+        "grammar sub:\n    match 'x':\n        do.fail('boom')\n\ngrammar input:\n    match 'a':\n        sub()\n";
+    let json = parse_and_run(grammar, "input", "ax").expect("run");
+    assert!(json.contains("\"error\": \"boom\""), "expected error field: {json}");
+}

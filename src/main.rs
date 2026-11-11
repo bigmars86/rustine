@@ -71,6 +71,7 @@ fn main() {
         Ok(exec) => {
             if let Some(err) = &exec.error {
                 eprintln!("Runtime error{}: {}", source, err);
+                process::exit(1);
             }
             print!("{}", serialize_tree(&exec, runtime_format));
         }
