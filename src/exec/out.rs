@@ -421,8 +421,9 @@ pub fn parse_path(path: &str) -> Vec<PathSegment> {
 /// Like [`parse_path`], but keeps the case of tag names and attribute keys
 /// when `preserve_case` is true.
 pub fn parse_path_with_case(path: &str, preserve_case: bool) -> Vec<PathSegment> {
-    let mut segments = Vec::new();
-    for part in split_path_segments(path) {
+    let parts = split_path_segments(path);
+    let mut segments = Vec::with_capacity(parts.len());
+    for part in parts {
         if part.is_empty() {
             continue;
         }
@@ -436,30 +437,41 @@ pub fn parse_path_with_case(path: &str, preserve_case: bool) -> Vec<PathSegment>
                     continue;
                 }
                 if let Some(epos) = pair.find('=') {
-                    let mut key = pair[..epos].trim().replace(' ', "-");
-                    if !preserve_case {
-                        key = key.to_lowercase();
-                    }
+                    let key = normalize_name(pair[..epos].trim(), preserve_case);
                     let mut val = pair[epos + 1..].trim();
                     if val.starts_with('"') && val.ends_with('"') && val.len() >= 2 {
                         val = &val[1..val.len() - 1];
                     }
-                    attribs.push((percent_decode(&key), percent_decode(val)));
+                    attribs.push((percent_decode_owned(key), percent_decode(val)));
                 }
             }
         }
-        let mut tag_norm = percent_decode(tag).trim().replace(' ', "-");
-        if !preserve_case {
-            tag_norm = tag_norm.to_lowercase();
-        }
+        let decoded = tag.contains('%').then(|| percent_decode_slow(tag));
+        let tag_norm = normalize_name(decoded.as_deref().unwrap_or(tag).trim(), preserve_case);
         segments.push(PathSegment { tag: tag_norm, attribs });
     }
     segments
 }
 
+/// Spaces become `-`; lowercase unless `preserve_case`.
+fn normalize_name(name: &str, preserve_case: bool) -> String {
+    let plain = !name
+        .bytes()
+        .any(|b| b == b' ' || (!preserve_case && (b.is_ascii_uppercase() || !b.is_ascii())));
+    if plain {
+        return name.to_owned();
+    }
+    let name = name.replace(' ', "-");
+    if preserve_case {
+        name
+    } else {
+        name.to_lowercase()
+    }
+}
+
 /// Split a path string on `/` but respect double-quoted attribute values.
-fn split_path_segments(path: &str) -> Vec<&str> {
-    let mut parts = Vec::new();
+fn split_path_segments(path: &str) -> SmallVec<[&str; 4]> {
+    let mut parts = SmallVec::new();
     let mut start = 0;
     let mut in_quotes = false;
     for (i, b) in path.bytes().enumerate() {
