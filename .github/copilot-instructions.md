@@ -18,7 +18,7 @@ using `.gel` grammar files.
 
 ## Coding Conventions
 
-- Rust edition 2021, MSRV 1.70
+- Rust edition 2021, MSRV 1.86
 - Format: `cargo fmt` (see `rustfmt.toml` — 120 char lines)
 - Lint: `cargo clippy` with `-D warnings`
 - All public APIs must have doc comments

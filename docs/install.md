@@ -16,7 +16,7 @@ Wheels are published for:
 
 ## From Source
 
-Requires a Rust toolchain (1.70+) and Python 3.9+.
+Requires a Rust toolchain (1.86+) and Python 3.9+.
 
 ```bash
 pip install maturin

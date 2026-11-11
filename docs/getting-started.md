@@ -18,7 +18,7 @@ Pre-built wheels are available for:
 
 ### From Source (Python + Rust)
 
-Requires Rust 1.70+ and Python 3.9+.
+Requires Rust 1.86+ and Python 3.9+.
 
 ```bash
 git clone https://github.com/bigmars86/rustine.git

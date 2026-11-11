@@ -4,7 +4,7 @@ Thank you for your interest in improving Rustine!
 
 ## Prerequisites
 
-- **Rust** stable toolchain (1.70+)
+- **Rust** stable toolchain (1.86+)
 - **Python** 3.9+ (for PyO3 development)
 - **maturin** (`pip install maturin`)
 
