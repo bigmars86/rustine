@@ -979,9 +979,7 @@ impl OutputTree {
     }
 
     fn _traverse_and_push(&mut self, segments: &[PathSegment], create_leaf_always_new: bool) {
-        if segments.is_empty() {
-            return;
-        }
+        // A path without segments pushes the current node, so the matching leave stays balanced.
         let new_cursor = self._traverse_from(segments, create_leaf_always_new);
         self.stack.push(new_cursor);
     }

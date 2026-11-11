@@ -38,3 +38,27 @@ grammar input:
 ";
     assert_eq!(run(src, "go\n"), json!({"a": {"b": {"#text": "y"}}}));
 }
+
+/// `out.open`, `out.enter` and `out.add_attribute` with an empty path keep the cursor where it was.
+#[test]
+fn empty_path_keeps_cursor_for_open_enter_and_attribute() {
+    let src = "\
+define nl /\\n/
+
+grammar input:
+    match 'go' nl:
+        out.enter('a')
+        sub()
+
+grammar sub:
+    match 'x' /y*/ nl:
+        out.open('$1')
+        out.enter('$1')
+        out.add_attribute('$1', 'k', 'v')
+    match 'b' nl:
+        out.add('b', 'y')
+    match 'z' nl:
+        do.return()
+";
+    assert_eq!(run(src, "go\nx\nb\nz\n"), json!({"a": {"b": {"#text": "y"}}}));
+}
