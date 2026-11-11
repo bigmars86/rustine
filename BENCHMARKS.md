@@ -1,45 +1,34 @@
 # Benchmark Results
 
-> **Generated:** 2026-03-23
-> **Rust:** 1.94.0 (`codegen-units=1, lto=true, opt-level=3`)
-> **Python:** 3.10 CPython (for Gelatin / textfsm)
+> **Measured:** 2026-11-11
+> **Machine:** Intel Core i7-13850HX · Docker Desktop (WSL 2), Debian 13 · 4 dedicated CPUs (`--cpuset-cpus=4-7`)
+> **Rust:** 1.99.1 (`codegen-units=1, lto=true, opt-level=3`) · MB = 2²⁰ bytes
 >
-> | Label        | OS / Allocator                                       |
-> |--------------|------------------------------------------------------|
-> | Win          | Windows AMD64, AMD Ryzen, MSVC (system allocator)    |
-> | glibc        | Linux AMD64, Docker `rust:latest`, glibc 2.41        |
-> | **jemalloc** | Linux AMD64, Docker `rust:latest`, jemalloc 5.3      |
+> | Label        | Allocator                            |
+> |--------------|--------------------------------------|
+> | glibc        | System allocator, glibc 2.41         |
+> | **jemalloc** | jemalloc 5.3 (`--features jemalloc`) |
+>
+> Windows, Python Gelatin and textfsm were not measured again. § 7 keeps their
+> results from 2026-03-23 (AMD Ryzen, older Rustine); they are not comparable
+> one to one with §§ 1–6.
 
 ---
 
 ## 1 · Fixture Benchmarks
 
-> Each fixture: compile grammar → execute → serialize (JSON / XML / YAML)
+> Grammar compiled once; each iteration executes and serializes to JSON
 > **Criterion** — 100 samples, 5 s measurement, 1 s warm-up
 
-| Fixture   | Input   | Win      | glibc    | **jemalloc** |
-|-----------|---------|----------|----------|--------------|
-| complex   | 14.9 KB | 4.20 ms  | 2.98 ms  | **2.59 ms**  |
-| csv       | 130 B   | 74.1 µs  | 59.4 µs  | **46.1 µs**  |
-| linesplit | 124 B   | 25.4 µs  | 19.5 µs  | **15.0 µs**  |
-| simple    | 144 B   | 54.1 µs  | 42.0 µs  | **35.1 µs**  |
-| tria      | 1.3 KB  | 226.2 µs | 194.8 µs | **138.5 µs** |
-
-> Peak RSS — Win: 37.1 MB · **glibc: 31.2 MB** · jemalloc: 33.8 MB
-
-### Python Gelatin (same fixtures)
-
-| Fixture   | Input   | Win (JSON) | Linux (JSON) |
+| Fixture   | Input   | glibc      | **jemalloc** |
 |-----------|---------|------------|--------------|
-| complex   | 14.9 KB | 43 ms      | 48 ms        |
-| csv       | 130 B   | 2.0 ms     | 2.0 ms       |
-| linesplit | 124 B   | 0.5 ms     | 0.4 ms       |
-| simple    | 144 B   | 1.0 ms     | 1.0 ms       |
-| tria      | 1.3 KB  | 3.0 ms     | 4.0 ms       |
+| complex   | 14.9 KB | 2.14 ms    | **1.60 ms**  |
+| csv       | 130 B   | 36.5 µs    | **30.5 µs**  |
+| linesplit | 124 B   | **7.4 µs** | 7.5 µs       |
+| simple    | 144 B   | 30.0 µs    | **25.8 µs**  |
+| tria      | 1.3 KB  | 135.1 µs   | **108.5 µs** |
 
-> Peak RSS — Win: 24.4 MB · Linux: 21.6 MB
-> Python Gelatin does not separate execute from serialize.
-> Rustine (jemalloc) is **10–17× faster** on fixtures.
+> Peak RSS — **glibc: 27.2 MB** · jemalloc: 28.9 MB
 
 ---
 
@@ -49,128 +38,198 @@
 > Dynamically generated data — 1 521 168 tree nodes
 > **Criterion** — 10 samples, 60 s measurement, 5 s warm-up
 
-| Benchmark      | Win      | glibc      | **jemalloc** |
-|----------------|----------|------------|--------------|
-| Execute        | 5.53 s   | 5.02 s     | **3.75 s**   |
-| Serialize JSON | 365 ms   | **258 ms** | 320 ms       |
-| Serialize XML  | 728 ms   | **505 ms** | 676 ms       |
-| Serialize YAML | 246 ms   | **177 ms** | 216 ms       |
-| Total JSON     | 6.13 s   | 8.13 s ¹   | **4.11 s**   |
-| Total XML      | 6.61 s   | 8.23 s ¹   | **4.40 s**   |
-| Total YAML     | 6.06 s   | 7.69 s ¹   | **4.03 s**   |
-| Peak RSS       | 1 092 MB | 1 087 MB   | **965 MB**   |
+| Benchmark      | glibc      | **jemalloc** |
+|----------------|------------|--------------|
+| Execute        | 1.34 s     | **1.25 s**   |
+| Serialize JSON | **167 ms** | 217 ms       |
+| Serialize XML  | **314 ms** | 466 ms       |
+| Serialize YAML | **147 ms** | 175 ms       |
+| Total JSON     | 2.15 s ¹   | **1.42 s**   |
+| Total XML      | 2.22 s ¹   | **1.61 s**   |
+| Total YAML     | 2.20 s ¹   | **1.39 s**   |
+| Peak RSS       | 617 MB     | **530 MB**   |
 
-> ¹ glibc totals inflated by allocator fragmentation under Criterion's
-> repeated alloc / free of 1.5 M nodes. One-shot runs (§ 3) confirm glibc
-> is ~18 % faster than Windows. jemalloc eliminates this overhead entirely.
-
-### Python Gelatin (25 MB, same grammars + data)
-
-| Benchmark  | Win      | Linux    |
-|------------|----------|----------|
-| Total JSON | 77.6 s   | 81.8 s   |
-| Total XML  | 69.7 s   | 74.4 s   |
-| Peak RSS   | 3 074 MB | 3 085 MB |
-
-> Rustine (jemalloc) is **17–19× faster** and uses **3× less memory**.
+> ¹ glibc totals are inflated by allocator fragmentation under Criterion's
+> repeated alloc / free of 1.5 M nodes; the one-shot runs (§ 3) do not show it.
 
 ---
 
 ## 3 · Scale One-Shot (25 / 50 / 100 MB)
 
-> `cargo run --release --example scale_oneshot`
+> `cargo run --release --example scale_oneshot -- --sizes 25,50,100`
 > Single wall-clock run — no Criterion warm-up.
 
 ### Total Time (execute + serialize)
 
-| Size · Format  | Win     | glibc       | **jemalloc** |
-|----------------|---------|-------------|--------------|
-| 25 MB · JSON   | 7.07 s  | 5.40 s      | **4.17 s**   |
-| 25 MB · XML    | 6.06 s  | 5.69 s      | **4.31 s**   |
-| 25 MB · YAML   | 5.52 s  | 4.52 s      | **3.79 s**   |
-| 50 MB · JSON   | 12.27 s | 10.84 s     | **8.15 s**   |
-| 50 MB · XML    | 13.70 s | 11.73 s     | **8.67 s**   |
-| 50 MB · YAML   | 12.16 s | 9.98 s      | **7.64 s**   |
-| 100 MB · JSON  | 25.76 s | 22.58 s     | **18.67 s**  |
-| 100 MB · XML   | 25.60 s | **24.08 s** | 24.38 s      |
-| 100 MB · YAML  | 24.70 s | 22.11 s     | **16.99 s**  |
+| Size · Format  | glibc  | **jemalloc** |
+|----------------|--------|--------------|
+| 25 MB · JSON   | 1.49 s | **1.41 s**   |
+| 25 MB · XML    | 1.68 s | **1.52 s**   |
+| 25 MB · YAML   | 1.60 s | **1.22 s**   |
+| 50 MB · JSON   | 3.75 s | **2.71 s**   |
+| 50 MB · XML    | 3.70 s | **3.16 s**   |
+| 50 MB · YAML   | 3.63 s | **2.71 s**   |
+| 100 MB · JSON  | 7.38 s | **6.37 s**   |
+| 100 MB · XML   | 8.35 s | **6.60 s**   |
+| 100 MB · YAML  | 7.07 s | **6.04 s**   |
 
 ### Peak RSS
 
-| Size   | Win        | glibc      | **jemalloc** |
-|--------|------------|------------|--------------|
-| 25 MB  | 818 MB     | 886 MB     | **739 MB**   |
-| 50 MB  | 1 393 MB   | 1 471 MB   | **1 213 MB** |
-| 100 MB | 2 528 MB   | 2 675 MB   | **2 164 MB** |
+| Size   | glibc    | **jemalloc** |
+|--------|----------|--------------|
+| 25 MB  | 397 MB   | **358 MB**   |
+| 50 MB  | 757 MB   | **716 MB**   |
+| 100 MB | 1 400 MB | **1 284 MB** |
 
-> Linear scaling confirmed — throughput constant (±15 %) from 25 to 100 MB.
-> jemalloc uses **10–19 % less RSS** than the system allocator at every size.
-
-### Python Gelatin (25 MB one-shot)
-
-| Size · Format | Win      | Linux    |
-|---------------|----------|----------|
-| 25 MB · JSON  | 85.1 s   | 80.0 s   |
-| 25 MB · XML   | 79.3 s   | 73.1 s   |
-| Peak RSS      | 3 075 MB | 3 087 MB |
-
-> Rustine best (jemalloc): 25 MB JSON in **4.17 s** — **19× faster**, **4× less RSS**.
+> Close to linear scaling: jemalloc executes 15–20 MB/s at every size and
+> uses **5–10 % less RSS** than glibc.
 
 ---
 
-## 4 · Real-Data Benchmark (20.9 MB IOS XR)
+## 4 · Real-Data Benchmark (20.0 MB IOS XR)
 
-> 263 grammars, 30 defines, 113 regex patterns
-> Input: 20.9 MB `show running-config` (proprietary — not shipped)
-> 899 757 nodes → 97.8 MB JSON · median of 5 iterations
->
-> These results were obtained with a private IOS XR configuration dataset.
-> The benchmark scripts are not included in the public repository.
+> 263 grammars, 30 defines, 113 regex patterns (119 KB grammar)
+> Input: 20.0 MB pseudonymized `show running-config`, LF line endings (not shipped)
+> 862 754 nodes → 89.3 MB JSON · `bench_run`, median of 5 iterations
 
 ### In-Memory Serialization
 
-| Metric   | Win        | glibc    | **jemalloc** |
-|----------|------------|----------|--------------|
-| Exec     | 3.76 s     | 2.69 s   | **2.08 s**   |
-| Total    | 4.10 s     | 2.93 s   | **2.31 s**   |
-| Peak RSS | **496 MB** | 639 MB   | 510 MB       |
+| Metric   | glibc  | **jemalloc** |
+|----------|--------|--------------|
+| Exec     | 0.93 s | **0.85 s**   |
+| Total    | 1.04 s | **0.96 s**   |
+| Peak RSS | 405 MB | **385 MB**   |
 
 ### Streaming Serialization
 
-| Metric   | Win    | glibc  | **jemalloc** |
-|----------|--------|--------|--------------|
-| Exec     | 3.48 s | 2.79 s | **2.16 s**   |
-| Total    | 3.71 s | 2.92 s | **2.29 s**   |
-| Peak RSS | 496 MB | 525 MB | **456 MB**   |
+| Metric   | glibc  | **jemalloc** |
+|----------|--------|--------------|
+| Exec     | 0.89 s | **0.78 s**   |
+| Total    | 0.92 s | **0.81 s**   |
+| Peak RSS | 312 MB | **305 MB**   |
 
-> Streaming skips the 98 MB in-memory `String` allocation. RSS savings are
-> modest here because the tree itself (260+ MB) dominates.
+> Streaming skips the 89 MB output `String` and lowers peak RSS by 80–95 MB.
 
-### CLI End-to-End — rgel vs gel
+### CLI End-to-End (`rgel`)
 
-> `rgel` = Rust binary (release profile)
-> `gel` = Python Gelatin (CPython 3.10)
-> **Input:** 20.9 MB IOS XR `show running-config` → JSON
-> Median of 5 iterations (1 warm-up)
-> Full lifecycle: startup → file I/O → compile → execute → serialize → stdout
+> Full lifecycle: startup → file I/O → compile → execute → serialize → `/dev/null`
+> Median of 5 runs after 1 warm-up
 
-| Tool         | Win           | glibc         | jemalloc      |
-|--------------|---------------|---------------|---------------|
-| **rgel**     | **5.50 s**    | **4.61 s**    | **4.10 s**    |
-|              | **3.97 MB/s** | **4.7 MB/s**  | **5.3 MB/s**  |
-| gel (Python) | 61.81 s       | 60.12 s       | —             |
-|              | 0.35 MB/s     | 0.36 MB/s     | —             |
-
-| Speedup (rgel vs gel) | Win        | Linux (glibc) |
-|-----------------------|------------|---------------|
-|                       | **11.2×**  | **13.0×**     |
-
-> **rgel is 11–13× faster than Python gel** across all platforms.
-> jemalloc is the fastest allocator (4.10 s vs 4.61 s glibc vs 5.50 s Win).
+| Output   | glibc              | **jemalloc**           |
+|----------|--------------------|------------------------|
+| JSON     | 1.16 s · 17.3 MB/s | **1.08 s · 18.6 MB/s** |
+| XML      | 1.24 s · 16.2 MB/s | **1.08 s · 18.5 MB/s** |
+| Peak RSS | **344 MB**         | 374 MB                 |
 
 ---
 
-## 5 · textfsm Comparison
+## 5 · Compared with the Previous Version
+
+> Same machine and settings; previous version = commit `1a373df`.
+> `bench_run`, jemalloc, one iteration, median of 7 interleaved runs.
+> Wall time includes reading the files and compiling the grammar;
+> Total = execute + serialize to JSON. Instructions counted with callgrind.
+
+| Workload             | Metric       | Before | Now    | Change    |
+|----------------------|--------------|--------|--------|-----------|
+| Real IOS XR, 20.0 MB | Wall time    | 2.77 s | 1.10 s | **−60 %** |
+|                      | Total        | 1.82 s | 0.96 s | **−47 %** |
+|                      | Peak RSS     | 479 MB | 373 MB | **−22 %** |
+|                      | Instructions | 46.7 G | 14.1 G | **−70 %** |
+| Scale, 25 MB         | Wall time    | 4.01 s | 1.44 s | **−64 %** |
+|                      | Total        | 3.10 s | 1.38 s | **−56 %** |
+|                      | Peak RSS     | 741 MB | 357 MB | **−52 %** |
+
+> Main reasons: the grammar is lexed in linear time (the 119 KB grammar took
+> 0.8 s), identical field-list regexes are compiled once, per-match metadata
+> is skipped when only the tree is needed, `out.*` paths are parsed without a
+> cache, and capture interpolation, regex matching and output escaping no
+> longer do duplicate or per-character work.
+
+---
+
+## 6 · Key Observations
+
+1. **Real IOS XR config:** 20 MB executed in **0.85 s** (23.6 MB/s) and in
+   0.96 s including JSON (jemalloc); `rgel` takes **1.08 s** end to end.
+
+2. **2.5× faster than the previous version** end to end on the real config
+   with 22 % less memory, and **2.8× faster** on the 25 MB scale benchmark
+   with half the memory (§ 5).
+
+3. **jemalloc is the fastest allocator** for execution and totals. glibc
+   serializes faster (JSON 167 vs 217 ms on 25 MB) and uses less memory for
+   small inputs and the CLI.
+
+4. **glibc fragments under Criterion's repeated runs:** its totals are
+   35–50 % above execute + serialize; one-shot runs do not show this.
+
+5. **Close to linear scaling** from 25 to 100 MB.
+
+6. **Serialization cost** (jemalloc, 25 MB one-shot): JSON 14 %, XML 22 %,
+   YAML 12 % of the total. Execution dominates.
+
+7. **Streaming** lowers peak RSS by 80–95 MB on the real config.
+
+8. **Near-perfect parity:** 24 / ~2.4 M nodes differ (0.001 %) vs Python
+   Gelatin — all from a Python `_splitpath()` bug.
+
+---
+
+## 7 · Reference Results (2026-03-23)
+
+> Not measured again: Windows (MSVC), Python Gelatin (CPython 3.10) and
+> textfsm, on an AMD Ryzen machine with the Rustine of that date. Rustine is
+> faster now (§ 5), so the ratios below are conservative.
+
+### Python Gelatin — Fixtures
+
+| Fixture   | Input   | Gelatin Win (JSON) | Gelatin Linux (JSON) | Rustine (jemalloc) |
+|-----------|---------|--------------------|----------------------|--------------------|
+| complex   | 14.9 KB | 43 ms              | 48 ms                | 2.59 ms            |
+| csv       | 130 B   | 2.0 ms             | 2.0 ms               | 46.1 µs            |
+| linesplit | 124 B   | 0.5 ms             | 0.4 ms               | 15.0 µs            |
+| simple    | 144 B   | 1.0 ms             | 1.0 ms               | 35.1 µs            |
+| tria      | 1.3 KB  | 3.0 ms             | 4.0 ms               | 138.5 µs           |
+
+> Gelatin peak RSS — Win: 24.4 MB · Linux: 21.6 MB. Gelatin does not separate
+> execute from serialize. Rustine (jemalloc) was **10–17× faster** on fixtures.
+
+### Python Gelatin — 25 MB Scale (same grammars + data)
+
+| Benchmark                | Gelatin Win | Gelatin Linux | Rustine (jemalloc) |
+|--------------------------|-------------|---------------|--------------------|
+| Criterion total JSON     | 77.6 s      | 81.8 s        | 4.11 s             |
+| Criterion total XML      | 69.7 s      | 74.4 s        | 4.40 s             |
+| Criterion peak RSS       | 3 074 MB    | 3 085 MB      | 965 MB             |
+| One-shot JSON            | 85.1 s      | 80.0 s        | 4.17 s             |
+| One-shot XML             | 79.3 s      | 73.1 s        | 4.31 s             |
+| One-shot peak RSS        | 3 075 MB    | 3 087 MB      | 739 MB             |
+
+> Rustine (jemalloc) was **17–19× faster** and used **3–4× less memory**.
+
+### CLI End-to-End — rgel vs gel (20.9 MB IOS XR → JSON)
+
+| Tool         | Win     | glibc   | jemalloc |
+|--------------|---------|---------|----------|
+| **rgel**     | 5.50 s  | 4.61 s  | 4.10 s   |
+| gel (Python) | 61.81 s | 60.12 s | —        |
+
+> `rgel` was **11–13× faster** than Python `gel`.
+
+### Windows (MSVC) vs Linux
+
+| Benchmark                  | Win     | glibc   | jemalloc |
+|----------------------------|---------|---------|----------|
+| Fixture complex            | 4.20 ms | 2.98 ms | 2.59 ms  |
+| Scale 25 MB execute        | 5.53 s  | 5.02 s  | 3.75 s   |
+| One-shot 25 MB JSON        | 7.07 s  | 5.40 s  | 4.17 s   |
+| Real data exec (20.9 MB)   | 3.76 s  | 2.69 s  | 2.08 s   |
+| Real data peak RSS         | 496 MB  | 639 MB  | 510 MB   |
+
+> jemalloc was 1.5–1.8× faster than Windows MSVC.
+
+### textfsm
 
 > [textfsm](https://github.com/google/textfsm) produces **flat tables**
 > (list of dicts); Rustine produces a **deep hierarchical tree**.
@@ -179,7 +238,7 @@
 > These results were obtained with custom benchmark scripts not shipped in
 > the public repository.  They are included here as reference data points.
 
-### 5a · Synthetic Data (25 MB — same input as § 2)
+#### Synthetic Data (25 MB — same input as § 2)
 
 | Tool        | Time (best) | MB/s     | Output                 | Peak RSS |
 |-------------|-------------|----------|------------------------|----------|
@@ -188,7 +247,7 @@
 
 > **Rustine is 1.6× faster** while building a full hierarchical tree.
 
-#### Per-template breakdown (textfsm)
+##### Per-template breakdown (textfsm)
 
 | Template    | Time   | Records   |
 |-------------|--------|-----------|
@@ -196,7 +255,7 @@
 | sections    | 2.17 s | 61 196    |
 | attributes  | 3.76 s | 1 101 513 |
 
-### 5b · Real IOS XR Data (20.9 MB)
+#### Real IOS XR Data (20.9 MB)
 
 | Tool        | Time (best) | MB/s     | Output                     | Peak RSS |
 |-------------|-------------|----------|----------------------------|----------|
@@ -204,70 +263,6 @@
 | **Rustine** | **3.92 s**  | **5.34** | 93.3 MB JSON (899 K nodes) | 496 MB   |
 
 > **Rustine is 1.9× faster** and produces **578× more data**.
-
----
-
-## 6 · Platform Summary
-
-Best result on each key metric (speedup relative to Windows):
-
-| Metric                   | Best     | Time / RSS  | vs Win              |
-|--------------------------|----------|-------------|---------------------|
-| Fixture (complex)        | jemalloc | 2.59 ms     | **1.62×**           |
-| Scale 25 MB execute      | jemalloc | 3.75 s      | **1.47×**           |
-| Scale 25 MB (vs Gelatin) | jemalloc | 4.11 s JSON | **19×** vs Python   |
-| One-shot 25 MB (YAML)    | jemalloc | 3.79 s      | **1.46×**           |
-| Real-data exec (mem)     | jemalloc | 2.08 s      | **1.81×**           |
-| Real-data total (stream) | jemalloc | 2.29 s      | **1.62×**           |
-| CLI (rgel vs gel)        | glibc    | 4.61 s      | **13.0×** vs Python |
-| RSS 25 MB one-shot       | jemalloc | 739 MB      | **−10 %**           |
-| RSS 25 MB (vs Gelatin)   | jemalloc | 965 MB      | **3× less** than Py |
-| RSS 100 MB one-shot      | jemalloc | 2 164 MB    | **−14 %**           |
-
-> **jemalloc wins every speed metric.** glibc leads on small-workload RSS
-> (31.2 MB vs 33.8 MB) but jemalloc is better at scale.
-> CLI throughput is I/O-bound and near-identical across allocators.
-
----
-
-## 7 · Key Observations
-
-1. **jemalloc is the fastest allocator across all workloads.**
-   1.5–1.8× faster than Windows MSVC; 1.1–1.3× faster than glibc.
-
-2. **Allocator choice dominates at scale.** The glibc system allocator
-   fragments under repeated 1.5 M-node allocations, inflating Criterion
-   totals 25–40 % above one-shot measurements. jemalloc shows no such
-   degradation.
-
-3. **Real-data throughput:** up to **10.1 MB/s** (jemalloc in-memory) on
-   20.9 MB IOS XR with 263 grammars.
-
-4. **CLI end-to-end:** `rgel` processes 20.9 MB in **4.10 s** (jemalloc)
-   to **5.50 s** (Windows) — **11–13× faster than Python `gel`.**
-
-5. **17–19× faster than Python Gelatin** on the same 25 MB scale
-   benchmark with the same grammars. **4× less RSS** (965 MB vs 3 075 MB).
-
-6. **Faster than textfsm while doing far more work.**
-   Synthetic 25 MB: **1.6×** faster. Real IOS XR: **1.9×** faster
-   and **578× more output**.
-
-7. **Linear scaling:** throughput constant (±15 %) from 25 to 100 MB on all
-   three platforms.
-
-8. **Memory:** jemalloc uses **10–19 % less RSS** than both system
-   allocators at scale. Windows RSS is lowest for real-data (496 MB) due
-   to different OS measurement semantics.
-
-9. **Serialization cost:** JSON ~6 %, XML ~10 %, YAML ~4 % of total.
-    Execution dominates.
-
-10. **Streaming:** ~30 % faster serialize step; RSS savings appear at larger
-    output sizes (500 MB+).
-
-11. **Near-perfect parity:** 24 / ~2.4 M nodes differ (0.001 %) vs Python
-    Gelatin — all from a Python `_splitpath()` bug.
 
 ---
 
@@ -328,6 +323,7 @@ docker run --rm -v "${PWD}:/work" -w /work rust:latest \
   --example scale_oneshot
 ```
 
-> The CLI, textfsm, and real-data benchmarks were run with private scripts
-> and datasets not included in this repository.  Results in §§ 4–5 are
-> provided as reference data points.
+> The real-data, CLI and textfsm benchmarks use private scripts and datasets
+> that are not part of this repository (§§ 4, 5 and 7). On CPUs with
+> performance and efficiency cores, pin the container to a few cores for
+> stable numbers, e.g. `docker run --cpuset-cpus=4-7 …`.
