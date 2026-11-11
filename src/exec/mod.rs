@@ -59,6 +59,19 @@ type CaptureVec<'a> = SmallVec<[Cow<'a, str>; 8]>;
 /// Stack-allocated named-capture vector.
 type NameVec = SmallVec<[Option<Arc<str>>; 8]>;
 
+/// Regex matching only looks at this many bytes of the remaining input.
+const SEARCH_WINDOW: usize = 1000;
+
+/// The first [`SEARCH_WINDOW`] bytes of `rem`, extended to the next char boundary.
+#[inline]
+fn search_window(rem: &str) -> &str {
+    let mut end = rem.len().min(SEARCH_WINDOW);
+    while !rem.is_char_boundary(end) {
+        end += 1;
+    }
+    &rem[..end]
+}
+
 pub mod arena;
 pub mod out;
 pub mod streaming;
@@ -778,7 +791,7 @@ impl<'a> Runner<'a> {
         if let Some(combined) = &list.compiled_regex {
             prof_inc!(EVAL_FIELD_LIST_FAST);
             let rem = self.ctx.remaining();
-            let window = &rem[..rem.len().min(1000)];
+            let window = search_window(rem);
             if let Some(m) = combined.find(window) {
                 if m.start() != 0 {
                     prof_inc!(REGEX_FIND_MISS);
@@ -861,7 +874,7 @@ impl<'a> Runner<'a> {
                 };
                 // Two-phase: fast find() first (DFA), only compute captures on hit.
                 // Window the input to avoid scanning the full remaining buffer.
-                let window = &rem[..rem.len().min(1000)];
+                let window = search_window(rem);
                 prof_inc!(EVAL_EXPR_REGEX);
                 if let Some(m) = compiled.find(window) {
                     if m.start() == 0 {
@@ -926,8 +939,7 @@ impl<'a> Runner<'a> {
             Expression::Capture(idx) => {
                 if let Some(val) = captures_so_far.get(*idx) {
                     let len = val.len();
-                    if rem.len() >= len {
-                        let slice = &rem[..len];
+                    if let Some(slice) = rem.get(..len) {
                         if (case_insensitive && slice.eq_ignore_ascii_case(val)) || slice == val.as_ref() {
                             return Ok(Some((len, vec![(val.clone(), None)])));
                         }
@@ -944,8 +956,7 @@ impl<'a> Runner<'a> {
                 {
                     if let Some(val) = captures_so_far.get(i) {
                         let len = val.len();
-                        if rem.len() >= len {
-                            let slice = &rem[..len];
+                        if let Some(slice) = rem.get(..len) {
                             if (case_insensitive && slice.eq_ignore_ascii_case(val)) || slice == val.as_ref() {
                                 return Ok(Some((len, vec![(val.clone(), None)])));
                             }
@@ -995,7 +1006,7 @@ impl<'a> Runner<'a> {
                     Some(rx) => rx,
                     None => return Ok(None),
                 };
-                if let Some(m) = compiled.find(&rem[..rem.len().min(1000)]) {
+                if let Some(m) = compiled.find(search_window(rem)) {
                     if m.start() == 0 {
                         return Ok(Some((m.end(), rem[..m.end()].to_string())));
                     }
@@ -1021,8 +1032,7 @@ impl<'a> Runner<'a> {
             Expression::Capture(idx) => {
                 if let Some(val) = groups_so_far.get(*idx) {
                     let len = val.len();
-                    if rem.len() >= len {
-                        let slice = &rem[..len];
+                    if let Some(slice) = rem.get(..len) {
                         if (case_insensitive && slice.eq_ignore_ascii_case(val)) || slice == val {
                             return Ok(Some((len, val.clone())));
                         }
@@ -1039,8 +1049,7 @@ impl<'a> Runner<'a> {
                 {
                     if let Some(val) = groups_so_far.get(i) {
                         let len = val.len();
-                        if rem.len() >= len {
-                            let slice = &rem[..len];
+                        if let Some(slice) = rem.get(..len) {
                             if (case_insensitive && slice.eq_ignore_ascii_case(val)) || slice == val {
                                 return Ok(Some((len, val.clone())));
                             }
