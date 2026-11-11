@@ -260,9 +260,7 @@ impl<'a> Runner<'a> {
             for stmt in statements.iter() {
                 match stmt {
                     Statement::Match(m) => {
-                        let mut scope: CaptureVec<'a> = CaptureVec::new();
-                        let mut name_scope: NameVec = NameVec::new();
-                        if let Some((len, acts)) = self.eval_match(m, &mut scope, &mut name_scope)? {
+                        if let Some((len, acts, scope, name_scope)) = self.eval_match(m)? {
                             {
                                 let match_text = &self.ctx.input[self.ctx.pos..self.ctx.pos + len];
                                 let pos_before = self.ctx.pos;
@@ -279,8 +277,8 @@ impl<'a> Runner<'a> {
                                 } else {
                                     acts
                                 };
-                                self.last_captures = std::mem::take(&mut scope);
-                                self.last_capture_names = std::mem::take(&mut name_scope);
+                                self.last_captures = scope;
+                                self.last_capture_names = name_scope;
                                 self.fire_triggers("before", &mut result.output);
                                 let (return_levels, did_next, fail_error, auto_leaves) = self.execute_runtime_actions(
                                     actions_to_run,
@@ -320,9 +318,7 @@ impl<'a> Runner<'a> {
                         }
                     }
                     Statement::When(w) => {
-                        let mut scope: CaptureVec<'a> = CaptureVec::new();
-                        let mut name_scope: NameVec = NameVec::new();
-                        if self.eval_when(w, &mut scope, &mut name_scope)? {
+                        if let Some((scope, name_scope)) = self.eval_when(w)? {
                             let needs_sub = Self::actions_need_substitution(&w.actions);
                             let substituted_storage;
                             let actions_to_run: &[FunctionCall] = if needs_sub {
@@ -425,35 +421,25 @@ impl<'a> Runner<'a> {
         Ok(result)
     }
 
+    #[allow(clippy::type_complexity)]
     fn eval_match<'m>(
         &mut self,
         m: &'m MatchStatement,
-        captures_out: &mut CaptureVec<'a>,
-        names_out: &mut NameVec,
-    ) -> Result<Option<(usize, &'m [FunctionCall])>> {
+    ) -> Result<Option<(usize, &'m [FunctionCall], CaptureVec<'a>, NameVec)>> {
         for alt in &m.match_list.alternatives {
             if let Some((len, groups, names)) = self.eval_field_list(alt, m.case_insensitive)? {
-                captures_out.extend(groups);
-                names_out.extend(names);
-                return Ok(Some((len, &m.actions)));
+                return Ok(Some((len, &m.actions, groups, names)));
             }
         }
         Ok(None)
     }
-    fn eval_when(
-        &mut self,
-        w: &WhenStatement,
-        captures_out: &mut CaptureVec<'a>,
-        names_out: &mut NameVec,
-    ) -> Result<bool> {
+    fn eval_when(&mut self, w: &WhenStatement) -> Result<Option<(CaptureVec<'a>, NameVec)>> {
         for alt in &w.match_list.alternatives {
             if let Some((_, groups, names)) = self.eval_field_list(alt, false)? {
-                captures_out.extend(groups);
-                names_out.extend(names);
-                return Ok(true);
+                return Ok(Some((groups, names)));
             }
         }
-        Ok(false)
+        Ok(None)
     }
     fn eval_skip(&mut self, s: &SkipStatement) -> Result<Option<usize>> {
         prof_inc!(EVAL_SKIP_CALLS);
@@ -797,20 +783,16 @@ impl<'a> Runner<'a> {
                 return Ok(None);
             }
         }
-        // Combined regex: use find() for quick accept/reject, then captures() for groups
+        // Combined regex: one captures() search when groups are needed, else find()
         if let Some(combined) = &list.compiled_regex {
             prof_inc!(EVAL_FIELD_LIST_FAST);
             let rem = self.ctx.remaining();
             let window = search_window(rem);
-            if let Some(m) = combined.find(window) {
-                if m.start() != 0 {
-                    prof_inc!(REGEX_FIND_MISS);
-                    return Ok(None);
-                }
-                prof_inc!(REGEX_FIND_HIT);
-                let consumed = m.end();
-                if combined.captures_len() > 1 {
-                    if let Some(mat) = combined.captures(window) {
+            if combined.captures_len() > 1 {
+                if let Some(mat) = combined.captures(window) {
+                    let consumed = mat.get(0).map_or(0, |m| m.end());
+                    if mat.get(0).is_some_and(|m| m.start() == 0) {
+                        prof_inc!(REGEX_FIND_HIT);
                         let mut all_captures: CaptureVec<'a> = CaptureVec::new();
                         let mut all_names: NameVec = NameVec::new();
                         for gi in 1..mat.len() {
@@ -823,7 +805,11 @@ impl<'a> Runner<'a> {
                         }
                         return Ok(Some((consumed, all_captures, all_names)));
                     }
-                } else {
+                }
+            } else if let Some(m) = combined.find(window) {
+                if m.start() == 0 {
+                    prof_inc!(REGEX_FIND_HIT);
+                    let consumed = m.end();
                     let all_captures: CaptureVec<'a> = smallvec::smallvec![Cow::Borrowed(&rem[..consumed])];
                     let all_names: NameVec = smallvec::smallvec![None];
                     return Ok(Some((consumed, all_captures, all_names)));
@@ -1350,9 +1336,7 @@ impl<'a> Runner<'a> {
             for stmt in statements.iter() {
                 match stmt {
                     Statement::Match(m) => {
-                        let mut scope: CaptureVec<'a> = CaptureVec::new();
-                        let mut name_scope: NameVec = NameVec::new();
-                        if let Some((len, acts)) = self.eval_match(m, &mut scope, &mut name_scope).ok().flatten() {
+                        if let Some((len, acts, scope, name_scope)) = self.eval_match(m).ok().flatten() {
                             {
                                 let match_text = &self.ctx.input[self.ctx.pos..self.ctx.pos + len];
                                 if len > 0 {
@@ -1390,9 +1374,7 @@ impl<'a> Runner<'a> {
                         }
                     }
                     Statement::When(w) => {
-                        let mut scope: CaptureVec<'a> = CaptureVec::new();
-                        let mut name_scope: NameVec = NameVec::new();
-                        if self.eval_when(w, &mut scope, &mut name_scope).unwrap_or(false) {
+                        if let Some((scope, name_scope)) = self.eval_when(w).ok().flatten() {
                             let needs_sub = Self::actions_need_substitution(&w.actions);
                             let substituted_storage;
                             let actions_to_run: &[FunctionCall] = if needs_sub {
