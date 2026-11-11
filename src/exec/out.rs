@@ -27,9 +27,7 @@ pub type NodeId = u32;
 
 /// Compute a 64-bit hash of the compound (name + attributes) key.
 ///
-/// This replaces the old `child_lookup_key()` which allocated a fresh
-/// `String` per call.  Using a hash saves ~70 MB of peak RSS on large
-/// workloads (900K nodes × ~80 bytes per key String).
+/// A hash instead of a key `String` per call keeps peak RSS low on large trees.
 fn child_hash_key<K: AsRef<str>, V: AsRef<str>>(name: &str, attribs: &[(K, V)]) -> u64 {
     let mut h = std::collections::hash_map::DefaultHasher::new();
     name.hash(&mut h);
@@ -40,12 +38,6 @@ fn child_hash_key<K: AsRef<str>, V: AsRef<str>>(name: &str, attribs: &[(K, V)]) 
         v.as_ref().hash(&mut h);
     }
     h.finish()
-}
-
-/// Intern attribute keys from a `[(String,String)]` slice into `[(Rc<str>,String)]`.
-#[allow(dead_code)]
-fn intern_attrs(table: &mut HashSet<Rc<str>>, attribs: &[(String, String)]) -> Vec<(Rc<str>, String)> {
-    attribs.iter().map(|(k, v)| (intern(table, k), v.clone())).collect()
 }
 
 /// Compare interned attributes with plain-string attributes.
@@ -311,9 +303,7 @@ impl<'a> Iterator for FlatChildGroupIter<'a> {
 // URL percent-encode / -decode
 // ---------------------------------------------------------------------------
 
-/// URL percent-decode (equivalent to Python's `urllib.parse.unquote`).
-/// Decodes %XX sequences.  Does NOT convert '+' to space (that is
-/// `unquote_plus`, which Gelatin does not use).
+/// Decode `%XX` sequences; `+` stays `+`.
 pub fn percent_decode(input: &str) -> String {
     if !input.contains('%') {
         return input.to_string();
@@ -348,7 +338,7 @@ fn percent_decode_slow(input: &str) -> String {
     String::from_utf8(out).unwrap_or_else(|_| input.to_string())
 }
 
-/// URL percent-encode (equivalent to Python's `urllib.parse.quote(s, safe=' ')`).
+/// Percent-encode every byte except ASCII letters, digits, `-_.~` and space.
 pub fn percent_encode(input: &str) -> String {
     let needs_encoding = input.bytes().any(|b| {
         !matches!(b,
@@ -553,30 +543,6 @@ impl OutputTree {
 
     // === Attribute pool helpers ===
 
-    /// Get a node's attributes as a slice of the pool.
-    #[inline]
-    #[allow(dead_code)]
-    fn node_attrs(&self, node_id: NodeId) -> &[(Rc<str>, String)] {
-        let node = &self.arena[node_id as usize];
-        if node.attr_len == 0 {
-            return &[];
-        }
-        &self.attr_pool[node.attr_start as usize..(node.attr_start + node.attr_len) as usize]
-    }
-
-    /// Append attributes to the pool and set a node's attr range.
-    /// The node MUST have attr_len == 0 (freshly created).
-    #[inline]
-    #[allow(dead_code)]
-    fn set_node_attrs(&mut self, node_id: NodeId, attrs: Vec<(Rc<str>, String)>) {
-        let start = self.attr_pool.len() as u32;
-        let len = attrs.len() as u32;
-        self.attr_pool.extend(attrs);
-        let node = &mut self.arena[node_id as usize];
-        node.attr_start = start;
-        node.attr_len = len;
-    }
-
     /// Intern and append raw `(String, String)` attributes directly to the pool.
     /// Avoids creating a temporary `Vec<(Rc<str>, String)>`.
     #[inline]
@@ -611,41 +577,6 @@ impl OutputTree {
         }
         self.attr_pool.push((key, value));
         self.arena[node_id as usize].attr_len += 1;
-    }
-
-    /// Extend a node's attributes with additional pairs.  Relocates if
-    /// the node's range is not at the pool's tail.
-    #[allow(dead_code)]
-    fn extend_node_attrs(&mut self, node_id: NodeId, extra: &[(Rc<str>, String)]) {
-        if extra.is_empty() {
-            return;
-        }
-        let node = &self.arena[node_id as usize];
-        let end = (node.attr_start + node.attr_len) as usize;
-        if end != self.attr_pool.len() {
-            let old_start = node.attr_start as usize;
-            let old_len = node.attr_len as usize;
-            let new_start = self.attr_pool.len();
-            for j in old_start..old_start + old_len {
-                let entry = std::mem::take(&mut self.attr_pool[j]);
-                self.attr_pool.push(entry);
-            }
-            self.arena[node_id as usize].attr_start = new_start as u32;
-        }
-        self.attr_pool.extend_from_slice(extra);
-        self.arena[node_id as usize].attr_len += extra.len() as u32;
-    }
-
-    /// Replace all of a node's attributes with new ones.
-    /// Old range becomes dead space (acceptable — happens rarely).
-    #[allow(dead_code)]
-    fn replace_node_attrs(&mut self, node_id: NodeId, attrs: Vec<(Rc<str>, String)>) {
-        let start = self.attr_pool.len() as u32;
-        let len = attrs.len() as u32;
-        self.attr_pool.extend(attrs);
-        let node = &mut self.arena[node_id as usize];
-        node.attr_start = start;
-        node.attr_len = len;
     }
 
     // === Arena helpers ===

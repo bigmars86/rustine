@@ -1,7 +1,7 @@
 //! Benchmark: execution engine micro-benchmarks.
 //!
-//! Covers grammar scaling, serialization formats, capture-heavy workloads,
-//! deep output trees, and arena allocation.
+//! Covers grammar scaling, serialization formats, capture-heavy workloads
+//! and deep output trees.
 //!
 //! Run with:  `cargo bench --bench exec --no-default-features`
 
@@ -53,8 +53,7 @@ fn generate_input(num_rules: usize, num_lines: usize) -> String {
 // ---------------------------------------------------------------------------
 
 fn bench_scaling(c: &mut Criterion) {
-    // Head-to-head configs (match PERFORMANCE_ANALYSIS.md)
-    // plus scaling-characteristic configs (constant 1000 lines, varying rules).
+    // Line-count points plus rule-count scaling at a constant 1000 lines.
     let configs: &[(usize, usize, &str)] = &[
         (5, 100, "5_rules_100_lines"),
         (5, 1_000, "5_rules_1000_lines"),
@@ -210,49 +209,11 @@ fn bench_output_tree_deep(c: &mut Criterion) {
     group.finish();
 }
 
-// ---------------------------------------------------------------------------
-// Arena allocation benchmarks
-// ---------------------------------------------------------------------------
-
-use rustine::exec::arena::ExecArena;
-
-fn bench_arena(c: &mut Criterion) {
-    let mut group = c.benchmark_group("arena");
-    group.warm_up_time(Duration::from_secs(1));
-    group.measurement_time(Duration::from_secs(5));
-
-    group.bench_function("alloc_str_1000", |b| {
-        b.iter(|| {
-            let mut arena = ExecArena::new();
-            for i in 0..1_000 {
-                let s = format!("some_temporary_string_{}", i);
-                let allocated = arena.alloc_str(&s);
-                std::hint::black_box(allocated);
-            }
-            arena.reset();
-        });
-    });
-
-    group.bench_function("vs_vec_1000", |b| {
-        b.iter(|| {
-            let mut v: Vec<String> = Vec::with_capacity(1_000);
-            for i in 0..1_000 {
-                v.push(format!("some_temporary_string_{}", i));
-            }
-            std::hint::black_box(&v);
-            drop(v);
-        });
-    });
-
-    group.finish();
-}
-
 criterion_group!(
     benches,
     bench_scaling,
     bench_serialization,
     bench_capture_heavy,
     bench_output_tree_deep,
-    bench_arena,
 );
 criterion_main!(benches);

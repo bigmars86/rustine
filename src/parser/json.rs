@@ -16,7 +16,6 @@ impl JsonGenerator {
     pub fn generate_from_ast(document: &GelDocument) -> String {
         let generator = Self::new();
 
-        // For now build a simple representation of the AST structure
         let mut result = Map::new();
 
         // Render defines

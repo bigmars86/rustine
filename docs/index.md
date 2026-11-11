@@ -11,7 +11,7 @@ pip install rustine
 ```
 
 ```python
-from Rustine import rustine
+from Rustine.util import compile_string, generate_string
 
 grammar = r"""
 define nl /\r?\n/
@@ -23,7 +23,7 @@ grammar input:
         out.add_attribute('.', 'name', '$2')
 """
 
-print(rustine.parse_to_json(grammar, "Name: Alice\n"))
+print(generate_string(compile_string(grammar), "Name: Alice\n", format="json"))
 ```
 
 ## Contents
@@ -31,6 +31,7 @@ print(rustine.parse_to_json(grammar, "Name: Alice\n"))
 ```{toctree}
 :maxdepth: 2
 
+install
 getting-started
 syntax
 architecture

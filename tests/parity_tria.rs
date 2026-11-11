@@ -1,8 +1,6 @@
-//! Parity test: tria (triathlon) demo
-//! Verifies that the Rust engine produces the same structural output as
-//! Python Gelatin for the tria grammar (complex multi-level grammar with
+//! tria (triathlon) demo: structure of the output for a multi-level grammar with
 //! inheritance, grammar cross-calls, alternation, out.open, out.add,
-//! out.add_attribute, out.set_root_name, do.return, skip).
+//! out.add_attribute, out.set_root_name, do.return, skip.
 
 use rustine::exec::{execute, serialize_execution, RuntimeFormat};
 use rustine::parser::lexer::lex;

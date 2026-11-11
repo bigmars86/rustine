@@ -1,6 +1,6 @@
 # Installation
 
-## From PyPI (recommended)
+## Python
 
 ```bash
 pip install rustine
@@ -8,48 +8,56 @@ pip install rustine
 
 Wheels are published for:
 
-| OS      | Architectures      |
-|---------|--------------------|
-| Linux   | x86_64, aarch64    |
+| OS      | Architectures         |
+|---------|-----------------------|
+| Linux   | x86_64, aarch64       |
 | macOS   | x86_64, Apple Silicon |
-| Windows | x86_64             |
+| Windows | x86_64                |
 
-## From Source
+### From Source
 
-Requires a Rust toolchain (1.86+) and Python 3.9+.
+Requires Rust 1.86+ and Python 3.9+.
 
 ```bash
-pip install maturin
-git clone https://github.com/knipknap/rustine.git
+git clone https://github.com/bigmars86/rustine.git
 cd rustine
+pip install maturin
 maturin develop --release
 ```
 
-## Rust-only (library crate)
-
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-rustine = { git = "https://github.com/knipknap/rustine.git", default-features = false }
-```
-
-## Optional Features
-
-| Feature     | Description                          | Default        |
-|-------------|--------------------------------------|----------------|
-| `python`    | PyO3 extension module                | yes            |
-| `parallel`  | Rayon-based parallel lexing          | no             |
-| `mmap`      | Memory-mapped file I/O               | no             |
-| `cli`       | CLI binary (`rgel`)                  | no             |
-| `jemalloc`  | jemalloc allocator (Linux)           | **Linux wheels** |
-| `mimalloc`  | mimalloc allocator (cross-platform)  | no             |
-
-Published Linux wheels include `jemalloc` by default for better
-performance and memory behavior.
-
-Enable features with:
+## Rust Library
 
 ```bash
-cargo build --features parallel,mmap
+cargo add rustine --no-default-features
 ```
+
+`--no-default-features` drops the `python` feature, which needs a Python
+interpreter at build time.
+
+## CLI
+
+```bash
+cargo install rustine --no-default-features --features cli
+```
+
+From a checkout: `cargo build --release --no-default-features --features cli`
+(binary: `target/release/rgel`).
+
+## Cargo Features
+
+Compile-time switches, enabled with `--features`:
+
+| Feature     | Default          | Description                                |
+|-------------|------------------|--------------------------------------------|
+| `python`    | **yes**          | PyO3 extension module                      |
+| `cli`       | no               | `rgel` command-line binary                 |
+| `mmap`      | no               | Memory-mapped file input for `ChunkReader` |
+| `parallel`  | no               | Compile regexes in parallel (Rayon)        |
+| `jemalloc`  | **Linux wheels** | jemalloc allocator (not on MSVC)           |
+| `mimalloc`  | no               | mimalloc allocator                         |
+| `bench`     | no               | Internal benchmark examples                |
+| `profiling` | no               | Per-rule timing counters                   |
+
+jemalloc returns freed memory to the OS: about 20 % faster than glibc malloc
+and a lower steady-state RSS, which matters for long-running workers. Source
+builds use the system allocator unless built with `--features jemalloc`.

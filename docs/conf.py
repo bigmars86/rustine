@@ -1,4 +1,4 @@
-# Gelatin (Rust) Documentation — Sphinx configuration
+# Rustine documentation — Sphinx configuration
 import os
 import datetime
 

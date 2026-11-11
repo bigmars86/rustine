@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{self, BufReader, Read};
 use std::path::Path;
 
-/// ChunkReader liest eine Datei in festen Blöcken (default 2MB)
+/// Reads a file in chunks of `chunk_size` bytes.
 pub struct ChunkReader {
     reader: BufReader<File>,
     chunk_size: usize,
@@ -40,8 +40,7 @@ impl ReadChunks for ChunkReader {
     }
 }
 
-/// Memory-mapped variant providing slice windows without copying the whole file each chunk.
-/// Falls back to Vec<u8> copies per window to keep interface consistent; future streaming could borrow str directly.
+/// Memory-mapped variant of [`ChunkReader`]; each chunk is copied out of the mapping.
 #[cfg(feature = "mmap")]
 pub struct MmapChunkReader {
     mmap: memmap2::Mmap,

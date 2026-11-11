@@ -55,16 +55,6 @@ Push-Location $WORKSPACE
 Pop-Location
 if ($LASTEXITCODE -ne 0) { Write-Warning "Training workload returned non-zero, continuing..." }
 
-# Also run a few demo fixtures for broader coverage
-$demos = @("simple", "csv", "linesplit", "tria")
-foreach ($demo in $demos) {
-    $syntaxFile = "$WORKSPACE\fixtures\parity\$demo\syntax.gel"
-    $inputFile  = "$WORKSPACE\fixtures\parity\$demo\input1.txt"
-    if ((Test-Path $syntaxFile) -and (Test-Path $inputFile)) {
-        Write-Host "  Running demo: $demo"
-        # Use a small inline Rust program? No — just run the tests which exercise the engine.
-    }
-}
 # Run the test suite for extra profile coverage (non-ignored tests only)
 $env:RUSTFLAGS = "-Cprofile-generate=$PGO_DIR"
 cargo test --release 2>&1 | Out-Null

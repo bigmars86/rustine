@@ -179,7 +179,7 @@ pub struct MatchList {
 #[derive(Debug, Clone)]
 pub struct MatchFieldList {
     pub expressions: Vec<Expression>,
-    pub flags: u32, // für case-insensitive etc.
+    pub flags: u32, // bit 0: case-insensitive
     /// Pre-compiled combined regex for the entire field list.
     /// Built by `compile_field_list_regexes()` when all expressions can be
     /// resolved to regex patterns at compile time (no back-references).
@@ -432,8 +432,8 @@ impl GelDocument {
     /// Pre-compile combined regexes for all `MatchFieldList` entries where
     /// every expression resolves to a known regex pattern (no back-references).
     ///
-    /// This mirrors Python Gelatin's approach: each field list becomes ONE
-    /// regex `(expr1)(expr2)(expr3)…` instead of N separate evaluations.
+    /// Each field list becomes one regex `(expr1)(expr2)(expr3)…` instead of
+    /// N separate evaluations.
     ///
     /// When `parallel` feature is enabled, regex compilation is parallelized.
     pub fn compile_field_list_regexes(&mut self) {
@@ -529,7 +529,7 @@ impl GelDocument {
         Some(parts.into_iter().map(|p| format!("({})", p)).collect::<String>())
     }
 
-    /// Convert a single expression to its regex pattern string (like Python's `re_value()`).
+    /// Convert a single expression to its regex pattern string.
     /// Returns `None` for expressions that depend on runtime state.
     fn expr_to_regex_pattern(expr: &Expression, defines: &HashMap<String, Expression>) -> Option<String> {
         match expr {

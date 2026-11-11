@@ -72,7 +72,6 @@ fn search_window(rem: &str) -> &str {
     &rem[..end]
 }
 
-pub mod arena;
 pub mod out;
 pub mod streaming;
 
@@ -116,7 +115,7 @@ pub struct ExecutionResult {
     pub consumed: usize,
     pub actions: Vec<FunctionCall>,
     pub traces: Vec<String>,
-    pub diagnostics: Vec<Diagnostic>, // structured diagnostics (Phase 3)
+    pub diagnostics: Vec<Diagnostic>,
     pub capture_history: Vec<Vec<String>>,
     pub capture_names_history: Vec<Vec<Option<Arc<str>>>>,
     pub output: OutputTree,
@@ -127,11 +126,6 @@ pub struct ExecutionResult {
 }
 
 impl ExecutionResult {
-    #[allow(dead_code)]
-    fn new() -> Self {
-        Self::with_capacity_hint(0)
-    }
-
     /// Create with an arena pre-sized based on expected input size in bytes.
     fn with_capacity_hint(input_bytes: usize) -> Self {
         Self {
@@ -305,7 +299,7 @@ impl<'a> Runner<'a> {
                                 }
                                 result.trace(Severity::Info, format!("match consumed {} chars", total_consumed));
                                 self.fire_triggers("after", &mut result.output);
-                                break; // Python: break and restart after successful match
+                                break; // restart from the first statement
                             }
                         }
                     }
@@ -342,7 +336,7 @@ impl<'a> Runner<'a> {
                             }
                             result.trace(Severity::Info, "when triggered".to_string());
                             self.fire_triggers("after", &mut result.output);
-                            break; // Python: break and restart after successful when
+                            break; // restart from the first statement
                         }
                     }
                     Statement::Skip(s) => {
@@ -434,7 +428,6 @@ impl<'a> Runner<'a> {
         captures_out: &mut CaptureVec<'a>,
         names_out: &mut NameVec,
     ) -> Result<bool> {
-        // Python checks ALL alternatives in a MatchList, not just the first
         for alt in &w.match_list.alternatives {
             if let Some((_, groups, names)) = self.eval_field_list(alt, false)? {
                 captures_out.extend(groups);
@@ -757,9 +750,7 @@ impl<'a> Runner<'a> {
         }
     }
 
-    /// String-matching fast skip (convenience wrapper for tests).
-    ///
-    /// Production code now uses [`try_fast_skip_kind`] via pre-classified enum.
+    /// [`try_fast_skip_kind`] for a raw pattern string.
     pub(crate) fn try_fast_skip(pattern: &str, rem: &str) -> Option<usize> {
         let kind = crate::parser::ast::classify_fast_path(pattern);
         Self::try_fast_skip_kind(kind, rem)
@@ -1117,7 +1108,7 @@ impl<'a> Runner<'a> {
     }
 
     // Returns (return_levels, did_next, fail_error, pending_auto_leaves)
-    // return_levels: 0 = no return, >0 = abort N grammar levels (Python do.return(levels=1) → each Grammar consumes 1)
+    // return_levels: 0 = no return, >0 = leave N grammar levels
     fn execute_runtime_actions(
         &mut self,
         actions: &[FunctionCall],
@@ -1150,11 +1141,8 @@ impl<'a> Runner<'a> {
                         pending_auto_leaves = pending_auto_leaves.saturating_sub(1);
                     }
                 }
-                // Python semantics: Function.parse() ignores the grammar's return value
-                // and only checks whether position advanced.
-                // If input was consumed (result == 1 in Python), break the action loop —
-                // this skips remaining actions (e.g. do.return()) after a successful
-                // sub-grammar call, matching Python's _handle_match() for-loop break.
+                // The sub-grammar's return level is ignored; if it consumed input,
+                // the remaining actions (e.g. do.return()) are skipped.
                 if sub_consumed > 0 {
                     break;
                 }
@@ -1162,7 +1150,7 @@ impl<'a> Runner<'a> {
                 continue;
             }
             if &*act.name == "out.create" {
-                // Python: builder.create(path, data) → builder.enter(path) → trigger(on_add) → builder.leave()
+                // on_add triggers run with the new node as the current node
                 if let Some(path_expr) = act.args.first() {
                     let path = self.expr_to_cow(path_expr);
                     let value = act.args.get(1).map(|v| self.expr_to_string(v));
@@ -1176,7 +1164,6 @@ impl<'a> Runner<'a> {
                     tree.exec(RuntimeAction::OutLeave);
                 }
             } else if &*act.name == "out.add" {
-                // Python: builder.add(path, data) → builder.enter(path) → trigger(on_add) → builder.leave()
                 if let Some(path_expr) = act.args.first() {
                     let path = self.expr_to_cow(path_expr);
                     let value = act.args.get(1).map(|v| self.expr_to_string(v));
@@ -1190,7 +1177,6 @@ impl<'a> Runner<'a> {
                     tree.exec(RuntimeAction::OutLeave);
                 }
             } else if &*act.name == "out.replace" {
-                // Python: builder.add(path, data, replace=True) → builder.enter(path) → trigger(on_add) → builder.leave()
                 if let Some(path_expr) = act.args.first() {
                     let path = self.expr_to_cow(path_expr);
                     let value = act.args.get(1).map(|v| self.expr_to_string(v));
@@ -1204,7 +1190,6 @@ impl<'a> Runner<'a> {
                     tree.exec(RuntimeAction::OutLeave);
                 }
             } else if &*act.name == "out.add_attribute" {
-                // Python: builder.add_attribute(...) → builder.enter(path) → trigger(on_add) → builder.leave()
                 if let (Some(path_expr), Some(name_expr), Some(val_expr)) =
                     (act.args.first(), act.args.get(1), act.args.get(2))
                 {
@@ -1226,7 +1211,6 @@ impl<'a> Runner<'a> {
                     tree.exec(RuntimeAction::OutSetRootName { name: &name });
                 }
             } else if &*act.name == "out.open" {
-                // Python: builder.open(path) → trigger(on_add) → stack[-1].on_leave.append(builder.leave)
                 if let Some(path_expr) = act.args.first() {
                     let path = self.expr_to_cow(path_expr);
                     tree.exec(RuntimeAction::OutOpen { path: &path });
@@ -1234,7 +1218,6 @@ impl<'a> Runner<'a> {
                     pending_auto_leaves += 1;
                 }
             } else if &*act.name == "out.enter" {
-                // Python: builder.enter(path) → trigger(on_add) → stack[-1].on_leave.append(builder.leave)
                 if let Some(path_expr) = act.args.first() {
                     let path = self.expr_to_cow(path_expr);
                     tree.exec(RuntimeAction::OutEnter { path: &path });
@@ -1255,8 +1238,6 @@ impl<'a> Runner<'a> {
                 do_next = true;
                 continue;
             } else if &*act.name == "do.return" {
-                // Python: do_return(context, levels=1) returns -levels
-                // Each Grammar.parse() level consumes one: returns result + 1
                 let levels = act
                     .args
                     .first()
@@ -1289,8 +1270,7 @@ impl<'a> Runner<'a> {
                 return_levels = 1;
                 break;
             } else if act.name.starts_with("out.enqueue_") {
-                // Process enqueue immediately (Python does this inline)
-                // The first arg may be a regex literal or a variable referencing a define.
+                // The first arg is a regex literal or a variable referencing one.
                 let raw_opt = match act.args.first() {
                     Some(Expression::Regex(r)) => Some(r.clone()),
                     Some(Expression::Variable(v)) => {
@@ -1321,8 +1301,7 @@ impl<'a> Runner<'a> {
                     }
                 }
             } else if &*act.name == "out.clear_queue" {
-                // Python only clears non-persistent triggers: on_match_before, on_match_after, on_add
-                // It does NOT clear persistent triggers or on_leave triggers
+                // Persistent and on_leave triggers are kept.
                 self.trig_before.clear();
                 self.trig_after.clear();
                 self.trig_on_add.clear();
@@ -1332,9 +1311,8 @@ impl<'a> Runner<'a> {
         (return_levels, do_next, fail_error, pending_auto_leaves)
     }
 
-    // Execute another grammar at current input position without terminating outer run.
-    // Returns (consumed_chars, remaining_return_levels) where remaining_return_levels is
-    // the levels left after this grammar consumed one (Python: return result + 1).
+    // Run another grammar at the current position.
+    // Returns (consumed bytes, return levels left after this grammar consumed one).
     fn run_inline_grammar(&mut self, name: &str, tree: &mut OutputTree, traces: &mut Vec<String>) -> (usize, i32) {
         // Arc::clone is O(1) — just an atomic increment.
         let statements = match self.stmt_cache.get(name).map(Arc::clone) {
@@ -1472,7 +1450,7 @@ impl<'a> Runner<'a> {
                 break;
             }
         }
-        // Consume one level for this grammar (Python: return result + 1)
+        // Consume one level for this grammar
         let remaining = (return_levels - 1).max(0);
         (self.ctx.pos - start, remaining)
     }
@@ -1719,16 +1697,11 @@ pub enum RuntimeFormat {
     Xml,
     Yaml,
     /// Discard output (runs grammar, produces empty string).
-    /// Matches Python Gelatin's `format='none'` / Dummy generator.
     None,
 }
 
-/// Serialize an [`ExecutionResult`] into the chosen output format.
-///
-/// This produces the **full diagnostic envelope** (`consumed`, `actions`,
-/// `traces`, etc.) — useful for debugging and programmatic inspection.
-/// For Python-compatible output (bare data tree only), use
-/// [`serialize_tree`] instead.
+/// Serialize the full diagnostic envelope (`consumed`, `actions`, `traces`,
+/// `output`, …) for debugging. For the bare data tree use [`serialize_tree`].
 pub fn serialize_execution(result: &ExecutionResult, format: RuntimeFormat) -> String {
     match format {
         RuntimeFormat::Json => serialize_json(result),
@@ -1739,17 +1712,16 @@ pub fn serialize_execution(result: &ExecutionResult, format: RuntimeFormat) -> S
 }
 
 // =========================================================================
-// Python-compatible "tree-only" serialization
+// Tree-only serialization
 // =========================================================================
 
-/// Serialize the **data tree only** from an [`ExecutionResult`], matching the
-/// output format of Python Gelatin exactly (no metadata envelope).
+/// Serialize the data tree only (no metadata envelope).
 ///
-/// - **JSON**: 4-space-indented `json.dumps(tree.to_dict(), indent=4)` with
-///   `@attr`, `#text`, and array-collapsing conventions.
-/// - **XML**: `lxml`-compatible element tree with real XML attributes and text
-///   content.  Root element is `<xml>` unless `out.set_root_name` was used.
-/// - **YAML**: `yaml.dump(tree.to_dict())` with PyYAML quoting conventions.
+/// - **JSON**: 4-space indent; attributes as `@name`, text as `#text`,
+///   repeated siblings as arrays.
+/// - **XML**: attributes as XML attributes; root `<xml>` unless
+///   `out.set_root_name` was used.
+/// - **YAML**: same mapping as JSON.
 pub fn serialize_tree(result: &ExecutionResult, format: RuntimeFormat) -> String {
     match format {
         RuntimeFormat::Json => tree_json(result),
@@ -2046,11 +2018,8 @@ fn json_write_escaped_stream<S: OutputSink>(out: &mut S, s: &str) -> std::io::Re
 
 // -- Tree-only XML --------------------------------------------------------
 
-/// A `Write` adapter that replaces `&apos;` -> `'` on-the-fly.
-///
-/// `quick_xml` escapes `'` in double-quoted attribute values as `&apos;`, but
-/// Python's lxml does not. This wrapper transparently rewrites the output
-/// without buffering the entire XML document.
+/// A `Write` adapter that turns `&apos;` back into `'` (valid inside
+/// double-quoted attributes) without buffering the whole document.
 ///
 /// Safety assumption: `quick_xml` always writes complete attribute values in a
 /// single `write_all` call, so `&apos;` is never split across calls.
@@ -2085,8 +2054,7 @@ fn tree_xml_to_writer<W: std::io::Write>(exec: &ExecutionResult, writer: &mut W)
     let flat = exec.flat.as_ref().expect("FlatTree not built");
     let root = flat.root();
 
-    // Root element name: use the tree root's name if set (via out.set_root_name),
-    // otherwise default to "xml" (Python Gelatin default).
+    // Root element: name from out.set_root_name, otherwise "xml".
     let root_name = if root.name.is_empty() || &*root.name == "." {
         "xml"
     } else {
@@ -2122,11 +2090,10 @@ fn tree_xml_to_writer<W: std::io::Write>(exec: &ExecutionResult, writer: &mut W)
         w.write_event(Event::End(BytesEnd::new(root_name))).expect("root end");
     } // AposWriter dropped here, releases borrow on writer
 
-    // Python's lxml adds a trailing newline
     writer.write_all(b"\n")
 }
 
-/// Write a tree Node as a proper XML element (matching Python lxml output).
+/// Write a node as an XML element (self-closing when empty).
 fn tree_xml_node<W: std::io::Write>(flat: &FlatTree, node: &FlatNode, writer: &mut quick_xml::Writer<W>) {
     use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
 
@@ -2153,7 +2120,7 @@ fn tree_xml_node<W: std::io::Write>(flat: &FlatTree, node: &FlatNode, writer: &m
     }
     writer.write_event(Event::Start(start)).expect("elem start");
 
-    // Text content -- use lxml-compatible escaping (only <, >, &; not ' or ")
+    // Text content
     if has_text {
         let txt = node.text.as_ref().unwrap();
         let escaped = xml_escape_text_content(txt);
@@ -2172,8 +2139,7 @@ fn tree_xml_node<W: std::io::Write>(flat: &FlatTree, node: &FlatNode, writer: &m
     writer.write_event(Event::End(BytesEnd::new(tag))).expect("elem end");
 }
 
-/// Escape XML text content matching Python lxml behaviour.
-/// Only escapes `<`, `>`, `&` -- single and double quotes are valid in text content.
+/// Escape `<`, `>` and `&` in XML text (quotes are valid in text content).
 fn xml_escape_text_content(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for ch in s.chars() {
@@ -2374,7 +2340,7 @@ fn push_yaml_indent_stream<S: OutputSink>(out: &mut S, indent: usize) -> std::io
     }
 }
 
-/// Quote a YAML mapping key using PyYAML conventions.
+/// Quote a YAML mapping key.
 /// Keys starting with `@` or `#` are single-quoted.
 fn yaml_quote_key(k: &str) -> Cow<'_, str> {
     if k.starts_with('@') || k.starts_with('#') {
@@ -2384,7 +2350,7 @@ fn yaml_quote_key(k: &str) -> Cow<'_, str> {
     }
 }
 
-/// Quote a YAML scalar value using PyYAML conventions.
+/// Quote a YAML scalar value when needed.
 /// - Strings that look like dates (YYYY-MM-DD), numbers, booleans, or
 ///   contain special chars are single-quoted.
 /// - Strings with single quotes inside get double-quoted.
@@ -2466,9 +2432,8 @@ fn looks_like_date(s: &str) -> bool {
 
 /// Serialize an [`ExecutionResult`] to JSON using `serde_json`.
 ///
-/// The output tree follows Gelatin conventions: attributes are prefixed with
-/// `@`, text content uses the `#text` key, and children with the same tag
-/// name are collected into JSON arrays.
+/// In the output tree, attributes are prefixed with `@`, text uses the
+/// `#text` key, and same-named children become arrays.
 fn serialize_json(exec: &ExecutionResult) -> String {
     use serde_json::{json, Map, Value};
 
@@ -2526,11 +2491,10 @@ fn serialize_json(exec: &ExecutionResult) -> String {
 }
 
 /// Convert an output-tree [`Node`](crate::exec::out::Node) into a
-/// `serde_json::Value`, preserving the `@attr` / `#text` conventions.
+/// `serde_json::Value` (`@attr` / `#text` conventions).
 ///
-/// Children are grouped by name in **insertion order** (matching the Python
-/// Gelatin `OrderedDefaultDict` behaviour).  Same-named siblings that appear
-/// more than once are collected into a JSON array.
+/// Children are grouped by name in insertion order; repeated names become
+/// a JSON array.
 fn output_node_to_value(flat: &FlatTree, node: &FlatNode) -> serde_json::Value {
     use serde_json::{Map, Value};
 
@@ -2541,7 +2505,7 @@ fn output_node_to_value(flat: &FlatTree, node: &FlatNode) -> serde_json::Value {
         obj.insert(format!("@{}", k), Value::String(v.clone()));
     }
 
-    // Text content (skip empty strings — Python Gelatin treats them as absent)
+    // Empty text counts as no text
     if let Some(txt) = &node.text {
         if !txt.is_empty() {
             obj.insert("#text".into(), Value::String((**txt).clone()));

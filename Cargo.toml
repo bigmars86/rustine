@@ -4,7 +4,7 @@ version = "0.2.0"
 edition = "2021"
 authors = ["Rustine Contributors"]
 license = "MIT OR Apache-2.0"
-description = "High-performance Gel syntax parser transforming to JSON/XML (Rust + PyO3)"
+description = "High-performance Gel syntax parser transforming text to JSON/XML/YAML (Rust + PyO3)"
 readme = "README.md"
 repository = "https://github.com/bigmars86/rustine"
 keywords = ["parser", "rustine", "gelatin", "json", "xml"]
@@ -28,7 +28,6 @@ exclude = [
   "Rustine/*.pyd",
   "SECURITY.md",
   "BENCHMARKS.md",
-  "PERFORMANCE_ANALYSIS.md",
   ".editorconfig",
   ".github/",
   ".pre-commit-config.yaml",
@@ -57,23 +56,20 @@ mimalloc = ["mimalloc-dep"]
 nom = "8"
 pyo3 = { version = "0.29.0", features = ["extension-module", "abi3-py39"], optional = true }
 rayon = { version = "1.12", optional = true }
-serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1.0.150", features = ["preserve_order"] }
-quick-xml = { version = "0.42.0", features = ["serialize"] }
+quick-xml = "0.42.0"
 thiserror = "2.0.18"
 memmap2 = { version = "0.9.11", optional = true }
 regex = "1.12.4"
 smallvec = { version = "1", features = ["union"] }
 memchr = "2.8.2"
 clap = { version = "4.6.1", features = ["derive"], optional = true }
-bumpalo = { version = "3.20.3", features = ["collections"] }
 mimalloc-dep = { package = "mimalloc", version = "0.1", optional = true }
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
 tikv-jemallocator = { version = "0.7", optional = true }
 
 [dev-dependencies]
-pretty_assertions = "1"
 criterion = { version = "0.8.2", default-features = false, features = ["plotters"] }
 
 [[bench]]

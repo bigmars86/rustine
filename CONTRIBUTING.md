@@ -15,12 +15,12 @@ Recommended VS Code extensions: rust-analyzer, Python, markdownlint, GitLens.
 ```bash
 # Rust
 cargo build
-cargo test
+cargo test --no-default-features
 
 # Python bridge
 pip install maturin
 maturin develop
-python -c "from Rustine import rustine; print(rustine.parse_to_json('grammar g:'))"
+python -c "import Rustine; print(Rustine.__version__)"
 ```
 
 ## Project Structure
@@ -35,18 +35,18 @@ python -c "from Rustine import rustine; print(rustine.parse_to_json('grammar g:'
 | `tests/` | Rust integration tests |
 | `benches/` | Criterion benchmarks |
 | `fixtures/` | Test grammars and input data |
-| `scripts/` | Python benchmark and comparison scripts |
 | `Rustine/` | Python package (PyO3 module) |
-| `Gelatin/` | Backward-compatible Python shim |
+| `Gelatin/` | `Rustine.util` under the `Gelatin` import path |
 
 ## Coding Guidelines
 
 - Prefer explicit error propagation via `GelError` — avoid `.unwrap()` in
   library code.
-- Minimize allocations on hot paths — use `Cow<str>`, `SmallVec`, and
-  arena allocation where appropriate.
-- Maintain ordered attributes (`Vec<(String, String)>`) for output parity
-  with Python Gelatin.
+- Minimize allocations on hot paths — use `Cow<str>` and `SmallVec` where
+  appropriate.
+- Keep attributes in insertion order; the byte-exact parity tests depend on it.
+- Comments and docs describe the current behavior and its reason, briefly:
+  no history or issue numbers.
 - Avoid `unsafe` unless profiling clearly justifies it.
 - Keep the public API surface small — expose through `lib.rs` and
   `bridge.rs`.
@@ -56,29 +56,26 @@ python -c "from Rustine import rustine; print(rustine.parse_to_json('grammar g:'
 1. Add the action variant to `execute_runtime_actions` in `src/exec/mod.rs`.
 2. Add a test under `tests/` verifying the semantics.
 3. Document the action in `docs/syntax.md` (Output Actions section).
-4. Run the full test suite: `cargo test`.
+4. Run the full test suite: `cargo test --no-default-features`.
 
 ## Testing
 
 ```bash
 # Full suite
-cargo test
+cargo test --no-default-features
 
 # Single test
-cargo test test_name -- --nocapture
+cargo test --no-default-features test_name -- --nocapture
 
 # Python bridge
 maturin develop
-python -m pytest  # if Python tests exist
+python tests/python/test_preserve_case.py
 ```
-
-The test suite includes 55 integration tests covering all grammar features,
-output actions, triggers, captures, serialization, and edge cases.
 
 ## Benchmarking
 
 ```bash
-# Execution engine micro-benchmarks (scaling, serialization, captures, arena)
+# Execution engine micro-benchmarks (scaling, serialization, captures)
 cargo bench --bench exec --no-default-features
 
 # Quick fixture benchmarks
@@ -89,13 +86,13 @@ cargo bench --bench scale --no-default-features
 
 # Custom grammar + input
 cargo run --release --no-default-features \
-  --example bench_run -- <syntax.gel> <input.txt> 5 --help
+  --example bench_run -- <syntax.gel> <input.txt> 5
 ```
 
 ## Submitting Changes
 
-1. Run `cargo fmt` (if configured) and `cargo clippy`.
-2. Run `cargo test` — all tests must pass.
+1. Run `cargo fmt` and `cargo clippy --all-targets -- -D warnings`.
+2. Run `cargo test --no-default-features` — all tests must pass.
 3. Update documentation if behavior changes.
 4. Open a PR with a concise description.
 

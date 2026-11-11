@@ -1,15 +1,6 @@
-# Backward-compatibility shim — redirects to the Rustine package.
-#
-# Allows existing code using `from Gelatin.util import compile` to keep working.
-# New code should use `from Rustine.util import compile` instead.
+"""Rustine under the ``Gelatin`` import path (``from Gelatin.util import compile``)."""
 
-try:
-    from Rustine import rustine as _native
-except ImportError:
-    # Fallback: try the native module directly
-    import rustine as _native
-
-__version__ = _native.__version__
+from Rustine import __version__  # noqa: F401
 
 INDENT_WIDTH = 4
 INDENT = ' ' * INDENT_WIDTH

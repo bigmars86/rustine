@@ -39,29 +39,20 @@ Rust, exposed to Python via PyO3. It works on Python 3.9 through 3.13+.
 
 ```diff
 - from Gelatin.util import compile, generate
-+ from Rustine import rustine
-
-# Or use the backward-compatible shim:
-+ from Gelatin.util import compile, generate   # still works
++ from Rustine.util import compile, generate
 ```
 
-The `Gelatin` package is included as a compatibility shim that delegates to
-Rustine internally.
+The bundled `Gelatin` package maps `Gelatin.util` to `Rustine.util`, so
+existing imports keep working.
 
 ### New APIs
-
-Rustine adds direct parsing functions that don't require a compilation step:
 
 ```python
 from Rustine import rustine
 
-# One-step parse (grammar source + input text → output)
-json_output = rustine.parse_to_json(grammar_text, input_text)
-xml_output  = rustine.parse_to_xml(grammar_text, input_text)
-yaml_output = rustine.parse_to_yaml(grammar_text, input_text)
-
-# Full execution results (with traces, diagnostics, etc.)
-result = rustine.run_grammar(grammar_text, input_text)
+ctx = rustine.compile_grammar(grammar_text)              # compile once
+ctx.run(input_text)                                      # JSON; also run_xml / run_yaml
+rustine.run_grammar(grammar_text, "input", input_text)   # compile + run in one call
 ```
 
 ### CLI Tool
@@ -117,7 +108,7 @@ single line ending rather than two separate characters:
 ```
 
 If you are migrating an existing `.gel` grammar, update `[\r\n]` patterns
-to `\r?\n` for cross-platform compatibility. The old `[\r\n]` character
+to `\r?\n` for cross-platform compatibility. The `[\r\n]` character
 class still works but splits `\r\n` into two separate matches (matching
 `\r` first, then `\n`), which may cause unexpected behaviour on
 Windows-style line endings.
@@ -153,10 +144,9 @@ not in Rustine.
    compare output. The included `Gelatin` shim means most code works without
    changes.
 
-3. **Update imports** (optional but recommended):
+3. **Update imports** (optional):
    ```python
-   from Rustine import rustine
-   result = rustine.parse_to_json(open('syntax.gel').read(), input_text)
+   from Rustine.util import compile, generate
    ```
 
 4. **Update CLI scripts:**

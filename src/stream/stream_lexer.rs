@@ -188,7 +188,7 @@ impl<R: ReadChunks> StreamingLexer<R> {
                     buffer: &self.full_buffer,
                 }));
             }
-            return self.next_batch(); // tail recursion (klein, bounded)
+            return self.next_batch(); // retry with the newly filled input
         }
 
         // EOF reached & pending empty → append EOF token (once)

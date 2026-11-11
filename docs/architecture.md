@@ -18,20 +18,24 @@ Each stage is independent and can be used standalone via the Rust API.
 
 ```
 src/
-  lib.rs          PyO3 module definition + public API re-exports
-  bridge.rs       Python-facing functions (parse_to_json, run_grammar, etc.)
-  main.rs         CLI binary (feature-gated behind `cli`)
+  lib.rs            Public API re-exports, error types, PyO3 module
+  bridge.rs         Python bindings (feature `python`)
+  main.rs           `rgel` CLI (feature `cli`)
   parser/
-    lexer.rs      Tokenizer — keywords, regex, strings, numbers, punctuation
-    ast.rs        AST node types (Grammar, Statement, Action, Define)
-    core.rs       Recursive descent parser (tokens → AST)
-    json.rs       JSON AST serializer
-    xml.rs        XML AST serializer
-    mod.rs        Module re-exports, grammar resolution, validation
+    lexer.rs        Tokenizer (nom)
+    syntax.rs       Recursive descent parser (tokens → AST)
+    ast.rs          AST types, regex compilation
+    validate.rs     Semantic checks
+    json.rs, xml.rs, yaml.rs
+                    AST serializers
+    mod.rs          `Parser` facade
   exec/
-    mod.rs        Execution engine, output builder, trigger system
+    mod.rs          Execution engine, triggers, output serializers
+    out.rs          Output tree
+    streaming.rs    `StreamingRunner` (chunked input)
   stream/
-    mod.rs        Streaming lexer, chunk reader, StreamingRunner
+    chunk_reader.rs Chunked / memory-mapped file reader
+    stream_lexer.rs Incremental lexer over chunks
 ```
 
 ---
@@ -81,7 +85,7 @@ A post-parse validation pass (`parser::validate`) runs before execution:
 The execution engine processes input against a resolved grammar:
 
 1. Compile definitions and resolve grammar inheritance chains.
-2. Start at the `input` grammar. For each line of input:
+2. Start at the `input` grammar. Until the input is consumed:
 
    a. Iterate through grammar statements top-to-bottom.
    b. Match patterns against the current input position.
@@ -102,8 +106,9 @@ The output builder maintains:
 
 ### Key Design Decisions
 
-- **Arena allocation** — `bumpalo`-backed arena for temporary allocations
-  during execution, pre-sized based on input length.
+- **Node arena** — output nodes live in one `Vec<Node>` addressed by `u32`
+  ids; after execution it is flattened into a BFS-ordered `FlatTree` for the
+  serializers and freed in one piece.
 - **O(1) child lookup** — child-group index maps for constant-time
   `out.add` disambiguation.
 - **Lazy regex caching** — regexes compiled once per (pattern, case-flag)
@@ -123,8 +128,8 @@ Three output formats are supported:
 | XML    | `quick-xml` + `AposWriter` adapter | Handles `&apos;` escaping |
 | YAML   | Custom lightweight emitter | No external deps; `Cow<str>` for quoting |
 
-All serializers implement the `OutputSink` trait and can stream directly to
-files, stdout, or in-memory buffers.
+All three stream directly to any `std::io::Write` (files, stdout) or build a
+`String`.
 
 ---
 
@@ -134,10 +139,8 @@ files, stdout, or in-memory buffers.
 |-------|---------|
 | `pyo3` | Python bindings (feature-gated) |
 | `regex` | Pattern matching engine |
-| `serde` + `serde_json` | JSON serialization |
+| `serde_json` | JSON serialization |
 | `quick-xml` | XML serialization |
-| `bumpalo` | Arena allocator |
 | `smallvec` | Stack-allocated small vectors |
 | `criterion` | Benchmarking framework (dev) |
-| `pretty_assertions` | Test output diffs (dev) |
 | `tikv-jemallocator` | jemalloc allocator (optional, Linux) |

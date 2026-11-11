@@ -23,6 +23,5 @@ grammar main:
         out.create(\"root/item\", \"a+b\")
 ";
     let json = parse_and_run(src, "main", "x").expect("exec");
-    // Python's urllib.parse.unquote does NOT convert + to space.
     assert!(json.contains("a+b"), "+ should NOT be decoded to space: {json}");
 }

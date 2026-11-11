@@ -1,18 +1,11 @@
-//! Regression tests for leading-digit grammar / identifier names.
-//!
-//! Original Python Gelatin is scannerless and treats `word := [a-zA-Z0-9_]+`,
-//! so a name such as `7600_modules` is a valid identifier (grammar name, call
-//! target, etc.) while an all-digit run like `7600` is a numeric literal.
-//!
-//! Rustine previously lexed `7600_modules` as `Number(7600)` + `Identifier(_modules)`,
-//! which broke compilation of any grammar whose name started with a digit.  These
-//! tests lock in parity with the Python reference.
+//! Names starting with digits (e.g. `7600_modules`) are identifiers; an
+//! all-digit run like `7600` is a number.
 
 use rustine::exec::{execute, serialize_tree, RuntimeFormat};
 use rustine::parser::lexer::lex;
 use rustine::parser::syntax::parse_gel_document;
 
-/// The exact reproduction grammar from the bug report.
+/// A grammar named with a leading digit, called from `input`.
 const REPRO_SYNTAX: &str = "grammar default:\n    match /a/:\n        do.skip()\n\ngrammar 7600_modules(default):\n    match /x/:\n        out.add('x')\n\ngrammar input(default):\n    match /y/:\n        7600_modules()\n";
 
 /// Input that drives `input` → `7600_modules` (matches `y` then `x`).
@@ -51,18 +44,14 @@ fn repro_grammar_compiles_and_defines_digit_named_grammar() {
 }
 
 #[test]
-fn repro_grammar_runtime_matches_python_gelatin() {
-    // Reference outputs captured from Python Gelatin (Gelatin.util.generate_string)
-    // for REPRO_SYNTAX over REPRO_INPUT.
+fn repro_grammar_runtime_output() {
     let json = run(REPRO_SYNTAX, REPRO_INPUT, RuntimeFormat::Json);
     assert_eq!(norm(&json), "{\n    \"x\": {}\n}", "JSON parity mismatch:\n{json}");
 
     let xml = run(REPRO_SYNTAX, REPRO_INPUT, RuntimeFormat::Xml);
     assert_eq!(norm(&xml), "<xml>\n  <x/>\n</xml>", "XML parity mismatch:\n{xml}");
 
-    // YAML: assert the digit-named grammar produced the `x` (empty) node. The exact
-    // whitespace for empty nodes (`x: {}` vs `x:\n{}`) is a pre-existing serializer
-    // detail not covered by the byte-exact parity suite, so we check structurally.
+    // YAML: checked structurally (`x: {}` vs `x:\n{}` whitespace is not pinned here).
     let yaml = run(REPRO_SYNTAX, REPRO_INPUT, RuntimeFormat::Yaml);
     assert!(yaml.contains("x:"), "missing 'x' node in YAML:\n{yaml}");
     assert!(yaml.contains("{}"), "missing empty-node marker in YAML:\n{yaml}");

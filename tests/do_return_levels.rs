@@ -20,10 +20,8 @@ grammar main:
     assert!(json.contains("\"consumed\": 3"), "consumed should be 3: {json}");
 }
 
-/// In Python Gelatin, `Function.parse()` ignores the grammar's return value.
-/// It only checks whether `context.start` moved. So `do.return(2)` inside
-/// a sub-grammar exits ONLY that grammar; the extra level is lost.
-/// The caller continues normally and can match subsequent input.
+/// A grammar call ignores the callee's return level: `do.return(2)` inside a
+/// sub-grammar leaves only that grammar, and the caller matches on.
 #[test]
 fn do_return_levels_lost_through_subgrammar() {
     let src = "\
@@ -42,10 +40,8 @@ grammar main:
     let json = parse_and_run(src, "main", "startinnerafter").expect("exec");
     assert!(json.contains("\"start\""), "start should exist: {json}");
     assert!(json.contains("\"inner\""), "inner should exist: {json}");
-    // Python semantics: the return level is lost when crossing a grammar call boundary.
-    // The caller continues and matches "after".
     assert!(
         json.contains("\"after\""),
-        "after SHOULD be reached (Python semantics — return levels don't propagate through grammar calls): {json}"
+        "after should be reached (return levels don't propagate through grammar calls): {json}"
     );
 }

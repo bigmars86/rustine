@@ -289,7 +289,8 @@ Positional and named captures are interpolated at registration time.
 
 ### out.clear_queue()
 
-Clears all registered triggers (both single-shot and persistent).
+Clears the pending single-shot `before`, `after` and `on_add` triggers;
+persistent and `on_leave` triggers stay registered.
 
 ---
 

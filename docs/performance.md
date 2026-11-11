@@ -44,25 +44,19 @@ parse-once-execute-many scenarios.
 
 ### O(1) Child Lookup
 
-Child-group index maps provide constant-time node grouping instead of O(n)
-linear scans. This was the single largest optimization for deep trees,
-converting the `out.add` path from O(n²) to O(n).
+Child-group index maps find the node group for `out.add` in constant time
+instead of a linear scan, which keeps deep trees O(n) overall.
 
 ### Lazy Regex Compilation
 
 Patterns are compiled once per (pattern, case-flag) pair and cached by slot
 index. Subsequent matches reuse the compiled DFA.
 
-### Arena Allocation
-
-`bumpalo`-backed arena for bulk-freed temporaries during execution.
-Pre-sized based on input length for minimal reallocation.
-
 ### Streaming Serialization
 
 JSON, XML, and YAML writers stream directly to any `std::io::Write` sink
-via a unified `OutputSink` trait, eliminating intermediate `String` / `Vec<u8>`
-buffers. The streaming path reduces serialize-step time by ~30%.
+without an intermediate `String` / `Vec<u8>` buffer. The streaming path
+reduces serialize-step time by ~30%.
 
 ### Stack-Allocated Small Vecs
 
@@ -92,7 +86,7 @@ RSS scales linearly with input size:
 
 The difference is primarily due to:
 
-1. **Arena allocation** — Rust nodes are tightly packed; Python uses many
+1. **Compact nodes** — Rust nodes are tightly packed; Python uses many
    small dict/list objects with per-object GC overhead.
 2. **No GC metadata** — Rust has zero runtime overhead per allocation.
 3. **String interning** — shared `Arc<str>` for repeated names vs Python's
@@ -108,7 +102,7 @@ The difference is primarily due to:
 # All benchmarks (exec + fixtures + scale)
 cargo bench --no-default-features
 
-# Execution engine micro-benchmarks (scaling, serialization, captures, arena)
+# Execution engine micro-benchmarks (scaling, serialization, captures)
 cargo bench --bench exec --no-default-features
 
 # Fixtures only (5 small grammars, 100 samples)

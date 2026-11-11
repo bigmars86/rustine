@@ -1,6 +1,4 @@
-//! Parity test: linesplit demo
-//! Verifies that the Rust engine produces the same structural output as
-//! Python Gelatin for the linesplit grammar (simple line-by-line splitting).
+//! linesplit demo: structure of the output for line-by-line splitting.
 
 use rustine::exec::{execute, serialize_execution, RuntimeFormat};
 use rustine::parser::lexer::lex;
@@ -21,7 +19,7 @@ fn run_linesplit(format: RuntimeFormat) -> String {
 fn parity_linesplit_json_line_count() {
     let json = run_linesplit(RuntimeFormat::Json);
     // The input has 10 lines (including 2 blank lines).
-    // Python output has 10 "line" entries — 8 with #text, 2 empty {}.
+    // Expected: 10 "line" entries — 8 with #text, 2 empty {}.
     // Rust output has 10 "line" entries — each with #text (empty string for blank lines).
     // Count the "line" entries by counting occurrences of the "line" key in JSON.
     let parsed: serde_json::Value = serde_json::from_str(&json).unwrap_or_else(|e| panic!("valid JSON: {e}\n{json}"));
@@ -46,7 +44,7 @@ fn parity_linesplit_json_line_count() {
 #[test]
 fn parity_linesplit_json_content() {
     let json = run_linesplit(RuntimeFormat::Json);
-    // Verify specific content values from the Python expected output
+    // Verify specific content values from the expected output
     assert!(json.contains("a nice line"), "missing 'a nice line'\n{json}");
     assert!(json.contains("another & line"), "missing 'another & line'\n{json}");
     assert!(json.contains("something else"), "missing 'something else'\n{json}");

@@ -1,8 +1,5 @@
-//! YAML output generator - converts AST to YAML
-//!
-//! NOTE: This is a minimal pretty-ish YAML renderer without external dependencies.
-//! It mirrors the structure produced by `JsonGenerator` but emits YAML mapping/sequence syntax.
-//! We avoid introducing serde_yaml yet to keep the dependency surface small.
+//! YAML rendering of the grammar AST: the structure of `JsonGenerator`,
+//! hand-written to avoid a YAML dependency.
 
 use crate::parser::ast::{Expression, FunctionCall, GelDocument, Grammar, Statement};
 

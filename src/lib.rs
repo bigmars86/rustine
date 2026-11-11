@@ -1,25 +1,18 @@
-//! Rustine — high-performance Gel syntax parser with PyO3 bridge
-//! A Rust rewrite of the Python Gelatin library.
+//! Rustine — Gel grammar engine that turns text into JSON, XML or YAML.
 
-// On Linux builds with the `jemalloc` feature, use jemalloc for
-// dramatically lower RSS after compact() frees build-time indices.
-// jemalloc returns freed pages to the OS via madvise(MADV_DONTNEED),
-// whereas glibc malloc keeps them mapped.
+// jemalloc returns freed pages to the OS, unlike glibc malloc (lower RSS).
 #[cfg(feature = "jemalloc")]
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-// On Windows (MSVC), use mimalloc for better memory return behavior.
-// The default Windows heap allocator holds freed pages aggressively,
-// inflating peak RSS by 30-50%.  mimalloc eagerly returns pages to
-// the OS, giving RSS much closer to true live-set size.
+// mimalloc returns freed pages to the OS, unlike the Windows heap (lower RSS).
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
 static GLOBAL_MI: mimalloc_dep::MiMalloc = mimalloc_dep::MiMalloc;
 
-#[cfg(feature = "python")] // only expose bridge when python feature enabled
+#[cfg(feature = "python")]
 pub mod bridge;
-pub mod exec; // existing execution module; submodules declared internally
+pub mod exec;
 pub mod parser;
 pub mod stream;
 
@@ -137,7 +130,7 @@ pub mod errors {
         #[error("{}: runtime error: {message}", span.map(|s| s.to_string()).unwrap_or_else(|| "unknown".into()))]
         Runtime { message: String, span: Option<Span> },
 
-        /// Semantic validation error (duplicate grammar, undefined reference, etc.).
+        /// Semantic validation error (undefined reference, invalid regex, etc.).
         #[error("{span}: validation error: {message}")]
         Validation { message: String, span: Span },
 
@@ -190,13 +183,13 @@ pub use exec::streaming::{StreamingEvent, StreamingRunner};
 pub use exec::{execute_precompiled, serialize_execution, serialize_tree, serialize_tree_to_writer, RuntimeFormat};
 pub use parser::{OutputFormat, Parser};
 
-/// Convenience helper for tests and external callers to parse source and run a grammar against input.
+/// Parse `source`, run `grammar` against `input` and return the execution envelope as JSON.
 pub fn parse_and_run(source: &str, grammar: &str, input: &str) -> Result<String> {
     let parser = Parser::new(OutputFormat::Json);
     parser.parse_and_run(source, grammar, input)
 }
 
-/// Python module export (only when feature "python" is active)
+/// Python extension module `Rustine.rustine`.
 #[cfg(feature = "python")]
 #[pymodule]
 fn rustine(m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -213,17 +206,13 @@ fn rustine(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(run_grammar, m)?)?;
     m.add_function(wrap_pyfunction!(run_grammar_xml, m)?)?;
     m.add_function(wrap_pyfunction!(run_grammar_yaml, m)?)?;
-    // Alias: compile_string matches Python Gelatin's Gelatin.util.compile_string
     m.add_function(wrap_pyfunction!(compile_string, m)?)?;
-    // Version
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())
 }
 
 /// Execute a grammar from an already-parsed [`GelDocument`](crate::parser::ast::GelDocument)
-/// against `input` and serialize the **data tree** in the chosen [`RuntimeFormat`].
-///
-/// This produces Python-compatible output (bare tree, no metadata envelope).
+/// against `input` and serialize the data tree (no metadata envelope).
 pub fn execute_and_serialize(
     doc: &mut crate::parser::ast::GelDocument,
     grammar: &str,

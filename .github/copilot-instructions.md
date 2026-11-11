@@ -2,14 +2,13 @@
 
 ## Project Overview
 
-Rustine is a high-performance Gel syntax parser written in Rust with Python
-bindings via PyO3.  It transforms structured text into JSON, XML, or YAML
-using `.gel` grammar files.
+Rustine is a Gel grammar engine written in Rust with Python bindings via
+PyO3. It transforms text into JSON, XML, or YAML using `.gel` grammar files.
 
 ## Architecture
 
 - **`src/parser/`** — Lexer, parser, AST, grammar compilation
-- **`src/exec/`** — Execution engine, arena allocation, streaming runner
+- **`src/exec/`** — Execution engine, output tree, streaming runner
 - **`src/stream/`** — Chunked I/O, memory-mapped reader
 - **`src/bridge.rs`** — PyO3 bindings (Python ↔ Rust)
 - **`src/main.rs`** — `rgel` CLI binary
@@ -25,6 +24,9 @@ using `.gel` grammar files.
 - Error handling via `thiserror` — use `GelError` variants
 - Prefer `&str` over `String` for function parameters
 - Use `Cow<'_, str>` for zero-copy captures
+- Comments and docs describe the current behavior and its reason, as short as
+  possible: no history, no issue numbers. Comparisons with Python Gelatin
+  belong in `README.md` and `docs/` only (not in code, `--help` or examples).
 
 ## Testing
 

@@ -1,106 +1,13 @@
 # Getting Started
 
-## Installation
-
-### Python (recommended)
-
-```bash
-pip install rustine
-```
-
-Pre-built wheels are available for:
-
-| OS      | Architectures         |
-|---------|-----------------------|
-| Linux   | x86_64, aarch64       |
-| macOS   | x86_64, Apple Silicon |
-| Windows | x86_64                |
-
-### From Source (Python + Rust)
-
-Requires Rust 1.86+ and Python 3.9+.
-
-```bash
-git clone https://github.com/bigmars86/rustine.git
-cd rustine
-pip install maturin
-maturin develop --release
-```
-
-### Rust Library
-
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-rustine = { git = "https://github.com/bigmars86/rustine.git", default-features = false }
-```
-
-### CLI Tool
-
-```bash
-cargo install rustine --features cli
-```
-
-Or build from source:
-
-```bash
-cargo build --release --features cli --no-default-features
-# Binary at target/release/rgel
-```
-
-### Cargo Features
-
-Rustine uses **Cargo features** — compile-time flags that control which
-functionality is included in the binary.  They are **not** runtime
-configuration; you choose them once when you build and the resulting
-binary either has the capability or not.
-
-Enable features with `--features`:
-
-```bash
-# CLI binary
-cargo build --release --no-default-features --features cli
-
-# CLI + jemalloc (Linux)
-cargo build --release --no-default-features --features "cli,jemalloc"
-
-# Multiple features as a library dependency in Cargo.toml:
-# rustine = { git = "...", default-features = false, features = ["mmap"] }
-```
-
-| Feature     | Default        | Description                                           |
-|-------------|----------------|-------------------------------------------------------|
-| `python`    | **yes**        | PyO3 extension module (`.pyd` / `.so`)                |
-| `cli`       | no             | Build the `rgel` command-line binary                  |
-| `mmap`      | no             | Memory-mapped file I/O for `ChunkReader`              |
-| `parallel`  | no             | Parallel grammar compilation via Rayon                |
-| `jemalloc`  | **Linux wheels** | jemalloc allocator (~20 % faster, better RSS)       |
-| `mimalloc`  | no             | mimalloc allocator (cross-platform alternative)       |
-| `bench`     | no             | Used by internal benchmark examples                   |
-| `profiling` | no             | Emit detailed per-rule timing counters (dev use)      |
-
-> **jemalloc on Linux:** Published Linux wheels (`pip install rustine`)
-> include jemalloc by default.  It returns freed memory to the OS via
-> `madvise(MADV_DONTNEED)`, giving ~20 % faster execution and
-> significantly lower steady-state RSS — important for long-running
-> workers (Celery, Gunicorn, etc.).  macOS and Windows wheels use the
-> system allocator.  To build without jemalloc, compile from source
-> with `--features python` only.
-
-> **Tip — `--no-default-features`:** The default feature set includes
-> `python`, which requires a Python interpreter at build time.  When you
-> only need the Rust library or CLI, pass `--no-default-features` to skip
-> the PyO3 dependency.
+Installation and Cargo features: see [Installation](install.md).
 
 ---
 
 ## Python Usage
 
-### Basic Parsing
-
 ```python
-from Rustine import rustine
+from Rustine.util import compile_string, generate_string
 
 grammar = r"""
 define nl /\r?\n/
@@ -116,52 +23,25 @@ grammar input:
         do.return()
 """
 
-input_text = "Name: Alice\nAge: 30\nOffice: 1st Ave\n"
-
-# Output as JSON, XML, or YAML
-print(rustine.parse_to_json(grammar, input_text))
-print(rustine.parse_to_xml(grammar, input_text))
-print(rustine.parse_to_yaml(grammar, input_text))
+converter = compile_string(grammar)
+print(generate_string(converter, "Name: Alice\nAge: 30\nOffice: 1st Ave\n", format="json"))
 ```
 
-### Full Execution Results
+`format` is `"xml"` (default), `"json"`, `"yaml"` or `"none"`. For files use
+`compile(path)`, `generate(converter, path)` and `generate_to_file(...)`;
+`from Gelatin.util import ...` works too.
 
-For access to consumed bytes, traces, diagnostics, captures, and the
-output tree:
+The native module has the same as methods, plus a one-shot call:
 
 ```python
-# Returns JSON with all execution metadata
-result = rustine.run_grammar(grammar, input_text)
+from Rustine import rustine
 
-# Also available as XML or YAML
-result_xml = rustine.run_grammar_xml(grammar, input_text)
-result_yaml = rustine.run_grammar_yaml(grammar, input_text)
+ctx = rustine.compile_grammar(grammar)       # compile once
+ctx.run(text)                                # JSON; also run_xml / run_yaml
+rustine.run_grammar(grammar, "input", text)  # compile + run, JSON
 ```
 
-The result includes:
-
-| Field | Description |
-|-------|-------------|
-| `consumed` | Total bytes consumed from input |
-| `actions` | List of executed actions (post capture substitution) |
-| `traces` | Match events, say/warn/fail messages |
-| `diagnostics` | Structured messages with severity and spans |
-| `capture_history` | Captured group values per match |
-| `output` | Nested node tree |
-| `error` | Error string if `do.fail` was invoked |
-
-### Backward Compatibility with Gelatin
-
-Rustine includes a `Gelatin` compatibility shim. Existing code using the
-Python Gelatin API continues to work:
-
-```python
-from Gelatin.util import compile, generate
-
-syntax = compile('syntax.gel')
-print(generate(syntax, 'input.txt'))
-print(generate(syntax, 'input.txt', format='json'))
-```
+Grammar errors raise `ValueError`, `do.fail()` raises `RuntimeError`.
 
 ### Case of Output Names
 
@@ -169,52 +49,38 @@ Rustine lowercases tag names and attribute keys in `out.*` paths. Pass
 `preserve_case=True` to keep them as written:
 
 ```python
-from Rustine.util import compile_string, generate_string
-
 converter = compile_string(grammar, preserve_case=True)
-print(generate_string(converter, input_text, format='xml'))
 ```
 
 ---
 
 ## Rust Usage
 
-### Parsing a Grammar
-
 ```rust
-use rustine::parser::lexer::lex;
-use rustine::parser::syntax::parse_gel_document;
+use rustine::exec::{execute, serialize_tree, RuntimeFormat};
+use rustine::parser::{lexer::lex, syntax::parse_gel_document};
 
-let tokens = lex(grammar_source).expect("lex failed");
-let document = parse_gel_document(&tokens).expect("parse failed");
+let mut doc = parse_gel_document(&lex(grammar_source)?)?;
+let result = execute(&mut doc, "input", input_text)?;
+let json = serialize_tree(&result, RuntimeFormat::Json); // or Xml, Yaml
 ```
 
-### Executing a Grammar
-
-```rust
-use rustine::exec::{execute, serialize_execution, RuntimeFormat};
-
-let result = execute(grammar_source, input_text);
-let json = serialize_execution(&result, RuntimeFormat::Json);
-let xml  = serialize_execution(&result, RuntimeFormat::Xml);
-let yaml = serialize_execution(&result, RuntimeFormat::Yaml);
-```
+`serialize_execution` writes the whole result instead of only the tree:
+`consumed`, `actions`, `traces`, `diagnostics`, `capture_history`, `output`
+and `error`. To run one grammar on many inputs, call `doc.compile_regexes()`
+once and then `execute_precompiled(&doc, "input", text)`.
 
 ### Streaming Execution
 
 ```rust
-use rustine::stream::{ChunkReader, StreamingLexer};
+use rustine::StreamingRunner;
 
-// Feed chunks incrementally for large files
-let reader = ChunkReader::new(file, 131072);
-let mut lexer = StreamingLexer::new();
-
-for chunk in reader {
-    lexer.feed(&chunk);
-    for event in lexer.drain_events() {
-        // Process streaming events
-    }
+let mut runner = StreamingRunner::new(&mut doc, "input")?;
+for chunk in chunks {
+    runner.feed(&chunk);
+    runner.step()?; // StreamingEvents produced so far
 }
+let result = runner.finish()?; // serialize like a batch result
 ```
 
 ---
@@ -250,25 +116,21 @@ rgel -s syntax.gel -f json input.txt | jq '.'
 ## Testing
 
 ```bash
-# Run all tests
-cargo test
+# Rust tests
+cargo test --no-default-features
+cargo test --no-default-features test_name -- --nocapture
 
-# Run a specific test
-cargo test test_name
-
-# Run with output visible
-cargo test -- --nocapture
+# Python bindings
+maturin develop
+python tests/python/test_preserve_case.py
 ```
-
-The test suite includes 55 test files covering all grammar features,
-output actions, triggers, captures, and edge cases.
 
 ---
 
 ## Benchmarking
 
 ```bash
-# Execution engine micro-benchmarks (scaling, serialization, captures, arena)
+# Execution engine micro-benchmarks (scaling, serialization, captures)
 cargo bench --bench exec --no-default-features
 
 # Fixture benchmarks (small grammars)

@@ -12,19 +12,12 @@ Python module, a Rust library, or a standalone CLI tool.
 
 ## Why Rustine?
 
-[Gelatin](https://github.com/knipknap/Gelatin) has been a reliable tool for
-converting network device output and other semi-structured text into structured
-data. However, its core dependency — **SimpleParse** — has not been updated for
-Python 3.12+ and is no longer maintained. This made Gelatin incompatible with
-modern Python versions.
+[Gelatin](https://github.com/knipknap/Gelatin) depends on SimpleParse, which
+does not support Python 3.12+. Rustine reimplements the engine in Rust:
 
-Rustine solves this by reimplementing the entire Gelatin engine in Rust:
-
-- **Drop-in replacement** — same Gel grammar language, same output format
-- **10–19× faster** than Python Gelatin (depending on workload and platform)
-- **3–4× less memory** on large inputs
-- **Works on Python 3.9–3.13+** via PyO3 — no C extension dependency
-- **100% feature parity** with the original Python implementation
+- **Drop-in replacement** — same Gel grammar language, same output
+- **10–19× faster** than Python Gelatin, **3–4× less memory** on large inputs
+- **Python 3.9+** — abi3 wheels, no SimpleParse
 
 ## Quick Start
 
@@ -35,7 +28,7 @@ pip install rustine
 ```
 
 ```python
-from Rustine import rustine
+from Rustine.util import compile_string, generate_string
 
 grammar = r"""
 define nl /\r?\n/
@@ -51,8 +44,8 @@ grammar input:
         do.return()
 """
 
-input_text = "Name: Alice\nAge: 30\nOffice: 1st Ave\n"
-print(rustine.parse_to_json(grammar, input_text))
+converter = compile_string(grammar)
+print(generate_string(converter, "Name: Alice\nAge: 30\nOffice: 1st Ave\n", format="json"))
 ```
 
 ### Rust
@@ -62,16 +55,18 @@ cargo add rustine --no-default-features
 ```
 
 ```rust
-use rustine::exec::{execute, serialize_execution, RuntimeFormat};
+use rustine::exec::{execute, serialize_tree, RuntimeFormat};
+use rustine::parser::{lexer::lex, syntax::parse_gel_document};
 
-let result = execute(grammar_source, input_text);
-let json = serialize_execution(&result, RuntimeFormat::Json);
+let mut doc = parse_gel_document(&lex(grammar_source)?)?;
+let result = execute(&mut doc, "input", input_text)?;
+let json = serialize_tree(&result, RuntimeFormat::Json);
 ```
 
 ### CLI
 
 ```bash
-cargo install rustine --features cli
+cargo install rustine --no-default-features --features cli
 
 rgel -s syntax.gel -f json input.txt
 rgel -s syntax.gel -f xml  input.txt
@@ -134,21 +129,12 @@ simple template extractors (textfsm) and full parser generators (nom/pest).
 - **Python bindings** — PyO3 + maturin, installable via `pip`
 - **CLI tool** — `rgel` binary for shell pipelines
 
-### Cargo Features (compile-time)
-
-Features are selected at build time via `--features` and control which
-capabilities are compiled into the binary.
-See [Getting Started → Cargo Features](docs/getting-started.md#cargo-features)
-for the full table and usage examples.
-
-Key features: `cli`, `jemalloc` (default in Linux wheels), `mimalloc`,
-`mmap`, `parallel`, `python` (default).
-
 ## Documentation
 
 | Document | Description |
 | -------- | ----------- |
-| [Getting Started](docs/getting-started.md) | Installation, first steps, Python/Rust/CLI usage |
+| [Installation](docs/install.md) | pip, source build, Rust crate, CLI, Cargo features |
+| [Getting Started](docs/getting-started.md) | Python, Rust and CLI usage, tests, benchmarks |
 | [Gel Syntax Reference](docs/syntax.md) | Grammar language, statements, actions, triggers |
 | [Architecture](docs/architecture.md) | Parser pipeline, module layout, design decisions |
 | [Performance](docs/performance.md) | Optimization techniques, benchmark overview |

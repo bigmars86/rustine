@@ -279,7 +279,7 @@ Best result on each key metric (speedup relative to Windows):
 # All benchmarks (exec + fixtures + scale)
 cargo bench --no-default-features
 
-# Execution engine micro-benchmarks (scaling, serialization, captures, arena)
+# Execution engine micro-benchmarks (scaling, serialization, captures)
 cargo bench --bench exec --no-default-features
 
 # Fixtures only

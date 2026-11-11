@@ -1,6 +1,5 @@
 //! Parser module: public API and re-exports.
 pub mod ast;
-pub mod core;
 pub mod json;
 pub mod lexer;
 pub mod syntax;
@@ -51,13 +50,12 @@ impl Parser {
         }
     }
 
-    /// Parse Gel source then run a named grammar against a runtime input string.
-    /// Returns JSON containing actions and trace for now.
+    /// Parse Gel source, run `grammar` against `runtime_input` and return the
+    /// execution envelope (actions, traces, output, …) as JSON.
     pub fn parse_and_run(&self, gel_source: &str, grammar: &str, runtime_input: &str) -> Result<String, GelError> {
         let tokens = lexer::lex(gel_source)?;
         let mut doc = parse_gel_document(&tokens)?;
 
-        // Semantic validation (Phase 3)
         let diags = validate::validate(&doc);
         // Hard-fail on any error-severity diagnostic.
         for d in &diags {

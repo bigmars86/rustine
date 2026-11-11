@@ -1,6 +1,6 @@
 //! Semantic validation pass – runs after parsing, before execution.
-//! Collects `Diagnostic` entries for issues like duplicate grammars,
-//! undefined references, and invalid regex patterns.
+//! Collects `Diagnostic` entries for undefined references and invalid
+//! regex patterns.
 
 use crate::errors::Diagnostic;
 use crate::parser::ast::{Expression, GelDocument, Statement};
@@ -11,19 +11,11 @@ use std::collections::HashSet;
 /// Errors are hard (execution would fail); warnings are advisory.
 pub fn validate(doc: &GelDocument) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
-    check_duplicate_grammars(doc, &mut diags);
     check_undefined_grammar_refs(doc, &mut diags);
     check_undefined_variables(doc, &mut diags);
     check_regex_syntax(doc, &mut diags);
     check_inheritance_targets(doc, &mut diags);
     diags
-}
-
-// ── duplicate grammar names ──────────────────────────────────────────
-fn check_duplicate_grammars(_doc: &GelDocument, _diags: &mut Vec<Diagnostic>) {
-    // The parser stores grammars in a HashMap which silently overwrites
-    // duplicates.  Duplicate detection requires span tracking in the parser,
-    // which is not implemented yet.  This hook is reserved for that upgrade.
 }
 
 // ── undefined grammar references ─────────────────────────────────────

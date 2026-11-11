@@ -1,7 +1,4 @@
-# Backward-compatibility shim — redirects to Rustine.util.
-#
-# Existing code using `from Gelatin.util import compile` will keep working.
-# New code should use `from Rustine.util import compile` instead.
+"""``Rustine.util`` under the ``Gelatin.util`` import path."""
 
 from Rustine.util import (  # noqa: F401
     compile,

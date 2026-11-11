@@ -1,6 +1,4 @@
-//! Parity test: csv demo
-//! Verifies that the Rust engine produces the same structural output as
-//! Python Gelatin for the CSV grammar (quoted/unquoted field parsing).
+//! csv demo: structure of the output for quoted/unquoted field parsing.
 
 use rustine::exec::{execute, serialize_execution, RuntimeFormat};
 use rustine::parser::lexer::lex;
@@ -23,7 +21,7 @@ fn parity_csv_json_line_count() {
     // The input has 3 CSV lines, so we expect 3 "line" groups.
     // Each line appears as a key in the output; count occurrences of "column"
     // arrays inside "line" entries.
-    // Python output: 3 line entries with 8, 8, 8 columns respectively.
+    // Expected: 3 line entries with 8, 8, 8 columns respectively.
     assert!(json.contains("\"line\""), "missing 'line' key\n{json}");
 }
 

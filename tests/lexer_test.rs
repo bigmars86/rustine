@@ -46,7 +46,7 @@ fn test_lexer_comments() {
 #[test]
 fn test_lexer_leading_digit_identifier() {
     // A run of [a-zA-Z0-9_] containing at least one letter/underscore is a single
-    // Identifier, even when it starts with digits (Gelatin `word := [a-zA-Z0-9_]+`).
+    // Identifier, even when it starts with digits.
     let tokens = lex("7600_modules").unwrap();
     assert_eq!(tokens[0].kind, TokenKind::Identifier);
     assert_eq!(tokens[0].slice, "7600_modules");
