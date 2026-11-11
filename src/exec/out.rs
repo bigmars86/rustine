@@ -10,8 +10,9 @@
 //! shot — the OS can reclaim all tree-build memory immediately.
 
 use smallvec::SmallVec;
+use std::collections::hash_map::RandomState;
 use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
+use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 use std::rc::Rc;
 
 // ---------------------------------------------------------------------------
@@ -28,8 +29,9 @@ pub type NodeId = u32;
 /// Compute a 64-bit hash of the compound (name + attributes) key.
 ///
 /// A hash instead of a key `String` per call keeps peak RSS low on large trees.
-fn child_hash_key<K: AsRef<str>, V: AsRef<str>>(name: &str, attribs: &[(K, V)]) -> u64 {
-    let mut h = std::collections::hash_map::DefaultHasher::new();
+/// `state` holds random keys, so inputs cannot be prepared to collide.
+fn child_hash_key<K: AsRef<str>, V: AsRef<str>>(state: &RandomState, name: &str, attribs: &[(K, V)]) -> u64 {
+    let mut h = state.build_hasher();
     name.hash(&mut h);
     for (k, v) in attribs {
         0u8.hash(&mut h); // separator
@@ -75,7 +77,27 @@ fn intern(table: &mut HashSet<Rc<str>>, s: &str) -> Rc<str> {
 struct NodeIndex {
     /// Maps hash of compound key (name + attributes) → index in that
     /// node's `children: Vec<NodeId>` (NOT an arena NodeId).
-    child_exact: HashMap<u64, usize>,
+    child_exact: HashMap<u64, usize, BuildHasherDefault<KeyHasher>>,
+}
+
+/// Uses a [`child_hash_key`] as its own hash instead of hashing it again.
+#[derive(Default)]
+struct KeyHasher(u64);
+
+impl Hasher for KeyHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        for &b in bytes {
+            self.0 = self.0.rotate_left(8) ^ u64::from(b);
+        }
+    }
+
+    fn write_u64(&mut self, n: u64) {
+        self.0 = n;
+    }
 }
 
 /// Minimum number of children before a [`NodeIndex`] is created.
@@ -88,7 +110,7 @@ const PATH_CACHE_LIMIT: usize = 4096;
 impl NodeIndex {
     fn new() -> Self {
         Self {
-            child_exact: HashMap::new(),
+            child_exact: HashMap::default(),
         }
     }
 }
@@ -475,6 +497,8 @@ pub struct OutputTree {
     /// Cursor stack: each entry is a NodeId.
     stack: Vec<NodeId>,
     name_intern: HashSet<Rc<str>>,
+    /// Random keys for [`child_hash_key`].
+    key_state: RandomState,
     /// Cache for parsed path segments.
     path_cache: HashMap<Box<str>, Rc<[PathSegment]>>,
     /// Keep the case of tag names and attribute keys in paths.
@@ -518,6 +542,7 @@ impl OutputTree {
             root_id,
             stack: vec![root_id],
             name_intern,
+            key_state: RandomState::new(),
             path_cache: HashMap::with_capacity(128),
             preserve_case: false,
         }
@@ -603,55 +628,42 @@ impl OutputTree {
 
     /// Push a child to `parent_id` and update the index.
     fn push_child(&mut self, parent_id: NodeId, child_id: NodeId) {
-        // Compute hash key from child data before borrowing parent.
-        let child = &self.arena[child_id as usize];
-        let child_attrs = if child.attr_len == 0 {
-            &[][..]
-        } else {
-            &self.attr_pool[child.attr_start as usize..(child.attr_start + child.attr_len) as usize]
-        };
-        let key = child_hash_key(&child.name, child_attrs);
+        self.push_child_keyed(parent_id, child_id, None);
+    }
 
+    /// [`push_child`](Self::push_child) with the child's [`child_hash_key`] if the caller has it.
+    fn push_child_keyed(&mut self, parent_id: NodeId, child_id: NodeId, key: Option<u64>) {
         let parent = &self.arena[parent_id as usize];
         let idx = parent.children.len();
-        let needs_index_init = idx == INDEX_THRESHOLD - 1 && parent.index.is_none();
-
-        if needs_index_init {
-            // Collect existing children's hash keys.
-            let existing: Vec<(u64, usize)> = self.arena[parent_id as usize]
-                .children
-                .iter()
-                .enumerate()
-                .map(|(i, &cid)| {
-                    let c = &self.arena[cid as usize];
-                    let c_attrs = if c.attr_len == 0 {
-                        &[][..]
-                    } else {
-                        &self.attr_pool[c.attr_start as usize..(c.attr_start + c.attr_len) as usize]
-                    };
-                    (child_hash_key(&c.name, c_attrs), i)
-                })
-                .collect();
-            let parent = &mut self.arena[parent_id as usize];
-            let mut ni = Box::new(NodeIndex::new());
-            for (k, i) in existing {
-                ni.child_exact.entry(k).or_insert(i);
+        // Small parents are scanned linearly and need no keys.
+        if parent.index.is_some() || idx == INDEX_THRESHOLD - 1 {
+            if parent.index.is_none() {
+                let mut ni = Box::new(NodeIndex::new());
+                for (i, &cid) in parent.children.iter().enumerate() {
+                    ni.child_exact.entry(self.node_key(cid)).or_insert(i);
+                }
+                self.arena[parent_id as usize].index = Some(ni);
             }
-            parent.index = Some(ni);
+            let key = key.unwrap_or_else(|| self.node_key(child_id));
+            if let Some(index) = &mut self.arena[parent_id as usize].index {
+                index.child_exact.entry(key).or_insert(idx);
+            }
         }
+        self.arena[parent_id as usize].children.push(child_id);
+    }
 
-        let parent = &mut self.arena[parent_id as usize];
-        if let Some(index) = &mut parent.index {
-            index.child_exact.entry(key).or_insert(idx);
-        }
-        parent.children.push(child_id);
+    /// [`child_hash_key`] of an existing node.
+    fn node_key(&self, id: NodeId) -> u64 {
+        let c = &self.arena[id as usize];
+        let attrs = &self.attr_pool[c.attr_start as usize..(c.attr_start + c.attr_len) as usize];
+        child_hash_key(&self.key_state, &c.name, attrs)
     }
 
     /// Find the **index in parent.children** for a matching (name, attribs) segment.
     fn find_child_idx(&self, parent_id: NodeId, seg: &PathSegment) -> Option<usize> {
         let parent = &self.arena[parent_id as usize];
         if let Some(index) = &parent.index {
-            let key = child_hash_key(&seg.tag, &seg.attribs);
+            let key = child_hash_key(&self.key_state, &seg.tag, &seg.attribs);
             index.child_exact.get(&key).copied()
         } else {
             parent.children.iter().position(|&cid| {
@@ -683,15 +695,7 @@ impl OutputTree {
             .children
             .iter()
             .enumerate()
-            .map(|(i, &cid)| {
-                let c = &self.arena[cid as usize];
-                let c_attrs = if c.attr_len == 0 {
-                    &[][..]
-                } else {
-                    &self.attr_pool[c.attr_start as usize..(c.attr_start + c.attr_len) as usize]
-                };
-                (child_hash_key(&c.name, c_attrs), i)
-            })
+            .map(|(i, &cid)| (self.node_key(cid), i))
             .collect();
         let index = self.arena[parent_id as usize]
             .index
@@ -1083,15 +1087,15 @@ impl ActionExecutor for OutputTree {
                     // relative add — use indexed or linear lookup
                     let segs = self.cached_parse_path(path);
                     let cur = self.cursor();
-                    let existing_child_id = {
+                    let (existing_child_id, key) = {
                         let arena = &self.arena;
                         let pool = &self.attr_pool;
                         let parent = &arena[cur as usize];
                         if let Some(index) = &parent.index {
-                            let key = child_hash_key(&segs[0].tag, &segs[0].attribs);
-                            index.child_exact.get(&key).map(|&idx| parent.children[idx])
+                            let key = child_hash_key(&self.key_state, &segs[0].tag, &segs[0].attribs);
+                            (index.child_exact.get(&key).map(|&idx| parent.children[idx]), Some(key))
                         } else {
-                            parent.children.iter().copied().find(|&cid| {
+                            let found = parent.children.iter().copied().find(|&cid| {
                                 let c = &arena[cid as usize];
                                 let c_attrs = if c.attr_len == 0 {
                                     &[][..]
@@ -1099,7 +1103,8 @@ impl ActionExecutor for OutputTree {
                                     &pool[c.attr_start as usize..(c.attr_start + c.attr_len) as usize]
                                 };
                                 *c.name == *segs[0].tag && attrs_eq(c_attrs, &segs[0].attribs)
-                            })
+                            });
+                            (found, None)
                         }
                     };
                     if let Some(cid) = existing_child_id {
@@ -1117,7 +1122,7 @@ impl ActionExecutor for OutputTree {
                         let nid = self.alloc(node);
                         self.set_node_attrs_raw(nid, &segs[0].attribs);
                         self.arena[nid as usize].text = decoded.map(Box::new);
-                        self.push_child(cur, nid);
+                        self.push_child_keyed(cur, nid, key);
                     }
                 } else {
                     let segs = self.cached_parse_path(path);
