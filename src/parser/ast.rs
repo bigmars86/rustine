@@ -119,6 +119,9 @@ pub struct GelDocument {
     pub regex_cache: Vec<Option<Regex>>,
     /// Fast-path classification for each pattern, parallel to `regex_patterns`.
     pub fast_path_kinds: Vec<FastPathKind>,
+    /// Keep the case of tag names and attribute keys in `out.*` paths instead
+    /// of lowercasing them.
+    pub preserve_case: bool,
 }
 
 /// Grammar block: `grammar name: statements`

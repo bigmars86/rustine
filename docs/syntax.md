@@ -179,6 +179,19 @@ node?key="value"           → node with attribute
 node?a="1"&b="2"          → multiple attributes
 ```
 
+Tag names and attribute keys in paths are lowercased:
+`out.open('lxGroup')` creates `<lxgroup>`. Names passed to
+`out.set_root_name()` and `out.add_attribute()` keep their case.
+
+To keep the case of path names as written, enable `preserve_case`:
+
+- CLI: `rgel --preserve-case -s syntax.gel input.txt`
+- Python: `compile_string(syntax, preserve_case=True)` — also accepted by
+  `compile()`, `GelContext()`, `compile_grammar()` and `run_grammar*()`
+- Rust: set `doc.preserve_case = true` on the `GelDocument` before executing
+
+With `preserve_case`, `Item` and `item` are different nodes.
+
 ### out.create(path [, text])
 
 Always creates a new leaf node at the given path. Intermediate segments are

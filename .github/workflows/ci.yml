@@ -196,3 +196,4 @@ jobs:
           export LD_PRELOAD="${SO:+$SO}"
           python -c "from Rustine import rustine; print('Rustine imported successfully')"
           python -c "from Gelatin import util; print('Gelatin compat shim imported successfully')"
+          python tests/python/test_preserve_case.py

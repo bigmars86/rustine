@@ -149,6 +149,8 @@ impl StreamingRunner {
         }
 
         let statements = super::collect_inherited_statements(doc, grammar_name);
+        let mut tree = OutputTree::new();
+        tree.set_preserve_case(doc.preserve_case);
 
         Ok(Self {
             doc: doc.clone(),
@@ -157,7 +159,7 @@ impl StreamingRunner {
             eof: false,
             grammar_name: grammar_name.to_string(),
             statements,
-            tree: OutputTree::new(),
+            tree,
             traces: Vec::new(),
             diagnostics: Vec::new(),
             actions: Vec::new(),

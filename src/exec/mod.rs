@@ -246,6 +246,7 @@ impl<'a> Runner<'a> {
         // Arc::clone is O(1) — just an atomic increment (no deep-cloning Statement trees).
         let statements = self.stmt_cache.get(name).map(Arc::clone).unwrap_or_default();
         let mut result = ExecutionResult::with_capacity_hint(self.ctx.input.len());
+        result.output.set_preserve_case(self.ctx.doc.preserve_case);
         loop {
             let start = self.ctx.pos;
             for stmt in statements.iter() {
@@ -1510,7 +1511,7 @@ impl<'a> Runner<'a> {
                 let (_, trig) = list.swap_remove(idx);
                 let path_interp = interpolate_local(&trig.path, captures, names);
                 let value_interp = trig.value.as_ref().map(|v| interpolate_local(v, captures, names));
-                let segs = crate::exec::out::parse_path(&path_interp);
+                let segs = tree.path_segments(&path_interp);
                 tree.add_path(&segs, value_interp);
             }
         }
@@ -1526,7 +1527,7 @@ impl<'a> Runner<'a> {
                 if rx.is_match(text) {
                     let path_interp = interpolate_local(&trig.path, captures, names);
                     let value_interp = trig.value.as_ref().map(|v| interpolate_local(v, captures, names));
-                    let segs = crate::exec::out::parse_path(&path_interp);
+                    let segs = tree.path_segments(&path_interp);
                     tree.add_path(&segs, value_interp);
                 }
             }

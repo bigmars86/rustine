@@ -76,6 +76,9 @@ cargo install rustine --features cli
 rgel -s syntax.gel -f json input.txt
 rgel -s syntax.gel -f xml  input.txt
 rgel -s syntax.gel -f yaml input.txt
+
+# Keep the case of tag names (default: lowercase)
+rgel -s syntax.gel --preserve-case input.txt
 ```
 
 ## Performance

@@ -73,6 +73,12 @@ result = rustine.run_grammar(grammar_text, input_text)
 
 The `rgel` binary is a compiled Rust executable — no Python runtime needed.
 
+### Optional: Case-Preserving Output
+
+Tag names and attribute keys in `out.*` paths are lowercased by default, so
+existing grammars produce the same output. `--preserve-case` (CLI) or
+`preserve_case=True` (Python) keeps them as written.
+
 ---
 
 ## Feature Parity

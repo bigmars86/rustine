@@ -31,6 +31,10 @@ struct Cli {
     #[arg(short = 'g', long = "grammar", default_value = "input")]
     grammar: String,
 
+    /// Keep the case of tag names and attribute keys in out.* paths (default: lowercase).
+    #[arg(long = "preserve-case")]
+    preserve_case: bool,
+
     /// Input files to process. Reads stdin when omitted.
     #[arg(value_name = "FILE")]
     input_files: Vec<String>,
@@ -59,10 +63,11 @@ fn main() {
         eprintln!("Lex error: {}", e);
         process::exit(1);
     });
-    let doc = parse_gel_document(&tokens).unwrap_or_else(|e| {
+    let mut doc = parse_gel_document(&tokens).unwrap_or_else(|e| {
         eprintln!("Parse error: {}", e);
         process::exit(1);
     });
+    doc.preserve_case = cli.preserve_case;
     let diags = validate::validate(&doc);
     for d in &diags {
         if d.severity == rustine::Severity::Error {

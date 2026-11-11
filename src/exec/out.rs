@@ -396,7 +396,15 @@ pub struct PathSegment {
 }
 
 /// Parse a slash-separated path string into [`PathSegment`]s.
+///
+/// Tag names and attribute keys are lowercased.
 pub fn parse_path(path: &str) -> Vec<PathSegment> {
+    parse_path_with_case(path, false)
+}
+
+/// Like [`parse_path`], but keeps the case of tag names and attribute keys
+/// when `preserve_case` is true.
+pub fn parse_path_with_case(path: &str, preserve_case: bool) -> Vec<PathSegment> {
     let mut segments = Vec::new();
     for part in split_path_segments(path) {
         if part.is_empty() {
@@ -412,7 +420,10 @@ pub fn parse_path(path: &str) -> Vec<PathSegment> {
                     continue;
                 }
                 if let Some(epos) = pair.find('=') {
-                    let key = pair[..epos].trim().to_lowercase().replace(' ', "-");
+                    let mut key = pair[..epos].trim().replace(' ', "-");
+                    if !preserve_case {
+                        key = key.to_lowercase();
+                    }
                     let mut val = pair[epos + 1..].trim();
                     if val.starts_with('"') && val.ends_with('"') && val.len() >= 2 {
                         val = &val[1..val.len() - 1];
@@ -421,7 +432,10 @@ pub fn parse_path(path: &str) -> Vec<PathSegment> {
                 }
             }
         }
-        let tag_norm = percent_decode(tag).trim().replace(' ', "-").to_lowercase();
+        let mut tag_norm = percent_decode(tag).trim().replace(' ', "-");
+        if !preserve_case {
+            tag_norm = tag_norm.to_lowercase();
+        }
         segments.push(PathSegment { tag: tag_norm, attribs });
     }
     segments
@@ -469,6 +483,8 @@ pub struct OutputTree {
     name_intern: HashSet<Rc<str>>,
     /// Cache for parsed path segments.
     path_cache: HashMap<Box<str>, Vec<PathSegment>>,
+    /// Keep the case of tag names and attribute keys in paths.
+    preserve_case: bool,
 }
 
 impl Default for OutputTree {
@@ -509,7 +525,20 @@ impl OutputTree {
             stack: vec![root_id],
             name_intern,
             path_cache: HashMap::with_capacity(128),
+            preserve_case: false,
         }
+    }
+
+    /// Keep the case of tag names and attribute keys in `out.*` paths instead
+    /// of lowercasing them.
+    pub fn set_preserve_case(&mut self, preserve_case: bool) {
+        self.preserve_case = preserve_case;
+        self.path_cache.clear();
+    }
+
+    /// Parse `path` with this tree's case setting.
+    pub fn path_segments(&self, path: &str) -> Vec<PathSegment> {
+        parse_path_with_case(path, self.preserve_case)
     }
 
     /// Number of nodes allocated in the arena.
@@ -816,7 +845,7 @@ impl OutputTree {
         if let Some(cached) = self.path_cache.get(path) {
             return cached.clone();
         }
-        let segs = parse_path(path);
+        let segs = parse_path_with_case(path, self.preserve_case);
         self.path_cache.insert(path.into(), segs.clone());
         segs
     }

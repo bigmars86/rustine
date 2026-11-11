@@ -62,9 +62,13 @@ pub struct GelContext {
 impl GelContext {
     /// Compile a Gelatin grammar from source text.
     ///
+    /// ``preserve_case=True`` keeps the case of tag names and attribute keys in
+    /// ``out.*`` paths instead of lowercasing them.
+    ///
     /// Raises ``ValueError`` on lex / parse / validation errors.
     #[new]
-    fn new(gel_source: &str) -> PyResult<Self> {
+    #[pyo3(signature = (gel_source, *, preserve_case = false))]
+    fn new(gel_source: &str, preserve_case: bool) -> PyResult<Self> {
         let tokens = lex(gel_source).map_err(gel_to_pyerr)?;
         let doc = parse_gel_document(&tokens).map_err(gel_to_pyerr)?;
         // Validate — fail on errors, print warnings
@@ -79,6 +83,7 @@ impl GelContext {
         }
         // Pre-compile all regexes so execute() won't need to mutate the document.
         let mut doc = doc;
+        doc.preserve_case = preserve_case;
         doc.compile_regexes();
         Ok(Self { doc })
     }
@@ -203,27 +208,29 @@ impl GelContext {
 /// Compile a Gelatin grammar from source text and return a reusable
 /// [`GelContext`].  Equivalent to ``GelContext(gel_source)``.
 #[pyfunction]
-pub fn compile_grammar(gel_source: &str) -> PyResult<GelContext> {
-    GelContext::new(gel_source)
+#[pyo3(signature = (gel_source, *, preserve_case = false))]
+pub fn compile_grammar(gel_source: &str, preserve_case: bool) -> PyResult<GelContext> {
+    GelContext::new(gel_source, preserve_case)
 }
 
 /// Alias for [`compile_grammar`] — matches Python Gelatin's
 /// ``Gelatin.util.compile_string(syntax)`` name.
 #[pyfunction]
-pub fn compile_string(gel_source: &str) -> PyResult<GelContext> {
-    GelContext::new(gel_source)
+#[pyo3(signature = (gel_source, *, preserve_case = false))]
+pub fn compile_string(gel_source: &str, preserve_case: bool) -> PyResult<GelContext> {
+    GelContext::new(gel_source, preserve_case)
 }
 
 /// Compile a Gelatin grammar from a ``.gel`` file.
 ///
 /// Mirrors ``Gelatin.util.compile(syntax_file)``.
 #[pyfunction]
-#[pyo3(signature = (syntax_file, encoding = "utf-8"))]
-pub fn compile_file(syntax_file: &str, encoding: &str) -> PyResult<GelContext> {
+#[pyo3(signature = (syntax_file, encoding = "utf-8", *, preserve_case = false))]
+pub fn compile_file(syntax_file: &str, encoding: &str, preserve_case: bool) -> PyResult<GelContext> {
     let _ = encoding; // Rust reads as UTF-8
     let source = fs::read_to_string(syntax_file)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyIOError, _>(format!("{}: {}", syntax_file, e)))?;
-    GelContext::new(&source)
+    GelContext::new(&source, preserve_case)
 }
 
 /// Native Rust function to parse Gel-Syntax to JSON
@@ -273,9 +280,11 @@ pub fn parse_to_yaml(input: &str) -> PyResult<String> {
 
 /// Execute a grammar against runtime input, returning JSON or raising on fail.
 #[pyfunction]
-pub fn run_grammar(gel_source: &str, grammar: &str, runtime_input: &str) -> PyResult<String> {
+#[pyo3(signature = (gel_source, grammar, runtime_input, *, preserve_case = false))]
+pub fn run_grammar(gel_source: &str, grammar: &str, runtime_input: &str, preserve_case: bool) -> PyResult<String> {
     let tokens = lex(gel_source).map_err(gel_to_pyerr)?;
     let mut doc = parse_gel_document(&tokens).map_err(gel_to_pyerr)?;
+    doc.preserve_case = preserve_case;
     let exec = execute(&mut doc, grammar, runtime_input).map_err(gel_to_pyerr)?;
     if let Some(err) = exec.error {
         return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(err));
@@ -285,9 +294,11 @@ pub fn run_grammar(gel_source: &str, grammar: &str, runtime_input: &str) -> PyRe
 
 /// Execute a grammar and return XML serialized runtime result (raises on fail).
 #[pyfunction]
-pub fn run_grammar_xml(gel_source: &str, grammar: &str, runtime_input: &str) -> PyResult<String> {
+#[pyo3(signature = (gel_source, grammar, runtime_input, *, preserve_case = false))]
+pub fn run_grammar_xml(gel_source: &str, grammar: &str, runtime_input: &str, preserve_case: bool) -> PyResult<String> {
     let tokens = lex(gel_source).map_err(gel_to_pyerr)?;
     let mut doc = parse_gel_document(&tokens).map_err(gel_to_pyerr)?;
+    doc.preserve_case = preserve_case;
     let exec = execute(&mut doc, grammar, runtime_input).map_err(gel_to_pyerr)?;
     if let Some(err) = &exec.error {
         return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(err.clone()));
@@ -297,9 +308,11 @@ pub fn run_grammar_xml(gel_source: &str, grammar: &str, runtime_input: &str) -> 
 
 /// Execute a grammar and return YAML serialized runtime result (raises on fail).
 #[pyfunction]
-pub fn run_grammar_yaml(gel_source: &str, grammar: &str, runtime_input: &str) -> PyResult<String> {
+#[pyo3(signature = (gel_source, grammar, runtime_input, *, preserve_case = false))]
+pub fn run_grammar_yaml(gel_source: &str, grammar: &str, runtime_input: &str, preserve_case: bool) -> PyResult<String> {
     let tokens = lex(gel_source).map_err(gel_to_pyerr)?;
     let mut doc = parse_gel_document(&tokens).map_err(gel_to_pyerr)?;
+    doc.preserve_case = preserve_case;
     let exec = execute(&mut doc, grammar, runtime_input).map_err(gel_to_pyerr)?;
     if let Some(err) = &exec.error {
         return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(err.clone()));

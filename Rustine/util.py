@@ -8,16 +8,19 @@
 from . import rustine as _native
 
 
-def compile_string(syntax):
+def compile_string(syntax, *, preserve_case=False):
     """Compile a Gel grammar from a source string.
 
     Returns a context object whose ``generate_string`` / ``generate``
     methods produce structured output (JSON, XML, YAML).
+
+    ``preserve_case=True`` keeps the case of tag names and attribute keys
+    in ``out.*`` paths instead of lowercasing them.
     """
-    return _native.compile_string(syntax)
+    return _native.compile_string(syntax, preserve_case=preserve_case)
 
 
-def compile(syntax_file, encoding='utf-8'):
+def compile(syntax_file, encoding='utf-8', *, preserve_case=False):
     """Compile a Gel grammar from a ``.gel`` file.
 
     Parameters
@@ -26,8 +29,12 @@ def compile(syntax_file, encoding='utf-8'):
         Path to the ``.gel`` grammar file.
     encoding : str, optional
         Character encoding (default ``'utf-8'``).
+    preserve_case : bool, optional
+        Keep the case of tag names and attribute keys in ``out.*`` paths
+        instead of lowercasing them (default ``False``).
     """
-    return _native.compile_file(syntax_file, encoding=encoding)
+    return _native.compile_file(syntax_file, encoding=encoding,
+                                preserve_case=preserve_case)
 
 
 def generate(converter, input_file, format='xml', encoding='utf-8'):

@@ -163,6 +163,18 @@ print(generate(syntax, 'input.txt'))
 print(generate(syntax, 'input.txt', format='json'))
 ```
 
+### Case of Output Names
+
+Rustine lowercases tag names and attribute keys in `out.*` paths. Pass
+`preserve_case=True` to keep them as written:
+
+```python
+from Rustine.util import compile_string, generate_string
+
+converter = compile_string(grammar, preserve_case=True)
+print(generate_string(converter, input_text, format='xml'))
+```
+
 ---
 
 ## Rust Usage
@@ -218,6 +230,9 @@ rgel -s syntax.gel -f json input.txt
 # Convert to XML (default) or YAML
 rgel -s syntax.gel input.txt
 rgel -s syntax.gel -f yaml input.txt
+
+# Keep the case of tag names (default: lowercase)
+rgel -s syntax.gel --preserve-case input.txt
 
 # Version
 rgel --version
