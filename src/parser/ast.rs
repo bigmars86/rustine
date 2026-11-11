@@ -520,10 +520,7 @@ impl GelDocument {
     fn build_combined_pattern(expressions: &[Expression], defines: &HashMap<String, Expression>) -> Option<String> {
         let mut parts: Vec<String> = Vec::with_capacity(expressions.len());
         for expr in expressions {
-            match Self::expr_to_regex_pattern(expr, defines) {
-                Some(p) => parts.push(p),
-                None => return None, // can't compile this field list
-            }
+            parts.push(Self::expr_to_regex_pattern(expr, defines)?);
         }
         // Join as separate capture groups: (part1)(part2)(part3)
         Some(parts.into_iter().map(|p| format!("({})", p)).collect::<String>())
@@ -544,14 +541,11 @@ impl GelDocument {
                     if !visited.insert(name.to_string()) {
                         return None; // cycle
                     }
-                    match defines.get(name) {
-                        Some(resolved) => match resolved {
-                            Expression::Variable(next) => {
-                                name = next;
-                            }
-                            other => return Self::expr_to_regex_pattern(other, defines),
-                        },
-                        None => return None, // undefined variable
+                    match defines.get(name)? {
+                        Expression::Variable(next) => {
+                            name = next;
+                        }
+                        other => return Self::expr_to_regex_pattern(other, defines),
                     }
                 }
             }

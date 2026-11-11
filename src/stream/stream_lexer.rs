@@ -192,8 +192,8 @@ impl<R: ReadChunks> StreamingLexer<R> {
         }
 
         // EOF reached & pending empty → append EOF token (once)
-        let finished;
-        if self.eof && self.pending.is_empty() {
+        let finished = self.eof && self.pending.is_empty();
+        if finished {
             self.finished = true;
             batch.push(BorrowedToken {
                 kind: TokenKind::EOF,
@@ -201,9 +201,6 @@ impl<R: ReadChunks> StreamingLexer<R> {
                 len: 0,
                 position: self.global_offset,
             });
-            finished = true;
-        } else {
-            finished = false;
         }
 
         Ok(Some(StreamTokenBatch {
