@@ -1881,7 +1881,9 @@ fn tree_json_node_direct(flat: &FlatTree, node: &FlatNode, out: &mut String, ind
         }
         out.push('\n');
         json_write_indent_direct(out, inner);
-        json_write_escaped_direct(out, &format!("@{k}"));
+        out.push_str("\"@");
+        let _ = json_write_escaped_body(out, k);
+        out.push('"');
         out.push_str(": ");
         json_write_escaped_direct(out, v);
         first = false;
@@ -1940,26 +1942,8 @@ fn json_write_indent_direct(out: &mut String, level: usize) {
 }
 
 fn json_write_escaped_direct(out: &mut String, s: &str) {
-    out.push('"');
-    for ch in s.chars() {
-        match ch {
-            '"' => out.push_str("\\\""),
-            '\\' => out.push_str("\\\\"),
-            '\u{0008}' => out.push_str("\\b"),
-            '\u{000C}' => out.push_str("\\f"),
-            '\n' => out.push_str("\\n"),
-            '\r' => out.push_str("\\r"),
-            '\t' => out.push_str("\\t"),
-            c if (c as u32) < 0x20 => {
-                let n = c as u32;
-                out.push_str("\\u00");
-                out.push(char::from(b"0123456789abcdef"[(n >> 4) as usize]));
-                out.push(char::from(b"0123456789abcdef"[(n & 0xF) as usize]));
-            }
-            c => out.push(c),
-        }
-    }
-    out.push('"');
+    // Writing to a String cannot fail.
+    let _ = json_write_escaped_stream(out, s);
 }
 
 // ---- Streaming path (generic over OutputSink) ----
@@ -1989,7 +1973,9 @@ fn tree_json_node_stream<S: OutputSink>(
         }
         out.write_char('\n')?;
         json_write_indent_stream(out, inner)?;
-        json_write_escaped_stream(out, &format!("@{k}"))?;
+        out.write_str("\"@")?;
+        json_write_escaped_body(out, k)?;
+        out.write_char('"')?;
         out.write_str(": ")?;
         json_write_escaped_stream(out, v)?;
         first = false;
@@ -2050,25 +2036,37 @@ fn json_write_indent_stream<S: OutputSink>(out: &mut S, level: usize) -> std::io
 
 fn json_write_escaped_stream<S: OutputSink>(out: &mut S, s: &str) -> std::io::Result<()> {
     out.write_char('"')?;
-    for ch in s.chars() {
-        match ch {
-            '"' => out.write_str("\\\"")?,
-            '\\' => out.write_str("\\\\")?,
-            '\u{0008}' => out.write_str("\\b")?,
-            '\u{000C}' => out.write_str("\\f")?,
-            '\n' => out.write_str("\\n")?,
-            '\r' => out.write_str("\\r")?,
-            '\t' => out.write_str("\\t")?,
-            c if (c as u32) < 0x20 => {
-                let n = c as u32;
-                out.write_str("\\u00")?;
-                out.write_char(char::from(b"0123456789abcdef"[(n >> 4) as usize]))?;
-                out.write_char(char::from(b"0123456789abcdef"[(n & 0xF) as usize]))?;
-            }
-            c => out.write_char(c)?,
-        }
-    }
+    json_write_escaped_body(out, s)?;
     out.write_char('"')
+}
+
+/// JSON-escape `s` without the quotes; runs that need no escaping are written in one piece.
+fn json_write_escaped_body<S: OutputSink>(out: &mut S, s: &str) -> std::io::Result<()> {
+    let mut run = 0;
+    for (i, b) in s.bytes().enumerate() {
+        let esc = match b {
+            b'"' => Some("\\\""),
+            b'\\' => Some("\\\\"),
+            0x08 => Some("\\b"),
+            0x0C => Some("\\f"),
+            b'\n' => Some("\\n"),
+            b'\r' => Some("\\r"),
+            b'\t' => Some("\\t"),
+            0..=0x1F => None,
+            _ => continue,
+        };
+        out.write_str(&s[run..i])?;
+        match esc {
+            Some(e) => out.write_str(e)?,
+            None => {
+                out.write_str("\\u00")?;
+                out.write_char(char::from(b"0123456789abcdef"[(b >> 4) as usize]))?;
+                out.write_char(char::from(b"0123456789abcdef"[(b & 0xF) as usize]))?;
+            }
+        }
+        run = i + 1;
+    }
+    out.write_str(&s[run..])
 }
 
 // -- Tree-only XML --------------------------------------------------------
@@ -2195,17 +2193,25 @@ fn tree_xml_node<W: std::io::Write>(flat: &FlatTree, node: &FlatNode, writer: &m
 }
 
 /// Escape `<`, `>` and `&` in XML text (quotes are valid in text content).
-fn xml_escape_text_content(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    for ch in s.chars() {
-        match ch {
-            '<' => out.push_str("&lt;"),
-            '>' => out.push_str("&gt;"),
-            '&' => out.push_str("&amp;"),
-            _ => out.push(ch),
-        }
+fn xml_escape_text_content(s: &str) -> Cow<'_, str> {
+    if !s.bytes().any(|b| matches!(b, b'<' | b'>' | b'&')) {
+        return Cow::Borrowed(s);
     }
-    out
+    let mut out = String::with_capacity(s.len() + 8);
+    let mut run = 0;
+    for (i, b) in s.bytes().enumerate() {
+        let esc = match b {
+            b'<' => "&lt;",
+            b'>' => "&gt;",
+            b'&' => "&amp;",
+            _ => continue,
+        };
+        out.push_str(&s[run..i]);
+        out.push_str(esc);
+        run = i + 1;
+    }
+    out.push_str(&s[run..]);
+    Cow::Owned(out)
 }
 
 /// Write raw bytes to a writer, replacing all `&apos;` with `'`.
