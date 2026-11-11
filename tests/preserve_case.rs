@@ -87,8 +87,7 @@ fn streaming_runner_honors_preserve_case() {
         let mut doc = compile(grammar, preserve_case);
         let mut runner = StreamingRunner::new(&mut doc, "input").expect("streaming runner");
         runner.feed("value\n");
-        let mut result = runner.finish().expect("finish");
-        result.flat = Some(std::mem::take(&mut result.output).compact_and_flatten());
+        let result = runner.finish().expect("finish");
         let xml = serialize_tree(&result, RuntimeFormat::Xml);
         assert!(xml.contains(expected), "{xml}");
     }

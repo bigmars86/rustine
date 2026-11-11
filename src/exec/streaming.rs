@@ -356,7 +356,6 @@ impl StreamingRunner {
                             break;
                         }
                         // If a sub-grammar consumed input, break+restart
-                        // (Python: Grammar.parse() restarts the statement loop on any success)
                         if self.pos > pos_before_action {
                             matched_any = true;
                             break;
@@ -401,8 +400,8 @@ impl StreamingRunner {
             diagnostics: self.diagnostics,
             capture_history: self.capture_history,
             capture_names_history: self.capture_names_history,
-            output: self.tree,
-            flat: None,
+            output: OutputTree::default(),
+            flat: Some(self.tree.compact_and_flatten()),
             error: self.error,
         })
     }

@@ -1,6 +1,6 @@
 use rustine::exec::streaming::StreamingEvent;
 use rustine::parser::ast::GelDocument;
-use rustine::StreamingRunner;
+use rustine::{serialize_tree, RuntimeFormat, StreamingRunner};
 
 fn parse_doc(src: &str) -> GelDocument {
     let tokens = rustine::parser::lexer::lex(src).unwrap();
@@ -27,6 +27,11 @@ grammar main:
     let result = sr.finish().unwrap();
 
     assert_eq!(result.consumed, batch.consumed, "consumed bytes should match");
+    assert_eq!(
+        serialize_tree(&result, RuntimeFormat::Json),
+        serialize_tree(&batch, RuntimeFormat::Json),
+        "output should match"
+    );
 }
 
 #[test]
