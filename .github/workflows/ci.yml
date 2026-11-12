@@ -182,18 +182,12 @@ jobs:
         run: |
           python -m venv .venv
           source .venv/bin/activate
-          pip install maturin
+          pip install maturin pyyaml
       - name: Build and install wheel
         run: |
           source .venv/bin/activate
           maturin develop --features "python,jemalloc"
-      - name: Smoke test import
+      - name: Python tests
         run: |
           source .venv/bin/activate
-          # LD_PRELOAD works around "cannot allocate memory in static TLS block"
-          # that affects PyO3 abi3 extensions on some Linux/glibc versions.
-          SO=$(find . -name 'rustine.abi3.so' -print -quit)
-          export LD_PRELOAD="${SO:+$SO}"
-          python -c "from Rustine import rustine; print('Rustine imported successfully')"
-          python -c "from Gelatin import util; print('Gelatin compat shim imported successfully')"
-          python tests/python/test_preserve_case.py
+          for t in tests/python/test_*.py; do python "$t"; done
