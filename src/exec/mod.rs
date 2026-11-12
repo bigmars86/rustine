@@ -1840,114 +1840,17 @@ impl<W: std::io::Write> OutputSink for WriterSink<W> {
 fn tree_json(exec: &ExecutionResult) -> String {
     let flat = exec.flat.as_ref().expect("FlatTree not built");
     let mut out = String::new();
-    tree_json_node_direct(flat, flat.root(), &mut out, 0);
+    tree_json_node(flat, flat.root(), &mut out, 0).expect("writing to a String cannot fail");
     out
 }
 
 /// Write tree JSON directly to a writer (truly streaming, no intermediate buffer).
 fn tree_json_to_writer<W: std::io::Write>(exec: &ExecutionResult, writer: &mut W) -> std::io::Result<()> {
     let flat = exec.flat.as_ref().expect("FlatTree not built");
-    tree_json_node_stream(flat, flat.root(), &mut WriterSink(writer), 0)
+    tree_json_node(flat, flat.root(), &mut WriterSink(writer), 0)
 }
 
-// ---- String fast-path (inlined, no trait dispatch) ----
-
-/// Emit a Node as pretty-printed JSON into a `String` — fast path that avoids
-/// trait-dispatch overhead by calling `String::push` / `push_str` directly.
-fn tree_json_node_direct(flat: &FlatTree, node: &FlatNode, out: &mut String, indent: usize) {
-    let attrs = flat.attrs_of(node);
-    let has_attrs = !attrs.is_empty();
-    let has_text = node.text.as_ref().is_some_and(|t| !t.is_empty());
-    let has_children = node.children_len > 0;
-
-    if !has_attrs && !has_text && !has_children {
-        out.push_str("{}");
-        return;
-    }
-
-    out.push('{');
-    let inner = indent + 1;
-    let mut first = true;
-
-    for (k, v) in attrs {
-        if !first {
-            out.push(',');
-        }
-        out.push('\n');
-        json_write_indent_direct(out, inner);
-        out.push_str("\"@");
-        let _ = json_write_escaped_body(out, k);
-        out.push('"');
-        out.push_str(": ");
-        json_write_escaped_direct(out, v);
-        first = false;
-    }
-
-    if has_text {
-        if !first {
-            out.push(',');
-        }
-        out.push('\n');
-        json_write_indent_direct(out, inner);
-        json_write_escaped_direct(out, "#text");
-        out.push_str(": ");
-        json_write_escaped_direct(out, node.text.as_ref().unwrap());
-        first = false;
-    }
-
-    for group in flat.iter_child_groups(node) {
-        if !first {
-            out.push(',');
-        }
-        out.push('\n');
-        json_write_indent_direct(out, inner);
-        json_write_escaped_direct(out, &group[0].name);
-        out.push_str(": ");
-
-        if group.len() == 1 {
-            tree_json_node_direct(flat, &group[0], out, inner);
-        } else {
-            out.push('[');
-            for (i, ch) in group.iter().enumerate() {
-                if i > 0 {
-                    out.push(',');
-                }
-                out.push('\n');
-                json_write_indent_direct(out, inner + 1);
-                tree_json_node_direct(flat, ch, out, inner + 1);
-            }
-            out.push('\n');
-            json_write_indent_direct(out, inner);
-            out.push(']');
-        }
-        first = false;
-    }
-
-    out.push('\n');
-    json_write_indent_direct(out, indent);
-    out.push('}');
-}
-
-#[inline]
-fn json_write_indent_direct(out: &mut String, level: usize) {
-    for _ in 0..level {
-        out.push_str("    ");
-    }
-}
-
-fn json_write_escaped_direct(out: &mut String, s: &str) {
-    // Writing to a String cannot fail.
-    let _ = json_write_escaped_stream(out, s);
-}
-
-// ---- Streaming path (generic over OutputSink) ----
-
-fn tree_json_node_stream<S: OutputSink>(
-    flat: &FlatTree,
-    node: &FlatNode,
-    out: &mut S,
-    indent: usize,
-) -> std::io::Result<()> {
+fn tree_json_node<S: OutputSink>(flat: &FlatTree, node: &FlatNode, out: &mut S, indent: usize) -> std::io::Result<()> {
     let attrs = flat.attrs_of(node);
     let has_attrs = !attrs.is_empty();
     let has_text = node.text.as_ref().is_some_and(|t| !t.is_empty());
@@ -1966,12 +1869,12 @@ fn tree_json_node_stream<S: OutputSink>(
             out.write_char(',')?;
         }
         out.write_char('\n')?;
-        json_write_indent_stream(out, inner)?;
+        json_write_indent(out, inner)?;
         out.write_str("\"@")?;
         json_write_escaped_body(out, k)?;
         out.write_char('"')?;
         out.write_str(": ")?;
-        json_write_escaped_stream(out, v)?;
+        json_write_escaped(out, v)?;
         first = false;
     }
 
@@ -1980,10 +1883,10 @@ fn tree_json_node_stream<S: OutputSink>(
             out.write_char(',')?;
         }
         out.write_char('\n')?;
-        json_write_indent_stream(out, inner)?;
-        json_write_escaped_stream(out, "#text")?;
+        json_write_indent(out, inner)?;
+        json_write_escaped(out, "#text")?;
         out.write_str(": ")?;
-        json_write_escaped_stream(out, node.text.as_ref().unwrap())?;
+        json_write_escaped(out, node.text.as_ref().unwrap())?;
         first = false;
     }
 
@@ -1992,12 +1895,12 @@ fn tree_json_node_stream<S: OutputSink>(
             out.write_char(',')?;
         }
         out.write_char('\n')?;
-        json_write_indent_stream(out, inner)?;
-        json_write_escaped_stream(out, &group[0].name)?;
+        json_write_indent(out, inner)?;
+        json_write_escaped(out, &group[0].name)?;
         out.write_str(": ")?;
 
         if group.len() == 1 {
-            tree_json_node_stream(flat, &group[0], out, inner)?;
+            tree_json_node(flat, &group[0], out, inner)?;
         } else {
             out.write_char('[')?;
             for (i, ch) in group.iter().enumerate() {
@@ -2005,30 +1908,30 @@ fn tree_json_node_stream<S: OutputSink>(
                     out.write_char(',')?;
                 }
                 out.write_char('\n')?;
-                json_write_indent_stream(out, inner + 1)?;
-                tree_json_node_stream(flat, ch, out, inner + 1)?;
+                json_write_indent(out, inner + 1)?;
+                tree_json_node(flat, ch, out, inner + 1)?;
             }
             out.write_char('\n')?;
-            json_write_indent_stream(out, inner)?;
+            json_write_indent(out, inner)?;
             out.write_char(']')?;
         }
         first = false;
     }
 
     out.write_char('\n')?;
-    json_write_indent_stream(out, indent)?;
+    json_write_indent(out, indent)?;
     out.write_char('}')
 }
 
 #[inline]
-fn json_write_indent_stream<S: OutputSink>(out: &mut S, level: usize) -> std::io::Result<()> {
+fn json_write_indent<S: OutputSink>(out: &mut S, level: usize) -> std::io::Result<()> {
     for _ in 0..level {
         out.write_str("    ")?;
     }
     Ok(())
 }
 
-fn json_write_escaped_stream<S: OutputSink>(out: &mut S, s: &str) -> std::io::Result<()> {
+fn json_write_escaped<S: OutputSink>(out: &mut S, s: &str) -> std::io::Result<()> {
     out.write_char('"')?;
     json_write_escaped_body(out, s)?;
     out.write_char('"')
@@ -2225,7 +2128,7 @@ fn write_bytes_replacing_apos<W: std::io::Write>(writer: &mut W, bytes: &[u8]) -
 fn tree_yaml(exec: &ExecutionResult) -> String {
     let flat = exec.flat.as_ref().expect("FlatTree not built");
     let mut out = String::new();
-    tree_yaml_node_direct(flat, flat.root(), &mut out, 0, false);
+    tree_yaml_node(flat, flat.root(), &mut out, 0, false).expect("writing to a String cannot fail");
     out.push('\n');
     out
 }
@@ -2233,88 +2136,11 @@ fn tree_yaml(exec: &ExecutionResult) -> String {
 /// Write tree YAML directly to a writer (truly streaming, no intermediate buffer).
 fn tree_yaml_to_writer<W: std::io::Write>(exec: &ExecutionResult, writer: &mut W) -> std::io::Result<()> {
     let flat = exec.flat.as_ref().expect("FlatTree not built");
-    tree_yaml_node_stream(flat, flat.root(), &mut WriterSink(&mut *writer), 0, false)?;
+    tree_yaml_node(flat, flat.root(), &mut WriterSink(&mut *writer), 0, false)?;
     writer.write_all(b"\n")
 }
 
-// ---- String fast-path (inlined, no trait dispatch) ----
-
-fn tree_yaml_node_direct(flat: &FlatTree, node: &FlatNode, out: &mut String, indent: usize, inline: bool) {
-    let attrs = flat.attrs_of(node);
-    let has_attrs = !attrs.is_empty();
-    let has_text = node.text.as_ref().is_some_and(|t| !t.is_empty());
-    let has_children = node.children_len > 0;
-
-    if !has_attrs && !has_text && !has_children {
-        out.push_str("{}");
-        return;
-    }
-
-    let mut entry_idx: usize = 0;
-
-    for (k, v) in attrs {
-        if entry_idx > 0 || !inline {
-            push_yaml_indent_direct(out, indent);
-        }
-        out.push('\'');
-        out.push('@');
-        out.push_str(k);
-        out.push('\'');
-        out.push_str(": ");
-        out.push_str(&yaml_quote_value(v));
-        out.push('\n');
-        entry_idx += 1;
-    }
-
-    if has_text {
-        if entry_idx > 0 || !inline {
-            push_yaml_indent_direct(out, indent);
-        }
-        out.push_str("'#text': ");
-        out.push_str(&yaml_quote_value(node.text.as_ref().unwrap()));
-        out.push('\n');
-        entry_idx += 1;
-    }
-
-    for group in flat.iter_child_groups(node) {
-        let name = &group[0].name;
-        if entry_idx > 0 || !inline {
-            push_yaml_indent_direct(out, indent);
-        }
-        out.push_str(&yaml_quote_key(name));
-        out.push(':');
-
-        if group.len() == 1 {
-            out.push('\n');
-            tree_yaml_node_direct(flat, &group[0], out, indent + 1, false);
-        } else {
-            out.push('\n');
-            for ch in group {
-                push_yaml_indent_direct(out, indent);
-                out.push_str("- ");
-                tree_yaml_node_direct(flat, ch, out, indent + 2, true);
-            }
-        }
-        entry_idx += 1;
-    }
-}
-
-#[inline]
-fn push_yaml_indent_direct(out: &mut String, indent: usize) {
-    const SPACES: &str = "                                                                ";
-    let n = indent * 2;
-    if n <= SPACES.len() {
-        out.push_str(&SPACES[..n]);
-    } else {
-        for _ in 0..n {
-            out.push(' ');
-        }
-    }
-}
-
-// ---- Streaming path (generic over OutputSink) ----
-
-fn tree_yaml_node_stream<S: OutputSink>(
+fn tree_yaml_node<S: OutputSink>(
     flat: &FlatTree,
     node: &FlatNode,
     out: &mut S,
@@ -2334,7 +2160,7 @@ fn tree_yaml_node_stream<S: OutputSink>(
 
     for (k, v) in attrs {
         if entry_idx > 0 || !inline {
-            push_yaml_indent_stream(out, indent)?;
+            push_yaml_indent(out, indent)?;
         }
         out.write_char('\'')?;
         out.write_char('@')?;
@@ -2348,7 +2174,7 @@ fn tree_yaml_node_stream<S: OutputSink>(
 
     if has_text {
         if entry_idx > 0 || !inline {
-            push_yaml_indent_stream(out, indent)?;
+            push_yaml_indent(out, indent)?;
         }
         out.write_str("'#text': ")?;
         out.write_str(&yaml_quote_value(node.text.as_ref().unwrap()))?;
@@ -2359,20 +2185,20 @@ fn tree_yaml_node_stream<S: OutputSink>(
     for group in flat.iter_child_groups(node) {
         let name = &group[0].name;
         if entry_idx > 0 || !inline {
-            push_yaml_indent_stream(out, indent)?;
+            push_yaml_indent(out, indent)?;
         }
         out.write_str(&yaml_quote_key(name))?;
         out.write_char(':')?;
 
         if group.len() == 1 {
             out.write_char('\n')?;
-            tree_yaml_node_stream(flat, &group[0], out, indent + 1, false)?;
+            tree_yaml_node(flat, &group[0], out, indent + 1, false)?;
         } else {
             out.write_char('\n')?;
             for ch in group {
-                push_yaml_indent_stream(out, indent)?;
+                push_yaml_indent(out, indent)?;
                 out.write_str("- ")?;
-                tree_yaml_node_stream(flat, ch, out, indent + 2, true)?;
+                tree_yaml_node(flat, ch, out, indent + 2, true)?;
             }
         }
         entry_idx += 1;
@@ -2382,7 +2208,7 @@ fn tree_yaml_node_stream<S: OutputSink>(
 }
 
 #[inline]
-fn push_yaml_indent_stream<S: OutputSink>(out: &mut S, indent: usize) -> std::io::Result<()> {
+fn push_yaml_indent<S: OutputSink>(out: &mut S, indent: usize) -> std::io::Result<()> {
     const SPACES: &str = "                                                                ";
     let n = indent * 2;
     if n <= SPACES.len() {
