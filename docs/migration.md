@@ -121,6 +121,12 @@ Rustine reads and writes UTF-8 only. The `encoding`, `in_encoding` and
 UTF-8 (`'utf-8'`, `'utf8'`, …) raises `ValueError`. Convert other files to
 UTF-8 first.
 
+#### Match Length
+
+A regex is matched against at most the next 1000 bytes of the input, so one
+match cannot be longer. A statement that would need more does not match;
+if nothing else matches there, the run fails with `stopped at line N`.
+
 #### Output Parity
 
 Rustine produces **near-perfect output parity** with Python Gelatin. Across
