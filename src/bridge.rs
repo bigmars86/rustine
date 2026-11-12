@@ -41,6 +41,18 @@ fn read_file(path: &str) -> PyResult<String> {
     fs::read_to_string(path).map_err(|e| PyIOError::new_err(format!("{}: {}", path, e)))
 }
 
+/// Files are always UTF-8; any other `encoding` raises ``ValueError`` instead of being ignored.
+fn require_utf8(py: Python<'_>, encoding: &str) -> PyResult<()> {
+    let codec = py.import("codecs")?.call_method1("lookup", (encoding,))?;
+    if codec.getattr("name")?.extract::<String>()? == "utf-8" {
+        Ok(())
+    } else {
+        Err(PyValueError::new_err(format!(
+            "only UTF-8 is supported, not '{encoding}'"
+        )))
+    }
+}
+
 fn write_tree(exec: &ExecutionResult, fmt: RuntimeFormat, path: &str) -> PyResult<()> {
     let io_err = |e: std::io::Error| PyIOError::new_err(format!("{}: {}", path, e));
     let mut writer = std::io::BufWriter::new(fs::File::create(path).map_err(io_err)?);
@@ -123,7 +135,7 @@ impl GelContext {
         self.render(py, input, grammar, fmt)
     }
 
-    /// Like ``generate_string``, reading the input from a file (always as UTF-8).
+    /// Like ``generate_string``, reading the input from a UTF-8 file.
     #[pyo3(signature = (input_file, format = "json", grammar = "input", encoding = "utf-8"))]
     fn generate(
         &self,
@@ -133,7 +145,7 @@ impl GelContext {
         grammar: &str,
         encoding: &str,
     ) -> PyResult<String> {
-        let _ = encoding;
+        require_utf8(py, encoding)?;
         let fmt = parse_format(format)?;
         self.render(py, &read_file(input_file)?, grammar, fmt)
     }
@@ -193,11 +205,11 @@ pub fn compile_string(gel_source: &str, preserve_case: bool) -> PyResult<GelCont
     GelContext::new(gel_source, preserve_case)
 }
 
-/// Compile a grammar from a ``.gel`` file (always read as UTF-8).
+/// Compile a grammar from a UTF-8 ``.gel`` file.
 #[pyfunction]
 #[pyo3(signature = (syntax_file, encoding = "utf-8", *, preserve_case = false))]
-pub fn compile_file(syntax_file: &str, encoding: &str, preserve_case: bool) -> PyResult<GelContext> {
-    let _ = encoding;
+pub fn compile_file(py: Python<'_>, syntax_file: &str, encoding: &str, preserve_case: bool) -> PyResult<GelContext> {
+    require_utf8(py, encoding)?;
     GelContext::new(&read_file(syntax_file)?, preserve_case)
 }
 

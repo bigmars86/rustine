@@ -1,10 +1,12 @@
 """Python API behaviour: errors, threads and output formats.
 
 Run after building the native module."""
+import os
+import tempfile
 import threading
 import time
 
-from Rustine import rustine
+from Rustine import rustine, util
 
 INVALID_REGEX = "grammar input:\n    match /(/:\n        out.add('x')\n"
 ITEMS = "grammar input:\n    match /(\\w+) (\\d+)\\n/:\n        out.create('item?id=\"$2\"', '$1')\n"
@@ -47,5 +49,19 @@ stop.set()
 thread.join()
 quarter = (end - start) / 4
 assert any(start + quarter < s < end - quarter for s in stamps), "other threads stalled during the conversion"
+
+# Files are UTF-8; other encodings raise instead of being ignored.
+with tempfile.TemporaryDirectory() as tmp:
+    gel, data, out = (os.path.join(tmp, name) for name in ("items.gel", "items.txt", "out.json"))
+    for path, text in ((gel, ITEMS), (data, "a 1\n")):
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            f.write(text)
+    conv = util.compile(gel, encoding="UTF8")
+    util.generate_to_file(conv, data, out, format="json", in_encoding="utf_8", out_encoding="U8")
+    raises(ValueError, util.compile, gel, encoding="latin-1")
+    raises(ValueError, util.generate, conv, data, encoding="cp1252")
+    raises(ValueError, util.generate_to_file, conv, data, out, in_encoding="latin-1")
+    raises(ValueError, util.generate_to_file, conv, data, out, out_encoding="latin-1")
+    raises(ValueError, util.generate_string_to_file, conv, "a 1\n", out, out_encoding="utf-16")
 
 print("api: ok")

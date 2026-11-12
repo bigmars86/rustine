@@ -113,6 +113,13 @@ class still works but splits `\r\n` into two separate matches (matching
 `\r` first, then `\n`), which may cause unexpected behaviour on
 Windows-style line endings.
 
+#### Encodings
+
+Rustine reads and writes UTF-8 only. The `encoding`, `in_encoding` and
+`out_encoding` parameters stay for compatibility, but any value other than
+UTF-8 (`'utf-8'`, `'utf8'`, …) raises `ValueError`. Convert other files to
+UTF-8 first.
+
 #### Output Parity
 
 Rustine produces **near-perfect output parity** with Python Gelatin. Across
