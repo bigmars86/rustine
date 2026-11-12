@@ -62,6 +62,16 @@ type NameVec = SmallVec<[Option<Arc<str>>; 8]>;
 /// Regex matching only looks at this many bytes of the remaining input.
 const SEARCH_WINDOW: usize = 1000;
 
+/// Grammar calls nest at most this deep; a deeper call ends the run with an error.
+/// Each level takes about 3 KB of stack in a release build, so 250 levels stay
+/// below 1 MB, the default stack of a Windows main thread.
+const MAX_GRAMMAR_DEPTH: usize = 250;
+
+/// 1-based line number at the end of `before`.
+fn line_number(before: &str) -> usize {
+    memchr::memchr_iter(b'\n', before.as_bytes()).count() + 1
+}
+
 /// The first [`SEARCH_WINDOW`] bytes of `rem`, extended to the next char boundary.
 #[inline]
 fn search_window(rem: &str) -> &str {
@@ -207,6 +217,8 @@ pub struct Runner<'a> {
     stmt_cache: HashMap<String, Arc<Vec<Statement>>>,
     /// `do.fail` message from a sub-grammar; ends the run like a top-level `do.fail`.
     fail: Option<String>,
+    /// Number of grammar calls in progress (see [`MAX_GRAMMAR_DEPTH`]).
+    depth: usize,
     /// Record per-match actions, traces and captures (read by `serialize_execution`).
     record: bool,
 }
@@ -234,6 +246,7 @@ impl<'a> Runner<'a> {
             last_capture_names: NameVec::new(),
             stmt_cache,
             fail: None,
+            depth: 0,
             record: true,
         }
     }
@@ -252,9 +265,11 @@ impl<'a> Runner<'a> {
     /// The grammar ended (nothing matched, or `do.return`) before the end of the input.
     fn unconsumed_input_error(&self, name: &str) -> String {
         let (done, rest) = self.ctx.input.split_at(self.ctx.pos);
-        let line = memchr::memchr_iter(b'\n', done.as_bytes()).count() + 1;
         let next: String = rest.chars().take(40).collect();
-        format!("grammar '{name}' stopped at line {line} before the end of the input: {next:?}")
+        format!(
+            "grammar '{name}' stopped at line {} before the end of the input: {next:?}",
+            line_number(done)
+        )
     }
 
     fn run_statements(&mut self, name: &str) -> Result<ExecutionResult> {
@@ -1326,6 +1341,30 @@ impl<'a> Runner<'a> {
     // Run another grammar at the current position.
     // Returns (consumed bytes, return levels left after this grammar consumed one).
     fn run_inline_grammar(&mut self, name: &str, tree: &mut OutputTree, traces: &mut Vec<String>) -> (usize, i32) {
+        if self.depth == MAX_GRAMMAR_DEPTH {
+            // Ends the run like `do.fail`.
+            let start = self.ctx.pos;
+            let line = line_number(&self.ctx.input[..start]);
+            self.fail.get_or_insert_with(|| {
+                format!(
+                    "grammar calls nested more than {MAX_GRAMMAR_DEPTH} levels deep (calling '{name}' at line {line})"
+                )
+            });
+            self.ctx.pos = self.ctx.input.len();
+            return (self.ctx.pos - start, 0);
+        }
+        self.depth += 1;
+        let result = self.run_inline_grammar_statements(name, tree, traces);
+        self.depth -= 1;
+        result
+    }
+
+    fn run_inline_grammar_statements(
+        &mut self,
+        name: &str,
+        tree: &mut OutputTree,
+        traces: &mut Vec<String>,
+    ) -> (usize, i32) {
         // Arc::clone is O(1) — just an atomic increment.
         let statements = match self.stmt_cache.get(name).map(Arc::clone) {
             Some(s) => s,

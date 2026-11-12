@@ -30,6 +30,12 @@ items = rustine.compile_grammar(ITEMS)
 err = raises(RuntimeError, items.generate_string, "a 1\nnot an item\n", format="json")
 assert "stopped at line 2" in str(err), err
 
+# Grammar calls nest up to 250 levels; deeper nesting raises instead of crashing.
+nested = rustine.compile_grammar("grammar input:\n    match /\\{/:\n        input()\n    match /\\}/:\n        do.return()\n")
+nested.generate_string("{" * 250 + "}" * 250, format="json")
+err = raises(RuntimeError, nested.generate_string, "{" * 5000 + "}" * 5000, format="json")
+assert "nested more than 250 levels" in str(err), err
+
 # A conversion releases the GIL: another thread keeps running in the middle of it.
 big = "".join("word%d %d\n" % (i % 97, i) for i in range(400000))
 stamps = []

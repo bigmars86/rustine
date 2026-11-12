@@ -32,6 +32,17 @@ struct Cli {
 }
 
 fn main() {
+    // Deeply nested grammars need more stack than the 1 MB of a Windows main thread.
+    let worker = std::thread::Builder::new()
+        .stack_size(16 << 20)
+        .spawn(cli)
+        .expect("start the worker thread");
+    if worker.join().is_err() {
+        process::exit(101);
+    }
+}
+
+fn cli() {
     let cli = Cli::parse();
 
     let runtime_format = match cli.format.as_str() {

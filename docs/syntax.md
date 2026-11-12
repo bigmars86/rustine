@@ -75,6 +75,8 @@ grammar input:
 
 A bare function call invokes another grammar. When the called grammar returns
 (via `do.return()` or end-of-grammar), execution continues in the caller.
+Calls nest at most 250 levels deep; a deeper call ends the run with an error,
+like `do.fail`.
 
 ---
 
