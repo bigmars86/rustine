@@ -1,9 +1,10 @@
 use clap::Parser;
-use rustine::exec::{execute_tree, serialize_tree, RuntimeFormat};
+use rustine::exec::{execute_tree, serialize_tree_to_writer, RuntimeFormat};
 use rustine::parser::lexer::lex;
 use rustine::parser::syntax::parse_gel_document;
 use rustine::parser::validate;
-use std::io::Read;
+use rustine::GelError;
+use std::io::{ErrorKind, Read, Write};
 use std::{fs, process};
 
 /// Transform text into JSON, XML or YAML with a Gel grammar.
@@ -84,8 +85,13 @@ fn cli() {
                 eprintln!("Runtime error{}: {}", source, err);
                 process::exit(1);
             }
-            match serialize_tree(&exec, runtime_format) {
-                Ok(out) => print!("{}", out),
+            let mut out = std::io::BufWriter::new(std::io::stdout().lock());
+            let written = serialize_tree_to_writer(&exec, runtime_format, &mut out)
+                .and_then(|()| out.flush().map_err(GelError::from));
+            match written {
+                Ok(()) => {}
+                // The reader stopped early, e.g. `rgel ... | head`.
+                Err(GelError::Io(e)) if e.kind() == ErrorKind::BrokenPipe => process::exit(0),
                 Err(e) => {
                     eprintln!("Output error{}: {}", source, e);
                     process::exit(1);
