@@ -4,22 +4,16 @@ pub mod json;
 pub mod lexer;
 pub mod syntax;
 pub mod validate;
-pub mod xml;
-pub mod yaml;
 
 use crate::errors::GelError;
 use crate::exec::{execute, serialize_execution, RuntimeFormat};
 use crate::parser::json::JsonGenerator;
 use crate::parser::syntax::parse_gel_document;
-use crate::parser::xml::XmlGenerator;
-use crate::parser::yaml::YamlGenerator;
 
 /// Syntax-level output format for the static parser (AST → string).
 #[derive(Debug, Clone, Copy)]
 pub enum OutputFormat {
     Json,
-    Xml,
-    Yaml,
 }
 
 /// High-level parser that tokenizes Gel source, builds an AST, and
@@ -45,8 +39,6 @@ impl Parser {
         // Generate output based on format and AST
         match self.format {
             OutputFormat::Json => Ok(JsonGenerator::generate_from_ast(&ast)),
-            OutputFormat::Xml => Ok(XmlGenerator::generate_from_ast(&ast)),
-            OutputFormat::Yaml => Ok(YamlGenerator::generate_from_ast(&ast)),
         }
     }
 

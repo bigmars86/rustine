@@ -26,8 +26,7 @@ src/
     syntax.rs       Recursive descent parser (tokens → AST)
     ast.rs          AST types, regex compilation
     validate.rs     Semantic checks
-    json.rs, xml.rs, yaml.rs
-                    AST serializers
+    json.rs         AST as JSON (`parse_to_json`)
     mod.rs          `Parser` facade
   exec/
     mod.rs          Execution engine, triggers, output serializers

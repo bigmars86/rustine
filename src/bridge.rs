@@ -219,43 +219,10 @@ pub fn parse_gel_to_json(input: &str) -> Result<String> {
     parser.parse_str(input)
 }
 
-/// Serialize the grammar's AST as XML.
-pub fn parse_gel_to_xml(input: &str) -> Result<String> {
-    let parser = Parser::new(OutputFormat::Xml);
-    parser.parse_str(input)
-}
-
-/// Serialize the grammar's AST as YAML.
-pub fn parse_gel_to_yaml(input: &str) -> Result<String> {
-    let parser = Parser::new(OutputFormat::Yaml);
-    parser.parse_str(input)
-}
-
-/// Return the grammar's AST as JSON (an ``{"error": ...}`` object on failure).
+/// Return the grammar's AST as JSON; an invalid grammar raises ``ValueError``.
 #[pyfunction]
 pub fn parse_to_json(input: &str) -> PyResult<String> {
-    match parse_gel_to_json(input) {
-        Ok(result) => Ok(result),
-        Err(e) => Ok(format!("{{\"error\":\"{e}\"}}")),
-    }
-}
-
-/// Return the grammar's AST as XML (an ``<error>`` element on failure).
-#[pyfunction]
-pub fn parse_to_xml(input: &str) -> PyResult<String> {
-    match parse_gel_to_xml(input) {
-        Ok(result) => Ok(result),
-        Err(e) => Ok(format!("<error>{e}</error>")),
-    }
-}
-
-/// Return the grammar's AST as YAML (an ``error:`` scalar on failure).
-#[pyfunction]
-pub fn parse_to_yaml(input: &str) -> PyResult<String> {
-    match parse_gel_to_yaml(input) {
-        Ok(result) => Ok(result),
-        Err(e) => Ok(format!("error: {e}")),
-    }
+    parse_gel_to_json(input).map_err(gel_to_pyerr)
 }
 
 fn run_source(

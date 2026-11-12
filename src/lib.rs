@@ -194,15 +194,13 @@ pub fn parse_and_run(source: &str, grammar: &str, input: &str) -> Result<String>
 #[pymodule]
 fn rustine(m: &Bound<'_, PyModule>) -> PyResult<()> {
     use bridge::{
-        compile_file, compile_grammar, compile_string, parse_to_json, parse_to_xml, parse_to_yaml, run_grammar,
-        run_grammar_xml, run_grammar_yaml, GelContext,
+        compile_file, compile_grammar, compile_string, parse_to_json, run_grammar, run_grammar_xml, run_grammar_yaml,
+        GelContext,
     };
     m.add_class::<GelContext>()?;
     m.add_function(wrap_pyfunction!(compile_grammar, m)?)?;
     m.add_function(wrap_pyfunction!(compile_file, m)?)?;
     m.add_function(wrap_pyfunction!(parse_to_json, m)?)?;
-    m.add_function(wrap_pyfunction!(parse_to_xml, m)?)?;
-    m.add_function(wrap_pyfunction!(parse_to_yaml, m)?)?;
     m.add_function(wrap_pyfunction!(run_grammar, m)?)?;
     m.add_function(wrap_pyfunction!(run_grammar_xml, m)?)?;
     m.add_function(wrap_pyfunction!(run_grammar_yaml, m)?)?;
@@ -253,15 +251,5 @@ mod tests {
         let json = result.unwrap();
         assert!(json.contains("defines"));
         assert!(json.contains("ws"));
-    }
-
-    #[cfg(feature = "python")]
-    #[test]
-    fn test_native_xml_parsing() {
-        let result = crate::bridge::parse_gel_to_xml("define ws /\\s+/");
-        assert!(result.is_ok());
-        let xml = result.unwrap();
-        assert!(xml.contains("<gel-document>"));
-        assert!(xml.contains("<define"));
     }
 }

@@ -1,7 +1,7 @@
-use rustine::parser::{json::JsonGenerator, xml::XmlGenerator};
+use rustine::parser::json::JsonGenerator;
 
 #[test]
-fn test_json_xml_generators() {
+fn test_json_generator() {
     // Test die Generatoren direkt mit manuell erstelltem AST
     use rustine::parser::ast::{Expression, GelDocument, Grammar};
 
@@ -35,19 +35,10 @@ fn test_json_xml_generators() {
     println!("\n=== JSON Output ===");
     println!("{}", json_output);
 
-    // Test XML generation
-    let xml_output = XmlGenerator::generate_from_ast(&document);
-    println!("\n=== XML Output ===");
-    println!("{}", xml_output);
-
     // Validate outputs
     assert!(!json_output.is_empty());
-    assert!(!xml_output.is_empty());
     assert!(json_output.contains("defines"));
     assert!(json_output.contains("grammars"));
-    assert!(xml_output.contains("<gel-document>"));
-    assert!(xml_output.contains("<defines>"));
-    assert!(xml_output.contains("<grammars>"));
 }
 
 #[test]
@@ -66,14 +57,4 @@ fn test_end_to_end_with_generators() {
         Err(e) => println!("Error: {:?}", e),
     }
     assert!(json_result.is_ok());
-
-    // Test XML
-    let xml_parser = Parser::new(OutputFormat::Xml);
-    let xml_result = xml_parser.parse_str(input);
-    println!("\n=== End-to-End XML ===");
-    match &xml_result {
-        Ok(output) => println!("{}", output),
-        Err(e) => println!("Error: {:?}", e),
-    }
-    assert!(xml_result.is_ok());
 }

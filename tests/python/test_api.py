@@ -25,6 +25,10 @@ raises(ValueError, rustine.compile_grammar, INVALID_REGEX)
 for run in (rustine.run_grammar, rustine.run_grammar_xml, rustine.run_grammar_yaml):
     raises(ValueError, run, INVALID_REGEX, "input", "(abc")
 
+# parse_to_json returns the grammar's AST; a grammar that does not parse raises.
+assert '"defines"' in rustine.parse_to_json("define ws /\\s+/\n")
+raises(ValueError, rustine.parse_to_json, "define x 'unterminated\n")
+
 # Input the grammar does not consume is an error, not a truncated result.
 items = rustine.compile_grammar(ITEMS)
 err = raises(RuntimeError, items.generate_string, "a 1\nnot an item\n", format="json")
