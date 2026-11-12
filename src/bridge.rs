@@ -100,55 +100,82 @@ impl GelContext {
 
     /// Run the grammar on `input` and return JSON.
     #[pyo3(signature = (input, grammar = "input"))]
-    fn run(&self, input: &str, grammar: &str) -> PyResult<String> {
-        Ok(serialize_tree(&self.exec_input(input, grammar)?, RuntimeFormat::Json))
+    fn run(&self, py: Python<'_>, input: &str, grammar: &str) -> PyResult<String> {
+        self.render(py, input, grammar, RuntimeFormat::Json)
     }
 
     /// Run the grammar on `input` and return XML.
     #[pyo3(signature = (input, grammar = "input"))]
-    fn run_xml(&self, input: &str, grammar: &str) -> PyResult<String> {
-        Ok(serialize_tree(&self.exec_input(input, grammar)?, RuntimeFormat::Xml))
+    fn run_xml(&self, py: Python<'_>, input: &str, grammar: &str) -> PyResult<String> {
+        self.render(py, input, grammar, RuntimeFormat::Xml)
     }
 
     /// Run the grammar on `input` and return YAML.
     #[pyo3(signature = (input, grammar = "input"))]
-    fn run_yaml(&self, input: &str, grammar: &str) -> PyResult<String> {
-        Ok(serialize_tree(&self.exec_input(input, grammar)?, RuntimeFormat::Yaml))
+    fn run_yaml(&self, py: Python<'_>, input: &str, grammar: &str) -> PyResult<String> {
+        self.render(py, input, grammar, RuntimeFormat::Yaml)
     }
 
     /// Run the grammar on `input`; ``format`` is ``"json"``, ``"xml"``, ``"yaml"`` or ``"none"``.
     #[pyo3(signature = (input, format = "json", grammar = "input"))]
-    fn generate_string(&self, input: &str, format: &str, grammar: &str) -> PyResult<String> {
+    fn generate_string(&self, py: Python<'_>, input: &str, format: &str, grammar: &str) -> PyResult<String> {
         let fmt = parse_format(format)?;
-        Ok(serialize_tree(&self.exec_input(input, grammar)?, fmt))
+        self.render(py, input, grammar, fmt)
     }
 
     /// Like ``generate_string``, reading the input from a file (always as UTF-8).
     #[pyo3(signature = (input_file, format = "json", grammar = "input", encoding = "utf-8"))]
-    fn generate(&self, input_file: &str, format: &str, grammar: &str, encoding: &str) -> PyResult<String> {
+    fn generate(
+        &self,
+        py: Python<'_>,
+        input_file: &str,
+        format: &str,
+        grammar: &str,
+        encoding: &str,
+    ) -> PyResult<String> {
         let _ = encoding;
-        self.generate_string(&read_file(input_file)?, format, grammar)
+        let fmt = parse_format(format)?;
+        self.render(py, &read_file(input_file)?, grammar, fmt)
     }
 
     /// Run the grammar on a file and stream the output to ``output_file``.
     #[pyo3(signature = (input_file, output_file, format = "json", grammar = "input"))]
-    fn generate_to_file(&self, input_file: &str, output_file: &str, format: &str, grammar: &str) -> PyResult<()> {
+    fn generate_to_file(
+        &self,
+        py: Python<'_>,
+        input_file: &str,
+        output_file: &str,
+        format: &str,
+        grammar: &str,
+    ) -> PyResult<()> {
         let fmt = parse_format(format)?;
         let input = read_file(input_file)?;
-        write_tree(&self.exec_input(&input, grammar)?, fmt, output_file)
+        py.detach(|| write_tree(&self.exec_input(&input, grammar)?, fmt, output_file))
     }
 
     /// Run the grammar on `input` and stream the output to ``output_file``.
     #[pyo3(signature = (input, output_file, format = "json", grammar = "input"))]
-    fn generate_string_to_file(&self, input: &str, output_file: &str, format: &str, grammar: &str) -> PyResult<()> {
+    fn generate_string_to_file(
+        &self,
+        py: Python<'_>,
+        input: &str,
+        output_file: &str,
+        format: &str,
+        grammar: &str,
+    ) -> PyResult<()> {
         let fmt = parse_format(format)?;
-        write_tree(&self.exec_input(input, grammar)?, fmt, output_file)
+        py.detach(|| write_tree(&self.exec_input(input, grammar)?, fmt, output_file))
     }
 }
 
 impl GelContext {
     fn exec_input(&self, input: &str, grammar: &str) -> PyResult<ExecutionResult> {
         checked(execute_tree(&self.doc, grammar, input))
+    }
+
+    /// Run and serialize without holding the GIL, so other Python threads keep running.
+    fn render(&self, py: Python<'_>, input: &str, grammar: &str, fmt: RuntimeFormat) -> PyResult<String> {
+        py.detach(|| Ok(serialize_tree(&self.exec_input(input, grammar)?, fmt)))
     }
 }
 
@@ -220,33 +247,72 @@ pub fn parse_to_yaml(input: &str) -> PyResult<String> {
 }
 
 fn run_source(
+    py: Python<'_>,
     gel_source: &str,
     grammar: &str,
     input: &str,
     preserve_case: bool,
     fmt: RuntimeFormat,
 ) -> PyResult<String> {
-    let ctx = GelContext::new(gel_source, preserve_case)?;
-    Ok(serialize_tree(&ctx.exec_input(input, grammar)?, fmt))
+    GelContext::new(gel_source, preserve_case)?.render(py, input, grammar, fmt)
 }
 
 /// Compile `gel_source`, run `grammar` on `runtime_input` and return JSON.
 #[pyfunction]
 #[pyo3(signature = (gel_source, grammar, runtime_input, *, preserve_case = false))]
-pub fn run_grammar(gel_source: &str, grammar: &str, runtime_input: &str, preserve_case: bool) -> PyResult<String> {
-    run_source(gel_source, grammar, runtime_input, preserve_case, RuntimeFormat::Json)
+pub fn run_grammar(
+    py: Python<'_>,
+    gel_source: &str,
+    grammar: &str,
+    runtime_input: &str,
+    preserve_case: bool,
+) -> PyResult<String> {
+    run_source(
+        py,
+        gel_source,
+        grammar,
+        runtime_input,
+        preserve_case,
+        RuntimeFormat::Json,
+    )
 }
 
 /// Like [`run_grammar`], returning XML.
 #[pyfunction]
 #[pyo3(signature = (gel_source, grammar, runtime_input, *, preserve_case = false))]
-pub fn run_grammar_xml(gel_source: &str, grammar: &str, runtime_input: &str, preserve_case: bool) -> PyResult<String> {
-    run_source(gel_source, grammar, runtime_input, preserve_case, RuntimeFormat::Xml)
+pub fn run_grammar_xml(
+    py: Python<'_>,
+    gel_source: &str,
+    grammar: &str,
+    runtime_input: &str,
+    preserve_case: bool,
+) -> PyResult<String> {
+    run_source(
+        py,
+        gel_source,
+        grammar,
+        runtime_input,
+        preserve_case,
+        RuntimeFormat::Xml,
+    )
 }
 
 /// Like [`run_grammar`], returning YAML.
 #[pyfunction]
 #[pyo3(signature = (gel_source, grammar, runtime_input, *, preserve_case = false))]
-pub fn run_grammar_yaml(gel_source: &str, grammar: &str, runtime_input: &str, preserve_case: bool) -> PyResult<String> {
-    run_source(gel_source, grammar, runtime_input, preserve_case, RuntimeFormat::Yaml)
+pub fn run_grammar_yaml(
+    py: Python<'_>,
+    gel_source: &str,
+    grammar: &str,
+    runtime_input: &str,
+    preserve_case: bool,
+) -> PyResult<String> {
+    run_source(
+        py,
+        gel_source,
+        grammar,
+        runtime_input,
+        preserve_case,
+        RuntimeFormat::Yaml,
+    )
 }
