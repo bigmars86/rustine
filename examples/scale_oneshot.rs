@@ -4,6 +4,7 @@
 //!   cargo run --release --no-default-features --example scale_oneshot
 //!   cargo run --release --no-default-features --example scale_oneshot -- --sizes 50,100
 //!   cargo run --release --no-default-features --features jemalloc --example scale_oneshot
+//!   cargo run --release --no-default-features --example scale_oneshot -- --write data --sizes 25
 
 use rustine::exec::{execute_tree, serialize_tree, RuntimeFormat};
 use rustine::parser::lexer;
@@ -60,6 +61,16 @@ fn main() {
         .and_then(|i| args.get(i + 1))
         .map(|s| s.split(',').filter_map(|v| v.trim().parse().ok()).collect())
         .unwrap_or_else(|| vec![25, 50, 100]);
+
+    // --write DIR saves the grammar and inputs (scale.gel, scale-<MB>mb.txt) instead of running them.
+    if let Some(dir) = args.iter().position(|a| a == "--write").and_then(|i| args.get(i + 1)) {
+        std::fs::create_dir_all(dir).expect("create output dir");
+        std::fs::write(format!("{dir}/scale.gel"), generate_grammar()).expect("write grammar");
+        for &mb in &sizes {
+            std::fs::write(format!("{dir}/scale-{mb}mb.txt"), generate_input(mb * 1_048_576)).expect("write input");
+        }
+        return;
+    }
 
     eprintln!("=== Rustine Scale One-Shot ===");
     eprintln!("Sizes: {:?} MB\n", sizes);

@@ -28,6 +28,7 @@ fn main() {
         eprintln!("  --dump          Print the full JSON output after benchmarking");
         eprintln!("  --diag          Record per-match metadata and report its memory use");
         eprintln!("  --stream        Use the streaming writer for serialization");
+        eprintln!("  --quiet         Print only the summary, not every iteration");
         eprintln!("  -h, --help      Show this help message");
         if args.iter().any(|a| a == "-h" || a == "--help") {
             std::process::exit(0);
@@ -40,6 +41,7 @@ fn main() {
     let dump_output = args.iter().any(|a| a == "--dump");
     let diag_mode = args.iter().any(|a| a == "--diag");
     let stream_mode = args.iter().any(|a| a == "--stream");
+    let quiet = args.iter().any(|a| a == "--quiet");
 
     let grammar_src = std::fs::read_to_string(syntax_path).unwrap_or_else(|e| {
         eprintln!("Cannot read {syntax_path}: {e}");
@@ -234,6 +236,9 @@ fn main() {
         times_exec.push(exec_time);
         times_total.push(total);
 
+        if quiet {
+            continue;
+        }
         eprintln!("[{}/{}] exec: {:.3}s  post: {:.3}s  total: {:.3}s  ({:.2} MB/s exec, {:.2} MB/s total)  nodes: {}  json: {} bytes{}",
             i + 1, iterations,
             exec_time.as_secs_f64(),
