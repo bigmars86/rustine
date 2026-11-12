@@ -32,10 +32,6 @@ src/
   exec/
     mod.rs          Execution engine, triggers, output serializers
     out.rs          Output tree
-    streaming.rs    `StreamingRunner` (chunked input)
-  stream/
-    chunk_reader.rs Chunked / memory-mapped file reader
-    stream_lexer.rs Incremental lexer over chunks
 ```
 
 ---

@@ -47,7 +47,6 @@ default = ["python"]
 python = ["pyo3/extension-module", "tikv-jemallocator?/disable_initial_exec_tls"]
 parallel = ["rayon"]
 cli = ["clap"]
-mmap = ["memmap2"]
 bench = []
 profiling = []
 jemalloc = ["tikv-jemallocator"]
@@ -60,7 +59,6 @@ rayon = { version = "1.12", optional = true }
 serde_json = { version = "1.0.150", features = ["preserve_order"] }
 quick-xml = "0.42.0"
 thiserror = "2.0.18"
-memmap2 = { version = "0.9.11", optional = true }
 regex = "1.12.4"
 smallvec = { version = "1", features = ["union"] }
 memchr = "2.8.2"

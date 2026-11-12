@@ -334,7 +334,7 @@ Rustine uses a structured error system with source spans:
 | `Parse`      | Missing colon, unexpected token | line/col |
 | `Runtime`    | Grammar not found, regex failure | optional |
 | `Validation` | Invalid regex pattern, undefined parent grammar | optional |
-| `Io`         | Streaming read failure, UTF-8 decode error | offset |
+| `Io`         | Reading a file failed (also: not UTF-8), writing output failed | none |
 
 ### Semantic Validation
 

@@ -71,19 +71,6 @@ and `error`. To run one grammar on many inputs, call `doc.compile_regexes()`
 once and then `execute_tree(&doc, "input", text)`, which skips that per-match
 metadata, or `execute_precompiled` to keep it.
 
-### Streaming Execution
-
-```rust
-use rustine::StreamingRunner;
-
-let mut runner = StreamingRunner::new(&mut doc, "input")?;
-for chunk in chunks {
-    runner.feed(&chunk);
-    runner.step()?; // StreamingEvents produced so far
-}
-let result = runner.finish()?; // serialize like a batch result
-```
-
 ---
 
 ## CLI Usage
@@ -135,7 +122,7 @@ python tests/python/test_preserve_case.py
 cargo bench --no-default-features
 
 # Instructions (Valgrind), peak memory, CPU time and time for any grammar and input
-cargo build --release --no-default-features --features parallel,mmap --example bench_run
+cargo build --release --no-default-features --features parallel --example bench_run
 python benches/compare.py --rust target/release/examples/bench_run \
   --workload my-data <syntax.gel> <input.txt> --instructions
 ```

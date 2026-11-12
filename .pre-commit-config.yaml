@@ -29,14 +29,14 @@ repos:
 
       - id: cargo-clippy
         name: cargo clippy
-        entry: cargo clippy --no-default-features --features "parallel,cli,mmap" -- -D warnings
+        entry: cargo clippy --no-default-features --features "parallel,cli" -- -D warnings
         language: system
         types: [rust]
         pass_filenames: false
 
       - id: cargo-test
         name: cargo test
-        entry: cargo test --no-default-features --features "parallel,cli,mmap" --lib
+        entry: cargo test --no-default-features --features "parallel,cli" --lib
         language: system
         types: [rust]
         pass_filenames: false

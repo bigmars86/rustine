@@ -14,7 +14,6 @@ static GLOBAL_MI: mimalloc_dep::MiMalloc = mimalloc_dep::MiMalloc;
 pub mod bridge;
 pub mod exec;
 pub mod parser;
-pub mod stream;
 
 #[cfg(feature = "python")]
 use pyo3::prelude::*;
@@ -134,7 +133,7 @@ pub mod errors {
         #[error("{span}: validation error: {message}")]
         Validation { message: String, span: Span },
 
-        /// IO error (streaming, file reading).
+        /// IO error (reading or writing a file).
         #[error("io error: {0}")]
         Io(#[from] std::io::Error),
     }
@@ -179,7 +178,6 @@ pub mod errors {
 }
 
 pub use errors::{Diagnostic, GelError, Result, Severity, Span};
-pub use exec::streaming::{StreamingEvent, StreamingRunner};
 pub use exec::{
     execute_precompiled, execute_tree, serialize_execution, serialize_tree, serialize_tree_to_writer, RuntimeFormat,
 };

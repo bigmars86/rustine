@@ -34,7 +34,7 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
       # jemalloc is default for Linux wheels; include it in linting
-      - run: cargo clippy --all-targets --features "parallel,cli,mmap,jemalloc" -- -D warnings
+      - run: cargo clippy --all-targets --features "parallel,cli,jemalloc" -- -D warnings
 
   test:
     name: Test (${{ matrix.os }})
@@ -47,7 +47,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - run: cargo test --no-default-features --features "parallel,cli,mmap"
+      - run: cargo test --no-default-features --features "parallel,cli"
       - run: cargo test --no-default-features --lib
 
   msrv:
@@ -63,7 +63,7 @@ jobs:
         with:
           toolchain: ${{ env.MSRV }}
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - run: cargo check --features "parallel,cli,mmap,jemalloc"
+      - run: cargo check --features "parallel,cli,jemalloc"
 
   # ── Dependency auditing ────────────────────────────────────────────
   deny:
@@ -102,7 +102,7 @@ jobs:
         run: |
           cargo tarpaulin \
             --no-default-features \
-            --features "parallel,cli,mmap,jemalloc" \
+            --features "parallel,cli,jemalloc" \
             --out xml html \
             --output-dir coverage \
             --skip-clean \
@@ -129,7 +129,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
-      - run: cargo bench --no-run --features "bench,parallel,mmap,jemalloc"
+      - run: cargo bench --no-run --features "bench,parallel,jemalloc"
 
   # ── Profile-Guided Optimization validation ─────────────────────────
   pgo:
@@ -149,20 +149,20 @@ jobs:
       - name: Build with instrumentation
         env:
           RUSTFLAGS: -Cprofile-generate=/tmp/pgo-data
-        run: cargo build --release --no-default-features --features "parallel,cli,mmap,jemalloc"
+        run: cargo build --release --no-default-features --features "parallel,cli,jemalloc"
       - name: Collect profile data
         run: |
           # Run the test suite against the instrumented build to generate profile data
           # perf_budget is skipped (as in coverage): wall-clock budgets don't hold for instrumented builds.
           RUSTFLAGS="-Cprofile-generate=/tmp/pgo-data" \
-            cargo test --release --no-default-features --features "parallel,cli,mmap,jemalloc" \
+            cargo test --release --no-default-features --features "parallel,cli,jemalloc" \
             -- --skip perf_budget
       - name: Merge profiles
         run: ${{ env.PROFDATA }} merge -o /tmp/merged.profdata /tmp/pgo-data
       - name: Rebuild with PGO
         env:
           RUSTFLAGS: -Cprofile-use=/tmp/merged.profdata
-        run: cargo build --release --no-default-features --features "parallel,cli,mmap,jemalloc"
+        run: cargo build --release --no-default-features --features "parallel,cli,jemalloc"
 
   python:
     name: Python integration (${{ matrix.python-version }})

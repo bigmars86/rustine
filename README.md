@@ -118,7 +118,6 @@ simple template extractors (textfsm) and full parser generators (nom/pest).
 - **Captures** — positional (`$1`, `$2`) and named (`$name`) with
   interpolation in paths and values
 - **Three output formats** — JSON, XML, YAML
-- **Streaming execution** — feed chunks incrementally via `StreamingRunner`
 - **Structured errors** — `GelError` with source spans (line, column, offset)
 - **Semantic validation** — regex pre-validation, inheritance checks,
   undefined grammar/variable warnings

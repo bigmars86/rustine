@@ -4,7 +4,7 @@
 [graph]
 # All features that should be considered during checks.
 all-features = false
-features = ["parallel", "cli", "mmap"]
+features = ["parallel", "cli"]
 
 # ── Licenses ─────────────────────────────────────────────────────────
 [licenses]

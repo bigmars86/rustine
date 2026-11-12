@@ -73,7 +73,6 @@ fn search_window(rem: &str) -> &str {
 }
 
 pub mod out;
-pub mod streaming;
 
 /// Recursively collect statements from a grammar and its inheritance chain.
 ///
@@ -752,11 +751,6 @@ impl<'a> Runner<'a> {
         }
     }
 
-    /// [`try_fast_skip_kind`] for a raw pattern string.
-    pub(crate) fn try_fast_skip(pattern: &str, rem: &str) -> Option<usize> {
-        let kind = crate::parser::ast::classify_fast_path(pattern);
-        Self::try_fast_skip_kind(kind, rem)
-    }
     #[allow(clippy::type_complexity)]
     fn eval_field_list(
         &mut self,

@@ -5,7 +5,6 @@ use rustine::exec::{execute, serialize_tree, RuntimeFormat};
 use rustine::parser::ast::GelDocument;
 use rustine::parser::lexer::lex;
 use rustine::parser::syntax::parse_gel_document;
-use rustine::StreamingRunner;
 
 /// Every path-taking `out.*` function, plus the two that never touch case.
 const ALL_FUNCTIONS: &str = r#"
@@ -75,20 +74,4 @@ fn preserve_case_keeps_differently_cased_nodes_apart() {
     let separate = run_xml(grammar, "x\n", true);
     assert!(separate.contains("<Item>x</Item>"), "{separate}");
     assert!(separate.contains("<item>x</item>"), "{separate}");
-}
-
-#[test]
-fn streaming_runner_honors_preserve_case() {
-    let grammar = "grammar input:\n    match /(\\w+)\\n/:\n        out.add('MixedCase', '$1')\n";
-    for (preserve_case, expected) in [
-        (false, "<mixedcase>value</mixedcase>"),
-        (true, "<MixedCase>value</MixedCase>"),
-    ] {
-        let mut doc = compile(grammar, preserve_case);
-        let mut runner = StreamingRunner::new(&mut doc, "input").expect("streaming runner");
-        runner.feed("value\n");
-        let result = runner.finish().expect("finish");
-        let xml = serialize_tree(&result, RuntimeFormat::Xml);
-        assert!(xml.contains(expected), "{xml}");
-    }
 }

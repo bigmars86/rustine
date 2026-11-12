@@ -29,7 +29,6 @@ python -c "import Rustine; print(Rustine.__version__)"
 |-----------|---------|
 | `src/parser/` | Lexer, AST, recursive descent parser |
 | `src/exec/` | Execution engine, output builder, triggers |
-| `src/stream/` | Streaming lexer, chunk reader |
 | `src/bridge.rs` | PyO3 Python bindings |
 | `src/main.rs` | CLI binary (`rgel`) |
 | `tests/` | Rust integration tests |

@@ -51,7 +51,6 @@ Compile-time switches, enabled with `--features`:
 |-------------|------------------|--------------------------------------------|
 | `python`    | **yes**          | PyO3 extension module                      |
 | `cli`       | no               | `rgel` command-line binary                 |
-| `mmap`      | no               | Memory-mapped file input for `ChunkReader` |
 | `parallel`  | no               | Compile regexes in parallel (Rayon)        |
 | `jemalloc`  | **Linux wheels** | jemalloc allocator (not on MSVC)           |
 | `mimalloc`  | no               | mimalloc allocator                         |

@@ -124,7 +124,7 @@ from the official Docker images.
 
 ```bash
 # Rust engine and scale workload, built like the Linux wheels
-cargo build --release --no-default-features --features parallel,mmap,jemalloc \
+cargo build --release --no-default-features --features parallel,jemalloc \
   --example bench_run --example scale_oneshot
 target/release/examples/scale_oneshot --write data --sizes 25
 
