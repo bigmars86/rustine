@@ -16,7 +16,7 @@ Python module, a Rust library, or a standalone CLI tool.
 does not support Python 3.12+. Rustine reimplements the engine in Rust:
 
 - **Drop-in replacement** — same Gel grammar language, same output
-- **32–39× faster** than Python Gelatin on large inputs, **5–8.5× less memory**
+- **30–37× faster** than Python Gelatin on large inputs, **5.5–8.4× less memory**
 - **Python 3.11+** — abi3 wheels, no SimpleParse
 
 ## Quick Start
@@ -78,14 +78,16 @@ rgel -s syntax.gel --preserve-case input.txt
 
 ## Performance
 
-A 20.0 MB real-world IOS XR configuration converted to JSON, each engine in
-a new process on the same Linux PC (263 grammars, 862 754 output nodes):
+A 20.6 MB pseudonymized IOS XR configuration (shipped in `fixtures/`)
+converted to JSON, each engine in a new process on the same Linux PC
+(146 grammars, 862 744 output nodes):
 
-| Engine               | Instructions | Peak memory | Time       |
-| -------------------- | -----------: | ----------: | ---------: |
-| Python Gelatin       | 277 G        | 1 915 MB    | 38.7 s     |
-| **Rustine** (Python) | **14.9 G**   | **383 MB**  | **1.21 s** |
-| **Rustine** (Rust)   | **14.1 G**   | **381 MB**  | **1.07 s** |
+| Engine                         | Instructions | Peak memory | Time       |
+| ------------------------------ | -----------: | ----------: | ---------: |
+| Python Gelatin, CPython 3.10   | 358 G        | 1 927 MB    | 38.8 s     |
+| Python Gelatin, CPython 3.11   | 279 G        | 1 907 MB    | 34.2 s     |
+| **Rustine** (Python 3.11)      | **14.8 G**   | **346 MB**  | **1.13 s** |
+| **Rustine** (Rust)             | **14.0 G**   | **342 MB**  | **1.05 s** |
 
 Instructions (G = 10⁹) measure the work independently of the CPU, times do
 not. [BENCHMARKS.md](BENCHMARKS.md) adds a synthetic 25 MB input, small

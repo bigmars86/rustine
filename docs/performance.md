@@ -13,12 +13,12 @@ a new process on the same Linux PC:
 
 | Workload               | Rustine      | Instructions   | Time            | Peak memory   |
 |------------------------|--------------|----------------|-----------------|---------------|
-| IOS XR config, 20.0 MB | Rust API     | **20× fewer**  | **36× faster**  | **5.0× less** |
-|                        | Python wheel | **19× fewer**  | **32× faster**  | **5.0× less** |
-| Scale, 25.0 MB         | Rust API     | **23× fewer**  | **39× faster**  | **8.5× less** |
-|                        | Python wheel | **21× fewer**  | **37× faster**  | **7.5× less** |
+| IOS XR config, 20.6 MB | Rust API     | **20× fewer**  | **33× faster**  | **5.6× less** |
+|                        | Python wheel | **19× fewer**  | **30× faster**  | **5.5× less** |
+| Scale, 25.0 MB         | Rust API     | **23× fewer**  | **37× faster**  | **8.4× less** |
+|                        | Python wheel | **21× fewer**  | **35× faster**  | **7.5× less** |
 | 5 small fixtures       | Rust API     | **7.8× fewer** | **8.6× faster** | —             |
-|                        | Python wheel | **7.5× fewer** | **8.5× faster** | —             |
+|                        | Python wheel | **7.5× fewer** | **7.9× faster** | —             |
 
 Instruction counts do not depend on the CPU, times do.
 
@@ -26,8 +26,8 @@ Instruction counts do not depend on the CPU, times do.
 
 The Linux wheels (glibc) use jemalloc. Source builds without
 `--features jemalloc` and the wheels for Windows, macOS and musl use the
-system allocator. On the same PC, glibc malloc takes up to 23 % more time
-than jemalloc, and Windows 1.3–1.6× the time of Linux with jemalloc.
+system allocator. On the same PC, glibc malloc takes up to 33 % more time
+than jemalloc, and Windows 1.3–1.7× the time of Linux with jemalloc.
 
 ---
 
@@ -83,8 +83,8 @@ Peak memory for one conversion to JSON (Linux):
 
 | Workload               | Rustine (Rust) | Rustine (Python) | Python Gelatin |
 |------------------------|---------------:|-----------------:|---------------:|
-| IOS XR config, 20.0 MB | 381 MB         | 383 MB           | 1 915 MB       |
-| Scale, 25.0 MB         | 363 MB         | 409 MB           | 3 072 MB       |
+| IOS XR config, 20.6 MB | 342 MB         | 346 MB           | 1 907 MB       |
+| Scale, 25.0 MB         | 364 MB         | 409 MB           | 3 072 MB       |
 
 Rustine keeps the whole tree in memory, so peak memory grows linearly with
 the input; the Python wheel also holds the JSON as a Python string. The

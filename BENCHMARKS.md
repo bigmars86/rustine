@@ -15,31 +15,37 @@ differ.
 Linux (x86-64) with jemalloc, like the Linux wheels. *Rust* is Rustine's
 Rust API (the `bench_run` example), *Python* the Rustine wheel
 (`Rustine.util`) and *Gelatin* Python Gelatin 2.3, both on CPython 3.11.
+For reference, *Gelatin, 3.10* is Python Gelatin on CPython 3.10.
 
-| Workload                         | Engine           | Instructions | Peak memory | CPU time |    Time |
-|----------------------------------|------------------|-------------:|------------:|---------:|--------:|
-| IOS XR config, 20.0 MB           | Rustine (Rust)   |       14.1 G |      381 MB |   1.16 s |  1.07 s |
-|                                  | Rustine (Python) |       14.9 G |      383 MB |   1.21 s |  1.21 s |
-|                                  | Python Gelatin   |        277 G |    1 915 MB |   38.7 s |  38.7 s |
-| Scale, 25.0 MB                   | Rustine (Rust)   |       15.6 G |      363 MB |   1.50 s |  1.49 s |
-|                                  | Rustine (Python) |       16.6 G |      409 MB |   1.56 s |  1.56 s |
-|                                  | Python Gelatin   |        352 G |    3 072 MB |   58.3 s |  58.3 s |
-| 5 small fixtures, per conversion | Rustine (Rust)   |       20.3 M |       29 MB |  1.67 ms | 1.67 ms |
-|                                  | Rustine (Python) |       21.0 M |       34 MB |  1.70 ms | 1.70 ms |
-|                                  | Python Gelatin   |        158 M |       24 MB |  14.4 ms | 14.4 ms |
+| Workload                         | Engine               | Instructions | Peak memory | CPU time |    Time |
+|----------------------------------|----------------------|-------------:|------------:|---------:|--------:|
+| IOS XR config, 20.6 MB           | Rustine (Rust)       |       14.0 G |      342 MB |   1.08 s |  1.05 s |
+|                                  | Rustine (Python)     |       14.8 G |      346 MB |   1.13 s |  1.13 s |
+|                                  | Python Gelatin       |        279 G |    1 907 MB |   34.2 s |  34.2 s |
+|                                  | Python Gelatin, 3.10 |        358 G |    1 927 MB |   38.8 s |  38.8 s |
+| Scale, 25.0 MB                   | Rustine (Rust)       |       15.6 G |      364 MB |   1.50 s |  1.49 s |
+|                                  | Rustine (Python)     |       16.6 G |      409 MB |   1.59 s |  1.59 s |
+|                                  | Python Gelatin       |        352 G |    3 072 MB |   54.9 s |  55.0 s |
+|                                  | Python Gelatin, 3.10 |        486 G |    3 115 MB |   65.9 s |  65.9 s |
+| 5 small fixtures, per conversion | Rustine (Rust)       |       20.3 M |       29 MB |  1.60 ms | 1.60 ms |
+|                                  | Rustine (Python)     |       21.0 M |       35 MB |  1.74 ms | 1.74 ms |
+|                                  | Python Gelatin       |        158 M |       24 MB |  13.8 ms | 13.8 ms |
+|                                  | Python Gelatin, 3.10 |        225 M |       22 MB |  19.1 ms | 19.1 ms |
 
 - **Large inputs:** Rustine needs 19–23× fewer instructions than Gelatin,
-  is 32–39× faster and uses 5–8.5× less memory. The time gap is wider
+  is 30–37× faster and uses 5.5–8.4× less memory. The time gap is wider
   than the instruction gap because Gelatin also executes fewer instructions
   per second.
-- **Small inputs:** about 8× fewer instructions and 8.5× faster per
+- **Small inputs:** about 8× fewer instructions and 8× faster per
   conversion. Peak memory here is mostly the process itself (interpreter,
   libraries).
-- **Python wheel vs Rust API:** 6 % more instructions and up to 13 % more
-  time and memory on large inputs. The wheel builds Python strings for the
-  input and the JSON, compiles the regexes on one thread, and reaches
-  jemalloc's thread-local data through the slower `__tls_get_addr`, because
-  Python loads it at runtime.
+- **Gelatin on CPython 3.10** executes 28–42 % more instructions than on
+  3.11 and takes 13–38 % longer.
+- **Python wheel vs Rust API:** 6 % more instructions, 7–8 % more time and
+  up to 12 % more memory on large inputs. The wheel builds Python strings
+  for the input and the JSON, compiles the regexes on one thread, and
+  reaches jemalloc's thread-local data through the slower `__tls_get_addr`,
+  because Python loads it at runtime.
 
 ## Python Versions
 
@@ -48,11 +54,11 @@ runs up to 3.11 (SimpleParse), so the table above compares on 3.11.
 
 | Python | Instructions, IOS XR | Peak memory, IOS XR | IOS XR | Scale  | 5 small fixtures |
 |--------|---------------------:|--------------------:|-------:|-------:|-----------------:|
-| 3.11   |               14.9 G |              383 MB | 1.21 s | 1.56 s |          1.70 ms |
-| 3.12   |               15.0 G |              384 MB | 1.19 s | 1.57 s |          1.67 ms |
-| 3.13   |               15.0 G |              384 MB | 1.19 s | 1.68 s |          1.90 ms |
-| 3.14   |               15.0 G |              384 MB | 1.13 s | 1.66 s |          1.71 ms |
-| 3.15   |               15.0 G |              385 MB | 1.19 s | 1.60 s |          1.73 ms |
+| 3.11   |               14.8 G |              346 MB | 1.13 s | 1.59 s |          1.74 ms |
+| 3.12   |               14.8 G |              347 MB | 1.16 s | 1.61 s |          1.73 ms |
+| 3.13   |               14.8 G |              347 MB | 1.16 s | 1.60 s |          1.80 ms |
+| 3.14   |               14.8 G |              348 MB | 1.18 s | 1.62 s |          1.73 ms |
+| 3.15   |               14.9 G |              348 MB | 1.17 s | 1.60 s |          1.73 ms |
 
 Instructions and memory differ by less than 1 %: the work happens in Rust,
 Python only starts the process and passes the strings. The times vary
@@ -65,13 +71,13 @@ Rustine (Rust) on the same PC, time and peak memory:
 
 | Platform and build                               | Allocator    | IOS XR config   | Scale           | 5 small fixtures |
 |--------------------------------------------------|--------------|-----------------|-----------------|------------------|
-| Linux wheels (glibc), `--features jemalloc`      | jemalloc     | 1.07 s · 381 MB | 1.49 s · 363 MB | 1.67 ms · 29 MB  |
-| Other Linux (glibc) builds, e.g. `cargo install` | glibc malloc | 1.07 s · 349 MB | 1.58 s · 385 MB | 2.06 ms · 23 MB  |
-| Windows wheels and builds                        | Windows heap | 1.52 s · 361 MB | 1.89 s · 369 MB | 2.67 ms · 28 MB  |
+| Linux wheels (glibc), `--features jemalloc`      | jemalloc     | 1.05 s · 342 MB | 1.49 s · 364 MB | 1.60 ms · 29 MB  |
+| Other Linux (glibc) builds, e.g. `cargo install` | glibc malloc | 1.06 s · 306 MB | 1.68 s · 385 MB | 2.13 ms · 23 MB  |
+| Windows wheels and builds                        | Windows heap | 1.32 s · 319 MB | 1.88 s · 370 MB | 2.66 ms · 28 MB  |
 
-Windows takes 1.3–1.4× the time of Linux with jemalloc on large inputs and
-1.6× on small ones, with about the same memory. glibc malloc executes
-6–12 % more instructions than jemalloc and takes up to 23 % more time.
+Windows takes about 1.3× the time of Linux with jemalloc on large inputs and
+1.7× on small ones, with about the same memory. glibc malloc executes
+6–12 % more instructions than jemalloc and takes up to 33 % more time.
 macOS and the musl wheels (Alpine) use their system allocators and were not
 measured.
 
@@ -79,9 +85,10 @@ measured.
 
 **Workloads**
 
-- *IOS XR config*: a pseudonymized `show running-config` of 20.0 MB (not
-  shipped) and a 113 KB grammar with 263 grammars and 113 regex patterns;
-  862 754 output nodes, 89 MB of JSON. Gelatin's tree has 24 more nodes
+- *IOS XR config*: a pseudonymized `show running-config` of 20.6 MB,
+  shipped xz-packed as `fixtures/parity/complex/input2.txt.xz`, with
+  `syntax2.gel` (45 KB: the 146 grammars and 424 rules this input uses);
+  862 744 output nodes, 90 MB of JSON. Gelatin's tree has 24 more nodes
   (from a bug in its `_splitpath()`), so both process the whole file.
 - *Scale*: a synthetic 25.0 MB input and an 86 KB grammar with 302 grammars
   and about 1 110 rules, written by `scale_oneshot --write`; 1 521 168 nodes.
@@ -110,7 +117,7 @@ converts the same input *N* times; one conversion costs
 **Reference PC**: Intel Core i7-13850HX. Linux: Docker Desktop (WSL 2),
 Debian 13, 4 CPUs (`--cpuset-cpus=4-7`). Windows 11 natively, limited to
 4 logical CPUs, with `bench_run.exe` built for `x86_64-pc-windows-gnu`
-(same system allocator as the MSVC builds). Rust 1.99.1, CPython 3.11 to 3.15
+(same system allocator as the MSVC builds). Rust 1.99.1, CPython 3.10 to 3.15
 from the official Docker images.
 
 ## Reproduce
@@ -133,15 +140,16 @@ python3.11 -m venv venv-gelatin && venv-gelatin/bin/pip install Gelatin
 python3 benches/compare.py --instructions \
   --rust target/release/examples/bench_run \
   --rustine venv-rustine/bin/python --gelatin venv-gelatin/bin/python \
+  --workload ios-xr fixtures/parity/complex/syntax2.gel fixtures/parity/complex/input2.txt.xz \
   --workload scale data/scale.gel data/scale-25mb.txt \
   --small fixtures/parity
 ```
 
-`--instructions` needs Valgrind and takes long: Python runs about 50× slower
-under it. Without it the table has no instruction counts. Add
-`--workload NAME GRAMMAR INPUT` for your own data. On CPUs with performance
-and efficiency cores, pin the run to a few cores for stable times
-(Docker: `--cpuset-cpus=4-7`).
+`compare.py` unpacks `.xz` and `.gz` inputs itself. `--instructions` needs
+Valgrind and takes long: Python runs about 50× slower under it. Without it
+the table has no instruction counts. Add `--workload NAME GRAMMAR INPUT`
+for your own data. On CPUs with performance and efficiency cores, pin the
+run to a few cores for stable times (Docker: `--cpuset-cpus=4-7`).
 
 While developing, the Criterion benchmarks in `benches/*.rs`
 (`cargo bench --no-default-features`) time execution and serialization
