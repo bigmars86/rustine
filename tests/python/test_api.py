@@ -25,8 +25,12 @@ raises(ValueError, rustine.compile_grammar, INVALID_REGEX)
 for run in (rustine.run_grammar, rustine.run_grammar_xml, rustine.run_grammar_yaml):
     raises(ValueError, run, INVALID_REGEX, "input", "(abc")
 
-# A conversion releases the GIL: another thread keeps running in the middle of it.
+# Input the grammar does not consume is an error, not a truncated result.
 items = rustine.compile_grammar(ITEMS)
+err = raises(RuntimeError, items.generate_string, "a 1\nnot an item\n", format="json")
+assert "stopped at line 2" in str(err), err
+
+# A conversion releases the GIL: another thread keeps running in the middle of it.
 big = "".join("word%d %d\n" % (i % 97, i) for i in range(400000))
 stamps = []
 stop = threading.Event()

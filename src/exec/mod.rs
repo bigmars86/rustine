@@ -243,7 +243,18 @@ impl<'a> Runner<'a> {
         if result.error.is_none() {
             result.error = self.fail.take();
         }
+        if result.error.is_none() && self.ctx.pos < self.ctx.input.len() {
+            result.error = Some(self.unconsumed_input_error(name));
+        }
         Ok(result)
+    }
+
+    /// The grammar ended (nothing matched, or `do.return`) before the end of the input.
+    fn unconsumed_input_error(&self, name: &str) -> String {
+        let (done, rest) = self.ctx.input.split_at(self.ctx.pos);
+        let line = memchr::memchr_iter(b'\n', done.as_bytes()).count() + 1;
+        let next: String = rest.chars().take(40).collect();
+        format!("grammar '{name}' stopped at line {line} before the end of the input: {next:?}")
     }
 
     fn run_statements(&mut self, name: &str) -> Result<ExecutionResult> {

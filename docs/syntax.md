@@ -30,8 +30,9 @@ All statements live inside named grammars. The grammar named `input` is the
 entry point. Grammars are matched top-to-bottom; when a match succeeds, its
 action block executes, then the grammar restarts from the top.
 
-If the end of a grammar is reached before the input is consumed, an error is
-raised.
+If the entry grammar stops before the end of the input, because no statement
+matches or because of `do.return()`, the conversion fails with an error that
+names the line: Python raises `RuntimeError`, `rgel` exits with status 1.
 
 ### Names
 
