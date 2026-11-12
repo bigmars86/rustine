@@ -2,9 +2,8 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-|---------|--------------------|
-| 0.1.x   | :white_check_mark: |
+Security fixes go into the latest release only. Please upgrade to it before
+reporting an issue.
 
 ## Reporting a Vulnerability
 
