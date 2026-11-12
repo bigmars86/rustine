@@ -182,6 +182,8 @@ node?key="value"           → node with attribute
 node?a="1"&b="2"          → multiple attributes
 ```
 
+If a key repeats, its first value counts.
+
 Tag names and attribute keys in paths are lowercased:
 `out.open('lxGroup')` creates `<lxgroup>`. Names passed to
 `out.set_root_name()` and `out.add_attribute()` keep their case.
@@ -211,14 +213,19 @@ out.create("root/item", "$2")       # with text content
 Creates or reuses the final node if one with the same name and attributes
 exists. If text is provided and the node exists, text is appended.
 
+A node is identified by its name and the attributes it was created with, in
+any order; attributes added later by `out.add_attribute` do not change that.
+If several nodes match, the most recently created one is used. The same
+lookup applies to every path segment that is not created anew.
+
 ```gelatin
 out.add("root/entry", "$1")
 ```
 
 ### out.replace(path [, text])
 
-Removes any existing matching leaf (same name + attributes) and creates a
-fresh leaf.
+Like `out.add`, but the text replaces the text of the node instead of being
+appended.
 
 ### out.add_attribute(path, name, value)
 

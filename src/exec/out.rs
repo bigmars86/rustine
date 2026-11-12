@@ -12,7 +12,7 @@
 use smallvec::SmallVec;
 use std::collections::hash_map::RandomState;
 use std::collections::{HashMap, HashSet};
-use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
+use std::hash::{BuildHasher, BuildHasherDefault, Hasher};
 use std::rc::Rc;
 
 // ---------------------------------------------------------------------------
@@ -26,28 +26,23 @@ pub type NodeId = u32;
 // Helper functions
 // ---------------------------------------------------------------------------
 
-/// Compute a 64-bit hash of the compound (name + attributes) key.
+/// Compute a 64-bit hash of the compound (name + attributes) key; the order of
+/// the attributes does not matter.
 ///
 /// A hash instead of a key `String` per call keeps peak RSS low on large trees.
 /// `state` holds random keys, so inputs cannot be prepared to collide.
 fn child_hash_key<K: AsRef<str>, V: AsRef<str>>(state: &RandomState, name: &str, attribs: &[(K, V)]) -> u64 {
-    let mut h = state.build_hasher();
-    name.hash(&mut h);
-    for (k, v) in attribs {
-        0u8.hash(&mut h); // separator
-        k.as_ref().hash(&mut h);
-        1u8.hash(&mut h); // separator
-        v.as_ref().hash(&mut h);
-    }
-    h.finish()
+    let attrs = attribs.iter().fold(0u64, |sum, (k, v)| {
+        sum.wrapping_add(state.hash_one((k.as_ref(), v.as_ref())))
+    });
+    state.hash_one((name, attrs))
 }
 
-/// Compare interned attributes with plain-string attributes.
-fn attrs_eq(a: &[(Rc<str>, String)], b: &[(String, String)]) -> bool {
+/// The same attributes in any order (keys are unique, see [`parse_path`]).
+fn same_attrs(a: &[(Rc<str>, String)], b: &[(String, String)]) -> bool {
     a.len() == b.len()
-        && a.iter()
-            .zip(b.iter())
-            .all(|((k1, v1), (k2, v2))| &**k1 == k2.as_str() && v1 == v2)
+        && b.iter()
+            .all(|(k, v)| a.iter().any(|(k2, v2)| &**k2 == k.as_str() && v2 == v))
 }
 
 /// Intern a string in the given table, returning a shared `Rc<str>`.
@@ -75,8 +70,9 @@ fn intern(table: &mut HashSet<Rc<str>>, s: &str) -> Rc<str> {
 /// avoids the HashMap overhead entirely.
 #[derive(Debug, Clone)]
 struct NodeIndex {
-    /// Maps hash of compound key (name + attributes) → index in that
-    /// node's `children: Vec<NodeId>` (NOT an arena NodeId).
+    /// Maps hash of compound key (name + creation attributes) → index in that
+    /// node's `children: Vec<NodeId>` (NOT an arena NodeId) of the most
+    /// recently added matching child.
     child_exact: HashMap<u64, usize, BuildHasherDefault<KeyHasher>>,
 }
 
@@ -410,7 +406,8 @@ pub struct PathSegment {
 
 /// Parse a slash-separated path string into [`PathSegment`]s.
 ///
-/// Tag names and attribute keys are lowercased.
+/// Tag names and attribute keys are lowercased; of repeated attribute keys the
+/// first one counts.
 pub fn parse_path(path: &str) -> Vec<PathSegment> {
     parse_path_with_case(path, false)
 }
@@ -440,6 +437,14 @@ pub fn parse_path_with_case(path: &str, preserve_case: bool) -> Vec<PathSegment>
                         val = &val[1..val.len() - 1];
                     }
                     attribs.push((percent_decode_owned(key), percent_decode(val)));
+                }
+            }
+            let mut i = 1;
+            while i < attribs.len() {
+                if attribs[..i].iter().any(|(k, _)| *k == attribs[i].0) {
+                    attribs.remove(i);
+                } else {
+                    i += 1;
                 }
             }
         }
@@ -508,6 +513,9 @@ pub struct OutputTree {
     name_intern: HashSet<Rc<str>>,
     /// Random keys for [`child_hash_key`].
     key_state: RandomState,
+    /// Number of attributes a node was created with, for nodes that `add_attribute`
+    /// extended later: name and creation attributes identify a node.
+    key_attr_lens: HashMap<NodeId, u32>,
     /// Keep the case of tag names and attribute keys in paths.
     preserve_case: bool,
 }
@@ -550,6 +558,7 @@ impl OutputTree {
             stack: vec![root_id],
             name_intern,
             key_state: RandomState::new(),
+            key_attr_lens: HashMap::new(),
             preserve_case: false,
         }
     }
@@ -597,6 +606,7 @@ impl OutputTree {
     /// to the end first (the old range becomes dead space — rare case).
     fn push_node_attr(&mut self, node_id: NodeId, key: Rc<str>, value: String) {
         let node = &self.arena[node_id as usize];
+        self.key_attr_lens.entry(node_id).or_insert(node.attr_len);
         let end = (node.attr_start + node.attr_len) as usize;
         if end != self.attr_pool.len() {
             // Relocate: move existing attrs to end of pool (zero-copy via mem::take).
@@ -645,70 +655,56 @@ impl OutputTree {
             if parent.index.is_none() {
                 let mut ni = Box::new(NodeIndex::new());
                 for (i, &cid) in parent.children.iter().enumerate() {
-                    ni.child_exact.entry(self.node_key(cid)).or_insert(i);
+                    ni.child_exact.insert(self.node_key(cid), i);
                 }
                 self.arena[parent_id as usize].index = Some(ni);
             }
             let key = key.unwrap_or_else(|| self.node_key(child_id));
             if let Some(index) = &mut self.arena[parent_id as usize].index {
-                index.child_exact.entry(key).or_insert(idx);
+                index.child_exact.insert(key, idx);
             }
         }
         self.arena[parent_id as usize].children.push(child_id);
     }
 
+    /// The attributes `id` was created with.
+    fn key_attrs(&self, id: NodeId) -> &[(Rc<str>, String)] {
+        let c = &self.arena[id as usize];
+        let len = if self.key_attr_lens.is_empty() {
+            c.attr_len
+        } else {
+            self.key_attr_lens.get(&id).copied().unwrap_or(c.attr_len)
+        };
+        &self.attr_pool[c.attr_start as usize..(c.attr_start + len) as usize]
+    }
+
     /// [`child_hash_key`] of an existing node.
     fn node_key(&self, id: NodeId) -> u64 {
-        let c = &self.arena[id as usize];
-        let attrs = &self.attr_pool[c.attr_start as usize..(c.attr_start + c.attr_len) as usize];
-        child_hash_key(&self.key_state, &c.name, attrs)
+        child_hash_key(&self.key_state, &self.arena[id as usize].name, self.key_attrs(id))
     }
 
-    /// Find the **index in parent.children** for a matching (name, attribs) segment.
-    fn find_child_idx(&self, parent_id: NodeId, seg: &PathSegment) -> Option<usize> {
+    /// The child of `parent_id` with this name and creation attributes (in any
+    /// order), the most recently added one if several match. Also returns the
+    /// [`child_hash_key`] if it was computed, for [`push_child_keyed`](Self::push_child_keyed).
+    fn find_child(&self, parent_id: NodeId, tag: &str, attribs: &[(String, String)]) -> (Option<NodeId>, Option<u64>) {
         let parent = &self.arena[parent_id as usize];
         if let Some(index) = &parent.index {
-            let key = child_hash_key(&self.key_state, &seg.tag, &seg.attribs);
-            index.child_exact.get(&key).copied()
+            let key = child_hash_key(&self.key_state, tag, attribs);
+            (index.child_exact.get(&key).map(|&i| parent.children[i]), Some(key))
         } else {
-            parent.children.iter().position(|&cid| {
-                let c = &self.arena[cid as usize];
-                let c_attrs = if c.attr_len == 0 {
-                    &[][..]
-                } else {
-                    &self.attr_pool[c.attr_start as usize..(c.attr_start + c.attr_len) as usize]
-                };
-                *c.name == *seg.tag && attrs_eq(c_attrs, &seg.attribs)
-            })
+            let found = parent
+                .children
+                .iter()
+                .rev()
+                .copied()
+                .find(|&cid| *self.arena[cid as usize].name == *tag && same_attrs(self.key_attrs(cid), attribs));
+            (found, None)
         }
     }
 
-    /// Get the arena NodeId of the `child_idx`-th child of `parent_id`.
-    #[inline]
-    fn child_node_id(&self, parent_id: NodeId, child_idx: usize) -> NodeId {
-        self.arena[parent_id as usize].children[child_idx]
-    }
-
-    /// Rebuild the child_exact index for `parent_id` after mutations.
-    fn rebuild_index(&mut self, parent_id: NodeId) {
-        let parent = &self.arena[parent_id as usize];
-        if parent.children.len() < INDEX_THRESHOLD {
-            self.arena[parent_id as usize].index = None;
-            return;
-        }
-        let entries: Vec<(u64, usize)> = self.arena[parent_id as usize]
-            .children
-            .iter()
-            .enumerate()
-            .map(|(i, &cid)| (self.node_key(cid), i))
-            .collect();
-        let index = self.arena[parent_id as usize]
-            .index
-            .get_or_insert_with(|| Box::new(NodeIndex::new()));
-        index.child_exact.clear();
-        for (k, i) in entries {
-            index.child_exact.entry(k).or_insert(i);
-        }
+    /// [`find_child`](Self::find_child) for a path segment.
+    fn find_seg(&self, parent_id: NodeId, seg: &PathSegment) -> Option<NodeId> {
+        self.find_child(parent_id, &seg.tag, &seg.attribs).0
     }
 
     // === Compact + flatten ===
@@ -785,209 +781,90 @@ impl OutputTree {
 
     // === Tree navigation and mutation ===
 
+    /// Walk `segs` from the cursor, creating missing nodes; with `new_leaf` the
+    /// last segment always gets a new node. `.` stays at the current node.
+    fn walk(&mut self, segs: &[PathSegment], new_leaf: bool) -> NodeId {
+        let mut current = self.cursor();
+        for (i, seg) in segs.iter().enumerate() {
+            if seg.tag == "." {
+                continue;
+            }
+            let found = if new_leaf && i == segs.len() - 1 {
+                None
+            } else {
+                self.find_seg(current, seg)
+            };
+            current = match found {
+                Some(id) => id,
+                None => {
+                    let name = intern(&mut self.name_intern, &seg.tag);
+                    let id = self.alloc(Node::new(name));
+                    self.set_node_attrs_raw(id, &seg.attribs);
+                    self.push_child(current, id);
+                    id
+                }
+            };
+        }
+        current
+    }
+
     pub fn create_path(&mut self, segments: &[PathSegment], text: Option<String>) {
         if segments.is_empty() {
             return;
         }
-        let names: Vec<Rc<str>> = segments.iter().map(|s| intern(&mut self.name_intern, &s.tag)).collect();
-        let mut current = self.cursor();
-        for (i, seg) in segments.iter().enumerate() {
-            let is_leaf = i == segments.len() - 1;
-            if seg.tag == "." {
-                if is_leaf {
-                    self.arena[current as usize].text = text.clone().map(Box::new);
-                }
-                continue;
-            }
-            if is_leaf {
-                let leaf = Node::new(Rc::clone(&names[i]));
-                let leaf_id = self.alloc(leaf);
-                self.set_node_attrs_raw(leaf_id, &seg.attribs);
-                self.arena[leaf_id as usize].text = text.clone().map(Box::new);
-                self.push_child(current, leaf_id);
-            } else if let Some(idx) = self.find_child_idx(current, seg) {
-                current = self.child_node_id(current, idx);
-            } else {
-                let mid = Node::new(Rc::clone(&names[i]));
-                let mid_id = self.alloc(mid);
-                self.set_node_attrs_raw(mid_id, &seg.attribs);
-                self.push_child(current, mid_id);
-                current = mid_id;
-            }
-        }
+        let id = self.walk(segments, true);
+        self.arena[id as usize].text = text.map(Box::new);
     }
 
+    /// Find or create the node and append `text` to its text.
     pub fn add_path(&mut self, segments: &[PathSegment], text: Option<String>) {
         if segments.is_empty() {
             return;
         }
-        let names: Vec<Rc<str>> = segments.iter().map(|s| intern(&mut self.name_intern, &s.tag)).collect();
-        let mut current = self.cursor();
-        for (i, seg) in segments.iter().enumerate() {
-            let is_leaf = i == segments.len() - 1;
-            if seg.tag == "." {
-                if is_leaf {
-                    if let Some(t) = text.clone() {
-                        let node = &mut self.arena[current as usize];
-                        if let Some(existing) = &mut node.text {
-                            existing.push_str(&t);
-                        } else {
-                            node.text = Some(Box::new(t));
-                        }
-                    }
-                }
-                continue;
-            }
-            if let Some(idx) = self.find_child_idx(current, seg) {
-                let child_id = self.child_node_id(current, idx);
-                if is_leaf {
-                    if let Some(t) = text.clone() {
-                        let child = &mut self.arena[child_id as usize];
-                        if let Some(existing) = &mut child.text {
-                            existing.push_str(&t);
-                        } else {
-                            child.text = Some(Box::new(t));
-                        }
-                    }
-                }
-                current = child_id;
-            } else {
-                let node = Node::new(Rc::clone(&names[i]));
-                let nid = self.alloc(node);
-                self.set_node_attrs_raw(nid, &seg.attribs);
-                if is_leaf {
-                    self.arena[nid as usize].text = text.clone().map(Box::new);
-                }
-                self.push_child(current, nid);
-                current = nid;
+        let id = self.walk(segments, false);
+        if let Some(t) = text {
+            let node = &mut self.arena[id as usize];
+            match &mut node.text {
+                Some(existing) => existing.push_str(&t),
+                None => node.text = Some(Box::new(t)),
             }
         }
     }
 
+    /// Find or create the node like [`add_path`](Self::add_path) and replace its text.
     pub fn replace_path(&mut self, segments: &[PathSegment], text: Option<String>) {
         if segments.is_empty() {
             return;
         }
-        let names: Vec<Rc<str>> = segments.iter().map(|s| intern(&mut self.name_intern, &s.tag)).collect();
-        let mut current = self.cursor();
-        for (i, seg) in segments.iter().enumerate() {
-            let is_leaf = i == segments.len() - 1;
-            if seg.tag == "." {
-                if is_leaf {
-                    self.arena[current as usize].text = text.clone().map(Box::new);
-                }
-                continue;
-            }
-            if is_leaf {
-                // Remove matching children, then add new.
-                let arena = &self.arena;
-                let pool = &self.attr_pool;
-                let keep: Vec<NodeId> = arena[current as usize]
-                    .children
-                    .iter()
-                    .copied()
-                    .filter(|&cid| {
-                        let c = &arena[cid as usize];
-                        let c_attrs = if c.attr_len == 0 {
-                            &[][..]
-                        } else {
-                            &pool[c.attr_start as usize..(c.attr_start + c.attr_len) as usize]
-                        };
-                        !(*c.name == *seg.tag && attrs_eq(c_attrs, &seg.attribs))
-                    })
-                    .collect();
-                self.arena[current as usize].children = keep;
-                self.rebuild_index(current);
-                let leaf = Node::new(Rc::clone(&names[i]));
-                let leaf_id = self.alloc(leaf);
-                self.set_node_attrs_raw(leaf_id, &seg.attribs);
-                self.arena[leaf_id as usize].text = text.clone().map(Box::new);
-                self.push_child(current, leaf_id);
-            } else if let Some(idx) = self.find_child_idx(current, seg) {
-                current = self.child_node_id(current, idx);
-            } else {
-                let mid = Node::new(Rc::clone(&names[i]));
-                let mid_id = self.alloc(mid);
-                self.set_node_attrs_raw(mid_id, &seg.attribs);
-                self.push_child(current, mid_id);
-                current = mid_id;
-            }
-        }
+        let id = self.walk(segments, false);
+        self.arena[id as usize].text = text.map(Box::new);
     }
 
+    /// Find or create the node and append an attribute; the node keeps its identity.
     pub fn add_attribute(&mut self, segments: &[PathSegment], name: &str, value: &str) {
         if segments.is_empty() {
             return;
         }
-        let inames: Vec<Rc<str>> = segments.iter().map(|s| intern(&mut self.name_intern, &s.tag)).collect();
+        let id = self.walk(segments, false);
         let attr_name = intern(&mut self.name_intern, name);
-        let mut current = self.cursor();
-        for (i, seg) in segments.iter().enumerate() {
-            let is_leaf = i == segments.len() - 1;
-            if seg.tag == "." {
-                if is_leaf {
-                    self.push_node_attr(current, Rc::clone(&attr_name), value.to_string());
-                }
-                continue;
-            }
-            if let Some(idx) = self.find_child_idx(current, seg) {
-                current = self.child_node_id(current, idx);
-            } else {
-                let node = Node::new(Rc::clone(&inames[i]));
-                let nid = self.alloc(node);
-                self.set_node_attrs_raw(nid, &seg.attribs);
-                self.push_child(current, nid);
-                current = nid;
-            }
-            if is_leaf {
-                self.push_node_attr(current, Rc::clone(&attr_name), value.to_string());
-            }
-        }
+        self.push_node_attr(id, attr_name, value.to_string());
     }
 
     pub fn set_root_name(&mut self, name: &str) {
         self.arena[self.root_id as usize].name = intern(&mut self.name_intern, name);
     }
 
+    /// Push a new node at the path onto the cursor stack.
     pub fn open_path(&mut self, segments: &[PathSegment]) {
-        self._traverse_and_push(segments, true);
-    }
-
-    pub fn enter_path(&mut self, segments: &[PathSegment]) {
-        self._traverse_and_push(segments, false);
-    }
-
-    fn _traverse_and_push(&mut self, segments: &[PathSegment], create_leaf_always_new: bool) {
         // A path without segments pushes the current node, so the matching leave stays balanced.
-        let new_cursor = self._traverse_from(segments, create_leaf_always_new);
-        self.stack.push(new_cursor);
+        let id = self.walk(segments, true);
+        self.stack.push(id);
     }
 
-    fn _traverse_from(&mut self, segs: &[PathSegment], create_leaf_always_new: bool) -> NodeId {
-        let names: Vec<Rc<str>> = segs.iter().map(|s| intern(&mut self.name_intern, &s.tag)).collect();
-        let mut current = self.cursor();
-        for (i, seg) in segs.iter().enumerate() {
-            if seg.tag == "." {
-                continue;
-            }
-            let is_leaf = i == segs.len() - 1;
-            if is_leaf && create_leaf_always_new {
-                let leaf = Node::new(Rc::clone(&names[i]));
-                let leaf_id = self.alloc(leaf);
-                self.set_node_attrs_raw(leaf_id, &seg.attribs);
-                self.push_child(current, leaf_id);
-                current = leaf_id;
-            } else if let Some(idx) = self.find_child_idx(current, seg) {
-                current = self.child_node_id(current, idx);
-            } else {
-                let mid = Node::new(Rc::clone(&names[i]));
-                let mid_id = self.alloc(mid);
-                self.set_node_attrs_raw(mid_id, &seg.attribs);
-                self.push_child(current, mid_id);
-                current = mid_id;
-            }
-        }
-        current
+    /// Push the node at the path (found or created) onto the cursor stack.
+    pub fn enter_path(&mut self, segments: &[PathSegment]) {
+        let id = self.walk(segments, false);
+        self.stack.push(id);
     }
 
     pub fn leave(&mut self) {
@@ -1076,26 +953,7 @@ impl ActionExecutor for OutputTree {
                     // relative add — use indexed or linear lookup
                     let segs = self.path_segments(path);
                     let cur = self.cursor();
-                    let (existing_child_id, key) = {
-                        let arena = &self.arena;
-                        let pool = &self.attr_pool;
-                        let parent = &arena[cur as usize];
-                        if let Some(index) = &parent.index {
-                            let key = child_hash_key(&self.key_state, &segs[0].tag, &segs[0].attribs);
-                            (index.child_exact.get(&key).map(|&idx| parent.children[idx]), Some(key))
-                        } else {
-                            let found = parent.children.iter().copied().find(|&cid| {
-                                let c = &arena[cid as usize];
-                                let c_attrs = if c.attr_len == 0 {
-                                    &[][..]
-                                } else {
-                                    &pool[c.attr_start as usize..(c.attr_start + c.attr_len) as usize]
-                                };
-                                *c.name == *segs[0].tag && attrs_eq(c_attrs, &segs[0].attribs)
-                            });
-                            (found, None)
-                        }
-                    };
+                    let (existing_child_id, key) = self.find_child(cur, &segs[0].tag, &segs[0].attribs);
                     if let Some(cid) = existing_child_id {
                         if let Some(val) = &decoded {
                             let child = &mut self.arena[cid as usize];

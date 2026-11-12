@@ -1228,9 +1228,11 @@ impl<'a> Runner<'a> {
                         name: &name,
                         value: &value,
                     });
-                    tree.exec(RuntimeAction::OutEnter { path: &path });
-                    self.fire_triggers("on_add", tree);
-                    tree.exec(RuntimeAction::OutLeave);
+                    if self.has_on_add_triggers() {
+                        tree.exec(RuntimeAction::OutEnter { path: &path });
+                        self.fire_triggers("on_add", tree);
+                        tree.exec(RuntimeAction::OutLeave);
+                    }
                 }
             } else if &*act.name == "out.set_root_name" {
                 if let Some(name_expr) = act.args.first() {
