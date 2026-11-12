@@ -23,6 +23,9 @@ fn runtime_json_xml_yaml_emit() {
     assert!(xml.contains("<output>"), "xml missing output: {xml}");
 
     let yaml = serialize_execution(&exec, RuntimeFormat::Yaml);
-    assert!(yaml.contains("execution:"), "yaml missing execution: {yaml}");
-    assert!(yaml.contains("actions:"), "yaml missing actions: {yaml}");
+    assert!(
+        yaml.starts_with("consumed: 5\nactions:\n  - name: out.create\n    args:\n      - line\n"),
+        "{yaml}"
+    );
+    assert!(yaml.contains("\noutput:\n  line: {}\n"), "{yaml}");
 }

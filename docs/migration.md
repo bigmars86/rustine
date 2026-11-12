@@ -19,7 +19,8 @@ Rust, exposed to Python via PyO3. It works on Python 3.11 and newer.
 ## What Stays the Same
 
 - **Gel grammar syntax** — 100% compatible. All `.gel` files work unchanged.
-- **Output format** — identical JSON, XML, and YAML output.
+- **Output format** — identical JSON and XML output; YAML output loads
+  as the same data as the JSON output.
 - **Grammar semantics** — match, imatch, when, skip, define, grammar
   inheritance, all output actions, all control flow actions, triggers.
 - **Python API shape** — `compile()` → `generate()` workflow.

@@ -2124,93 +2124,97 @@ fn write_bytes_replacing_apos<W: std::io::Write>(writer: &mut W, bytes: &[u8]) -
 }
 
 // -- Tree-only YAML -------------------------------------------------------
+//
+// The same mapping as JSON: each node is a mapping of `'@attr'`, `'#text'` and
+// child names, same-named children form a sequence and an empty node is `{}`.
 
 fn tree_yaml(exec: &ExecutionResult) -> String {
     let flat = exec.flat.as_ref().expect("FlatTree not built");
     let mut out = String::new();
-    tree_yaml_node(flat, flat.root(), &mut out, 0, false).expect("writing to a String cannot fail");
-    out.push('\n');
+    tree_yaml_root(flat, &mut out).expect("writing to a String cannot fail");
     out
 }
 
 /// Write tree YAML directly to a writer (truly streaming, no intermediate buffer).
 fn tree_yaml_to_writer<W: std::io::Write>(exec: &ExecutionResult, writer: &mut W) -> std::io::Result<()> {
     let flat = exec.flat.as_ref().expect("FlatTree not built");
-    tree_yaml_node(flat, flat.root(), &mut WriterSink(&mut *writer), 0, false)?;
-    writer.write_all(b"\n")
+    tree_yaml_root(flat, &mut WriterSink(writer))
 }
 
-fn tree_yaml_node<S: OutputSink>(
+fn tree_yaml_root<S: OutputSink>(flat: &FlatTree, out: &mut S) -> std::io::Result<()> {
+    let root = flat.root();
+    if is_empty_node(root) {
+        return out.write_str("{}\n");
+    }
+    tree_yaml_entries(flat, root, out, 0, false)
+}
+
+fn is_empty_node(node: &FlatNode) -> bool {
+    node.attr_len == 0 && node.children_len == 0 && node.text.as_ref().is_none_or(|t| t.is_empty())
+}
+
+/// Write the entries of a non-empty node, one per line at `level`; with `inline`
+/// the first entry continues the current line (after `- `).
+fn tree_yaml_entries<S: OutputSink>(
     flat: &FlatTree,
     node: &FlatNode,
     out: &mut S,
-    indent: usize,
+    level: usize,
     inline: bool,
 ) -> std::io::Result<()> {
-    let attrs = flat.attrs_of(node);
-    let has_attrs = !attrs.is_empty();
-    let has_text = node.text.as_ref().is_some_and(|t| !t.is_empty());
-    let has_children = node.children_len > 0;
-
-    if !has_attrs && !has_text && !has_children {
-        return out.write_str("{}");
-    }
-
-    let mut entry_idx: usize = 0;
-
-    for (k, v) in attrs {
-        if entry_idx > 0 || !inline {
-            push_yaml_indent(out, indent)?;
+    let mut indent = !inline;
+    for (k, v) in flat.attrs_of(node) {
+        if indent {
+            yaml_indent(out, level)?;
         }
-        out.write_char('\'')?;
-        out.write_char('@')?;
-        out.write_str(k)?;
-        out.write_char('\'')?;
+        indent = true;
+        yaml_key(out, "@", k, level)?;
         out.write_str(": ")?;
-        out.write_str(&yaml_quote_value(v))?;
+        yaml_scalar(out, "", v)?;
         out.write_char('\n')?;
-        entry_idx += 1;
     }
-
-    if has_text {
-        if entry_idx > 0 || !inline {
-            push_yaml_indent(out, indent)?;
+    if let Some(text) = node.text.as_deref().filter(|t| !t.is_empty()) {
+        if indent {
+            yaml_indent(out, level)?;
         }
+        indent = true;
         out.write_str("'#text': ")?;
-        out.write_str(&yaml_quote_value(node.text.as_ref().unwrap()))?;
+        yaml_scalar(out, "", text)?;
         out.write_char('\n')?;
-        entry_idx += 1;
     }
-
     for group in flat.iter_child_groups(node) {
-        let name = &group[0].name;
-        if entry_idx > 0 || !inline {
-            push_yaml_indent(out, indent)?;
+        if indent {
+            yaml_indent(out, level)?;
         }
-        out.write_str(&yaml_quote_key(name))?;
-        out.write_char(':')?;
-
-        if group.len() == 1 {
-            out.write_char('\n')?;
-            tree_yaml_node(flat, &group[0], out, indent + 1, false)?;
-        } else {
-            out.write_char('\n')?;
-            for ch in group {
-                push_yaml_indent(out, indent)?;
-                out.write_str("- ")?;
-                tree_yaml_node(flat, ch, out, indent + 2, true)?;
+        indent = true;
+        yaml_key(out, "", &group[0].name, level)?;
+        match group {
+            [child] if is_empty_node(child) => out.write_str(": {}\n")?,
+            [child] => {
+                out.write_str(":\n")?;
+                tree_yaml_entries(flat, child, out, level + 1, false)?;
+            }
+            _ => {
+                out.write_str(":\n")?;
+                for child in group {
+                    yaml_indent(out, level)?;
+                    if is_empty_node(child) {
+                        out.write_str("- {}\n")?;
+                    } else {
+                        out.write_str("- ")?;
+                        tree_yaml_entries(flat, child, out, level + 1, true)?;
+                    }
+                }
             }
         }
-        entry_idx += 1;
     }
-
     Ok(())
 }
 
 #[inline]
-fn push_yaml_indent<S: OutputSink>(out: &mut S, indent: usize) -> std::io::Result<()> {
+fn yaml_indent<S: OutputSink>(out: &mut S, level: usize) -> std::io::Result<()> {
     const SPACES: &str = "                                                                ";
-    let n = indent * 2;
+    let n = level * 2;
     if n <= SPACES.len() {
         out.write_str(&SPACES[..n])
     } else {
@@ -2221,94 +2225,123 @@ fn push_yaml_indent<S: OutputSink>(out: &mut S, indent: usize) -> std::io::Resul
     }
 }
 
-/// Quote a YAML mapping key.
-/// Keys starting with `@` or `#` are single-quoted.
-fn yaml_quote_key(k: &str) -> Cow<'_, str> {
-    if k.starts_with('@') || k.starts_with('#') {
-        Cow::Owned(format!("'{}'", k))
+/// Keys longer than this are written as explicit `? key` entries: YAML limits
+/// implicit keys to 1024 characters, and an escaped byte takes up to 4.
+const YAML_MAX_IMPLICIT_KEY: usize = 250;
+
+/// Write a mapping key; the caller continues with `:` on the same line.
+fn yaml_key<S: OutputSink>(out: &mut S, prefix: &str, key: &str, level: usize) -> std::io::Result<()> {
+    if key.len() <= YAML_MAX_IMPLICIT_KEY {
+        return yaml_scalar(out, prefix, key);
+    }
+    out.write_str("? ")?;
+    yaml_scalar(out, prefix, key)?;
+    out.write_char('\n')?;
+    yaml_indent(out, level)
+}
+
+/// Write `prefix` + `s` as a scalar that YAML 1.1 and 1.2 parsers read back as
+/// this string: plain where nothing can change its meaning, otherwise
+/// single-quoted, or double-quoted with escapes for line breaks, tabs and
+/// characters YAML does not allow unescaped.
+fn yaml_scalar<S: OutputSink>(out: &mut S, prefix: &str, s: &str) -> std::io::Result<()> {
+    if yaml_needs_escapes(s) {
+        out.write_char('"')?;
+        out.write_str(prefix)?;
+        yaml_escape_double(out, s)?;
+        out.write_char('"')
+    } else if prefix.is_empty() && yaml_is_plain(s) {
+        out.write_str(s)
     } else {
-        Cow::Borrowed(k)
+        out.write_char('\'')?;
+        out.write_str(prefix)?;
+        yaml_escape_single(out, s)?;
+        out.write_char('\'')
     }
 }
 
-/// Quote a YAML scalar value when needed.
-/// - Strings that look like dates (YYYY-MM-DD), numbers, booleans, or
-///   contain special chars are single-quoted.
-/// - Strings with single quotes inside get double-quoted.
-fn yaml_quote_value(s: &str) -> Cow<'_, str> {
-    if s.is_empty() {
-        return Cow::Borrowed("''");
-    }
-    // Check if the value needs quoting
-    let needs_quoting = s.contains(':')
-        || s.contains('#')
-        || s.contains('\'')
-        || s.contains('"')
-        || s.contains('\n')
-        || s.contains('\r')
-        || s.starts_with(' ')
-        || s.ends_with(' ')
-        || s.starts_with('{')
-        || s.starts_with('[')
-        || s.starts_with('*')
-        || s.starts_with('&')
-        || s.starts_with('!')
-        || s.starts_with('%')
-        || s.starts_with('|')
-        || s.starts_with('>')
-        || s.starts_with('@')
-        || looks_like_number(s)
-        || looks_like_date(s)
-        || matches!(
-            s,
-            "true"
-                | "false"
-                | "yes"
-                | "no"
-                | "null"
-                | "True"
-                | "False"
-                | "Yes"
-                | "No"
-                | "Null"
-                | "TRUE"
-                | "FALSE"
-                | "YES"
-                | "NO"
-                | "NULL"
-                | "on"
-                | "off"
-                | "On"
-                | "Off"
-                | "ON"
-                | "OFF"
-        );
-    if !needs_quoting {
-        return Cow::Borrowed(s);
-    }
-    // Use single quotes unless the string itself contains single quotes
-    if !s.contains('\'') {
-        Cow::Owned(format!("'{}'", s))
-    } else if !s.contains('"') {
-        Cow::Owned(format!("\"{}\"", s))
-    } else {
-        // Both quote types present — use single quotes with doubled escaping
-        Cow::Owned(format!("'{}'", s.replace('\'', "''")))
-    }
+/// Control characters (including tab and line breaks), DEL, C1 controls,
+/// U+2028/U+2029 (line breaks in YAML 1.1), U+FEFF, U+FFFE and U+FFFF.
+fn yaml_needs_escapes(s: &str) -> bool {
+    let b = s.as_bytes();
+    b.iter().enumerate().any(|(i, &c)| match c {
+        0x00..=0x1F | 0x7F => true,
+        0xC2 => matches!(b.get(i + 1), Some(0x80..=0x9F)),
+        0xE2 => b.get(i + 1) == Some(&0x80) && matches!(b.get(i + 2), Some(0xA8 | 0xA9)),
+        0xEF => matches!(
+            (b.get(i + 1), b.get(i + 2)),
+            (Some(0xBB), Some(0xBF)) | (Some(0xBF), Some(0xBE | 0xBF))
+        ),
+        _ => false,
+    })
 }
 
-fn looks_like_number(s: &str) -> bool {
-    s.parse::<f64>().is_ok()
+/// Plain only where no YAML 1.1 or 1.2 resolver reads anything but a string
+/// (numbers, dates, booleans, null, `<<`, `=`) and no indicator applies.
+fn yaml_is_plain(s: &str) -> bool {
+    let b = s.as_bytes();
+    let (Some(&first), Some(&last)) = (b.first(), b.last()) else {
+        return false;
+    };
+    !matches!(
+        first,
+        b'-' | b'?'
+            | b':'
+            | b','
+            | b'['
+            | b']'
+            | b'{'
+            | b'}'
+            | b'#'
+            | b'&'
+            | b'*'
+            | b'!'
+            | b'|'
+            | b'>'
+            | b'\''
+            | b'"'
+            | b'%'
+            | b'@'
+            | b'`'
+            | b'0'..=b'9' | b'+' | b'.' | b'~' | b'<' | b'=' | b' '
+    ) && last != b' '
+        && memchr::memchr2(b':', b'#', b).is_none()
+        && !["y", "n", "yes", "no", "true", "false", "on", "off", "null"]
+            .iter()
+            .any(|w| w.eq_ignore_ascii_case(s))
 }
 
-fn looks_like_date(s: &str) -> bool {
-    // Matches YYYY-MM-DD pattern
-    s.len() == 10
-        && s.as_bytes().get(4) == Some(&b'-')
-        && s.as_bytes().get(7) == Some(&b'-')
-        && s[..4].chars().all(|c| c.is_ascii_digit())
-        && s[5..7].chars().all(|c| c.is_ascii_digit())
-        && s[8..10].chars().all(|c| c.is_ascii_digit())
+fn yaml_escape_single<S: OutputSink>(out: &mut S, s: &str) -> std::io::Result<()> {
+    let mut run = 0;
+    for (i, _) in s.match_indices('\'') {
+        out.write_str(&s[run..=i])?;
+        out.write_char('\'')?;
+        run = i + 1;
+    }
+    out.write_str(&s[run..])
+}
+
+fn yaml_escape_double<S: OutputSink>(out: &mut S, s: &str) -> std::io::Result<()> {
+    let mut run = 0;
+    for (i, c) in s.char_indices() {
+        let (esc, hex_digits) = match c {
+            '"' => ("\\\"", 0),
+            '\\' => ("\\\\", 0),
+            '\n' => ("\\n", 0),
+            '\r' => ("\\r", 0),
+            '\t' => ("\\t", 0),
+            '\0'..='\x1F' | '\x7F'..='\u{9F}' => ("\\x", 2),
+            '\u{2028}' | '\u{2029}' | '\u{FEFF}' | '\u{FFFE}' | '\u{FFFF}' => ("\\u", 4),
+            _ => continue,
+        };
+        out.write_str(&s[run..i])?;
+        out.write_str(esc)?;
+        for d in (0..hex_digits).rev() {
+            out.write_char(char::from(b"0123456789ABCDEF"[(c as usize >> (4 * d)) & 0xF]))?;
+        }
+        run = i + c.len_utf8();
+    }
+    out.write_str(&s[run..])
 }
 
 /// Serialize an [`ExecutionResult`] to JSON using `serde_json`.
@@ -2316,6 +2349,11 @@ fn looks_like_date(s: &str) -> bool {
 /// In the output tree, attributes are prefixed with `@`, text uses the
 /// `#text` key, and same-named children become arrays.
 fn serialize_json(exec: &ExecutionResult) -> String {
+    serde_json::to_string_pretty(&execution_value(exec)).unwrap_or_default()
+}
+
+/// The [`serialize_execution`] envelope; JSON and YAML are written from it.
+fn execution_value(exec: &ExecutionResult) -> serde_json::Value {
     use serde_json::{json, Map, Value};
 
     let actions: Vec<Value> = exec
@@ -2357,7 +2395,7 @@ fn serialize_json(exec: &ExecutionResult) -> String {
     let flat = exec.flat.as_ref().expect("FlatTree not built");
     let output = output_node_to_value(flat, flat.root());
 
-    let result = json!({
+    json!({
         "consumed": exec.consumed,
         "actions": actions,
         "traces": exec.traces,
@@ -2366,9 +2404,7 @@ fn serialize_json(exec: &ExecutionResult) -> String {
         "error": exec.error,
         "diagnostics": diagnostics,
         "output": output,
-    });
-
-    serde_json::to_string_pretty(&result).unwrap_or_default()
+    })
 }
 
 /// Convert an output-tree [`Node`](crate::exec::out::Node) into a
@@ -2567,145 +2603,88 @@ fn xml_write_node<W: std::io::Write>(flat: &FlatTree, node: &FlatNode, writer: &
     writer.write_event(Event::End(BytesEnd::new("node"))).expect("node end");
 }
 
+/// The envelope of [`serialize_json`] as YAML.
 fn serialize_yaml(exec: &ExecutionResult) -> String {
+    let envelope = execution_value(exec);
+    let map = envelope.as_object().expect("the envelope is a JSON object");
     let mut out = String::new();
-    out.push_str("execution:\n  consumed: ");
-    out.push_str(&exec.consumed.to_string());
-    out.push_str("\n  actions:\n");
-    if exec.actions.is_empty() {
-        out.push_str("    []\n");
-    } else {
-        for a in &exec.actions {
-            out.push_str("    - name: ");
-            out.push_str(&yaml_scalar(&a.name));
-            if a.args.is_empty() {
-                out.push('\n');
-            } else {
-                out.push_str("\n      args:\n");
-                for arg in &a.args {
-                    out.push_str("        - ");
-                    match arg {
-                        Expression::String(s) => {
-                            out.push_str(&yaml_scalar(s));
-                        }
-                        Expression::Regex(r) => {
-                            out.push_str(&yaml_scalar(r));
-                        }
-                        Expression::Number(n) => {
-                            out.push_str(&n.to_string());
-                        }
-                        Expression::Variable(v) => {
-                            out.push_str(&yaml_scalar(v));
-                        }
-                        Expression::Capture(i) => {
-                            out.push_str(&format!("\"${}\"", i));
-                        }
-                        Expression::CaptureName(name) => {
-                            out.push_str(&format!("\"${}\"", name));
-                        }
-                    }
-                    out.push('\n');
-                }
-            }
-        }
-    }
-    out.push_str("  traces:\n");
-    if exec.traces.is_empty() {
-        out.push_str("    []\n");
-    } else {
-        for t in &exec.traces {
-            out.push_str("    - ");
-            out.push_str(&yaml_scalar(t));
-            out.push('\n');
-        }
-    }
-    out.push_str("  capture_history:\n");
-    if exec.capture_history.is_empty() {
-        out.push_str("    []\n");
-    } else {
-        for scope in &exec.capture_history {
-            out.push_str("    - [");
-            for (i, val) in scope.iter().enumerate() {
-                if i > 0 {
-                    out.push_str(", ");
-                }
-                out.push_str(&yaml_scalar(val));
-            }
-            out.push_str("]\n");
-        }
-    }
-    out.push_str("  capture_names_history:\n");
-    if exec.capture_names_history.is_empty() {
-        out.push_str("    []\n");
-    } else {
-        for scope in &exec.capture_names_history {
-            out.push_str("    - [");
-            for (i, val) in scope.iter().enumerate() {
-                if i > 0 {
-                    out.push_str(", ");
-                }
-                out.push_str(&yaml_scalar(val.as_deref().unwrap_or("")));
-            }
-            out.push_str("]\n");
-        }
-    }
-    out.push_str("  error: ");
-    if let Some(e) = &exec.error {
-        out.push_str(&yaml_scalar(e));
-    } else {
-        out.push_str("null");
-    }
-    out.push_str("\n  output:\n");
-    let flat = exec.flat.as_ref().expect("FlatTree not built");
-    serialize_yaml_node(flat, flat.root(), &mut out, 2);
+    yaml_json_mapping(&mut out, map, 0, false).expect("writing to a String cannot fail");
     out
 }
 
-fn yaml_scalar(s: &str) -> String {
-    if s.chars()
-        .any(|c| c.is_whitespace() || matches!(c, ':' | '-' | '#' | ',' | '[' | ']' | '{' | '}'))
-    {
-        format!("\"{}\"", s.replace('"', "\\\""))
-    } else {
-        s.to_string()
+/// Entries of a non-empty JSON object at `level` (`inline` as in [`tree_yaml_entries`]).
+fn yaml_json_mapping<S: OutputSink>(
+    out: &mut S,
+    map: &serde_json::Map<String, serde_json::Value>,
+    level: usize,
+    inline: bool,
+) -> std::io::Result<()> {
+    let mut indent = !inline;
+    for (k, v) in map {
+        if indent {
+            yaml_indent(out, level)?;
+        }
+        indent = true;
+        yaml_key(out, "", k, level)?;
+        out.write_char(':')?;
+        yaml_json_value(out, v, level + 1)?;
     }
+    Ok(())
 }
 
-fn serialize_yaml_node(flat: &FlatTree, n: &FlatNode, out: &mut String, indent: usize) {
-    for _ in 0..indent {
-        out.push_str("  ");
-    }
-    out.push_str("- name: ");
-    out.push_str(&yaml_scalar(&n.name));
-    out.push('\n');
-    let n_attrs = flat.attrs_of(n);
-    if !n_attrs.is_empty() {
-        for (k, v) in n_attrs {
-            for _ in 0..indent {
-                out.push_str("  ");
+/// Items of a non-empty JSON array at `level` (`inline` as in [`tree_yaml_entries`]).
+fn yaml_json_sequence<S: OutputSink>(
+    out: &mut S,
+    items: &[serde_json::Value],
+    level: usize,
+    inline: bool,
+) -> std::io::Result<()> {
+    use serde_json::Value;
+    let mut indent = !inline;
+    for item in items {
+        if indent {
+            yaml_indent(out, level)?;
+        }
+        indent = true;
+        out.write_char('-')?;
+        match item {
+            Value::Object(map) if !map.is_empty() => {
+                out.write_char(' ')?;
+                yaml_json_mapping(out, map, level + 1, true)?;
             }
-            out.push_str("  attribute: ");
-            out.push_str(&yaml_scalar(k));
-            out.push_str(": ");
-            out.push_str(&yaml_scalar(v));
-            out.push('\n');
+            Value::Array(inner) if !inner.is_empty() => {
+                out.write_char(' ')?;
+                yaml_json_sequence(out, inner, level + 1, true)?;
+            }
+            _ => yaml_json_value(out, item, level + 1)?,
         }
     }
-    if let Some(txt) = &n.text {
-        for _ in 0..indent {
-            out.push_str("  ");
+    Ok(())
+}
+
+/// Write `value` after a key's `:` or an item's `-`; nested entries go to `level`.
+fn yaml_json_value<S: OutputSink>(out: &mut S, value: &serde_json::Value, level: usize) -> std::io::Result<()> {
+    use serde_json::Value;
+    match value {
+        Value::Object(map) if !map.is_empty() => {
+            out.write_char('\n')?;
+            yaml_json_mapping(out, map, level, false)
         }
-        out.push_str("  text: ");
-        out.push_str(&yaml_scalar(txt));
-        out.push('\n');
-    }
-    if n.children_len > 0 {
-        for _ in 0..indent {
-            out.push_str("  ");
+        Value::Array(items) if !items.is_empty() => {
+            out.write_char('\n')?;
+            yaml_json_sequence(out, items, level, false)
         }
-        out.push_str("  children:\n");
-        for ch in flat.children_of(n) {
-            serialize_yaml_node(flat, ch, out, indent + 2);
+        Value::Object(_) => out.write_str(" {}\n"),
+        Value::Array(_) => out.write_str(" []\n"),
+        Value::String(s) => {
+            out.write_char(' ')?;
+            yaml_scalar(out, "", s)?;
+            out.write_char('\n')
+        }
+        scalar => {
+            out.write_char(' ')?;
+            out.write_str(&scalar.to_string())?;
+            out.write_char('\n')
         }
     }
 }

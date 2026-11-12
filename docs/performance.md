@@ -70,10 +70,10 @@ groups (the common case).
 
 YAML indentation uses a 64-byte static const instead of `"  ".repeat(n)`.
 
-### Cow\<str\> in YAML
+### YAML Scalars
 
-`yaml_quote_key` / `yaml_quote_value` return `Cow<str>`, avoiding
-allocations for the common unquoted case.
+Each scalar is checked in one pass and written straight to the sink; only
+strings that YAML would read differently are quoted or escaped.
 
 ---
 

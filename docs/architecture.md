@@ -122,7 +122,7 @@ Three output formats are supported:
 |--------|---------------|-------|
 | JSON   | Custom streaming writer | Direct to `Write` sink |
 | XML    | `quick-xml` + `AposWriter` adapter | Handles `&apos;` escaping |
-| YAML   | Custom lightweight emitter | No external deps; `Cow<str>` for quoting |
+| YAML   | Custom block-style writer | Same structure as JSON; quotes only where needed |
 
 All three stream directly to any `std::io::Write` (files, stdout) or build a
 `String`.
