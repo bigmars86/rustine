@@ -8,11 +8,12 @@ pip install rustine
 
 Wheels are published for:
 
-| OS      | Architectures         |
-|---------|-----------------------|
-| Linux   | x86_64, aarch64       |
-| macOS   | x86_64, Apple Silicon |
-| Windows | x86_64                |
+| OS                        | Architectures         | Allocator |
+|---------------------------|-----------------------|-----------|
+| Linux (glibc)             | x86_64, aarch64, i686 | jemalloc  |
+| Linux (musl, e.g. Alpine) | x86_64, aarch64       | jemalloc  |
+| macOS                     | x86_64, Apple Silicon | system    |
+| Windows                   | x86_64, x86           | mimalloc  |
 
 ### From Source
 
@@ -47,17 +48,20 @@ From a checkout: `cargo build --release --no-default-features --features cli`
 
 Compile-time switches, enabled with `--features`:
 
-| Feature     | Default          | Description                                |
-|-------------|------------------|--------------------------------------------|
-| `python`    | **yes**          | PyO3 extension module                      |
-| `cli`       | no               | `rgel` command-line binary                 |
-| `parallel`  | no               | Compile regexes in parallel (Rayon)        |
-| `jemalloc`  | **Linux wheels** | jemalloc allocator (not on MSVC)           |
-| `mimalloc`  | no               | mimalloc allocator                         |
-| `bench`     | no               | Internal benchmark examples                |
-| `profiling` | no               | Per-rule timing counters                   |
+| Feature     | Default            | Description                         |
+|-------------|--------------------|-------------------------------------|
+| `python`    | **yes**            | PyO3 extension module               |
+| `cli`       | no                 | `rgel` command-line binary          |
+| `parallel`  | no                 | Compile regexes in parallel (Rayon) |
+| `jemalloc`  | **Linux wheels**   | jemalloc allocator (not on MSVC)    |
+| `mimalloc`  | **Windows wheels** | mimalloc allocator                  |
+| `bench`     | no                 | Internal benchmark examples         |
+| `profiling` | no                 | Per-rule timing counters            |
 
-With glibc malloc, Rustine takes up to 33 % longer than with jemalloc
-([BENCHMARKS.md](../BENCHMARKS.md)); jemalloc also returns freed memory to the
-OS, for a lower steady-state RSS in long-running workers. Source
-builds use the system allocator unless built with `--features jemalloc`.
+The wheels use jemalloc on Linux and mimalloc on Windows. With the system
+allocator, Rustine takes 4–25 % longer on Linux (glibc), 28 % to 2.1× longer
+on musl and 26–39 % longer on Windows; mimalloc on Linux takes 4–13 % less
+time than jemalloc but needs up to 32 % more memory
+([BENCHMARKS.md](../BENCHMARKS.md#operating-systems)). Source builds use the
+system allocator unless built with `--features jemalloc` or
+`--features mimalloc`.

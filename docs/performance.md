@@ -24,10 +24,12 @@ Instruction counts do not depend on the CPU, times do.
 
 ### Allocators
 
-The Linux wheels (glibc) use jemalloc. Source builds without
-`--features jemalloc` and the wheels for Windows, macOS and musl use the
-system allocator. On the same PC, glibc malloc takes up to 33 % more time
-than jemalloc, and Windows 1.3–1.7× the time of Linux with jemalloc.
+The wheels use jemalloc on Linux (glibc and musl) and mimalloc on Windows;
+the macOS wheels and source builds without `--features jemalloc` or
+`--features mimalloc` use the system allocator. On the same PC, the system
+allocators take 4–25 % longer on Linux (glibc), 28 % to 2.1× longer on musl
+and 26–39 % longer on Windows. With mimalloc, Windows is within 5 % of Linux
+with jemalloc on large inputs.
 
 ---
 

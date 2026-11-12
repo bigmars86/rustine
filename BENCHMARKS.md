@@ -67,19 +67,32 @@ within the run-to-run noise of this PC.
 ## Operating Systems
 
 The engine is the same on every platform; the allocator and the OS are not.
-Rustine (Rust) on the same PC, time and peak memory:
+Rustine (Rust) on the same PC, time and peak memory, median of 7 runs; the
+builds of each OS ran in turns:
 
-| Platform and build                               | Allocator    | IOS XR config   | Scale           | 5 small fixtures |
-|--------------------------------------------------|--------------|-----------------|-----------------|------------------|
-| Linux wheels (glibc), `--features jemalloc`      | jemalloc     | 1.05 s · 342 MB | 1.49 s · 364 MB | 1.60 ms · 29 MB  |
-| Other Linux (glibc) builds, e.g. `cargo install` | glibc malloc | 1.06 s · 306 MB | 1.68 s · 385 MB | 2.13 ms · 23 MB  |
-| Windows wheels and builds                        | Windows heap | 1.32 s · 319 MB | 1.88 s · 370 MB | 2.66 ms · 28 MB  |
+| Platform and build                               | Allocator    | IOS XR config   | Scale, 25 MB    | Scale, 100 MB     | 5 small fixtures |
+|--------------------------------------------------|--------------|-----------------|-----------------|-------------------|------------------|
+| Linux wheels (glibc)                             | jemalloc     | 1.03 s · 342 MB | 1.50 s · 371 MB | 6.04 s · 1 357 MB | 1.66 ms · 29 MB  |
+| Linux (glibc), `--features mimalloc`             | mimalloc     | 0.99 s · 453 MB | 1.30 s · 425 MB | 5.41 s · 1 687 MB | 1.51 ms · 54 MB  |
+| Other Linux (glibc) builds, e.g. `cargo install` | glibc malloc | 1.07 s · 305 MB | 1.68 s · 385 MB | 6.89 s · 1 402 MB | 2.07 ms · 23 MB  |
+| Linux wheels (musl, e.g. Alpine)                 | jemalloc     | 1.51 s · 341 MB | 1.98 s · 368 MB | 8.37 s · 1 357 MB | 2.03 ms · 27 MB  |
+| Linux (musl), `--features mimalloc`              | mimalloc     | 1.39 s · 424 MB | 1.81 s · 410 MB | 7.60 s · 1 685 MB | 1.86 ms · 52 MB  |
+| Other Linux (musl) builds                        | musl malloc  | 1.94 s · 275 MB | 2.63 s · 343 MB | 11.0 s · 1 316 MB | 4.36 ms · 20 MB  |
+| Windows wheels                                   | mimalloc     | 1.05 s · 393 MB | 1.42 s · 389 MB | 5.91 s · 1 320 MB | 1.85 ms · 53 MB  |
+| Other Windows builds                             | Windows heap | 1.32 s · 320 MB | 1.84 s · 371 MB | 7.71 s · 1 394 MB | 2.57 ms · 29 MB  |
 
-Windows takes about 1.3× the time of Linux with jemalloc on large inputs and
-1.7× on small ones, with about the same memory. glibc malloc executes
-6–12 % more instructions than jemalloc and takes up to 33 % more time.
-macOS and the musl wheels (Alpine) use their system allocators and were not
-measured.
+- **System allocators** take longer than the allocators of the wheels:
+  glibc malloc 4–25 %, musl malloc 28–33 % on large inputs and 2.1× on
+  small ones, the Windows heap 26–39 %. They need 11–19 % less memory on
+  the IOS XR config and 6–24 MB less on the small fixtures; on the scale
+  inputs memory differs by up to 7 %.
+- **mimalloc on Linux** takes 4–13 % less time than jemalloc but needs
+  11–32 % more memory on large inputs (330 MB more at 100 MB) and 25 MB more
+  on small ones, so the Linux wheels use jemalloc. jemalloc does not build
+  for MSVC; the Windows wheels use mimalloc.
+- With mimalloc, **Windows** is within 5 % of Linux with jemalloc on large
+  inputs. **musl** builds take 1.2–1.5× the time of glibc builds.
+- **macOS** uses its system allocator and was not measured.
 
 ## Method
 
@@ -92,6 +105,7 @@ measured.
   (from a bug in its `_splitpath()`), so both process the whole file.
 - *Scale*: a synthetic 25.0 MB input and an 86 KB grammar with 302 grammars
   and about 1 110 rules, written by `scale_oneshot --write`; 1 521 168 nodes.
+  *Scale, 100 MB*: the same grammar with a 100 MB input.
 - *Small fixtures*: the five `fixtures/parity/*/input1.txt` files
   (130 B – 15 KB) with their grammars, summed.
 
@@ -100,6 +114,8 @@ startup, reading the files and compiling the grammar: median of 5 runs
 after a warm-up, highest peak memory. For the small fixtures a process
 converts the same input *N* times; one conversion costs
 (cost of *N* − cost of 1) / (*N* − 1), so startup and compilation drop out.
+Between sessions, the times of the same build differed by up to 14 %, its
+peak memory by less than 1 %; compare times within one table.
 
 **Metrics**
 
@@ -117,7 +133,7 @@ converts the same input *N* times; one conversion costs
 **Reference PC**: Intel Core i7-13850HX. Linux: Docker Desktop (WSL 2),
 Debian 13, 4 CPUs (`--cpuset-cpus=4-7`). Windows 11 natively, limited to
 4 logical CPUs, with `bench_run.exe` built for `x86_64-pc-windows-gnu`
-(same system allocator as the MSVC builds). Rust 1.99.1, CPython 3.10 to 3.15
+(same allocators as the MSVC builds). Rust 1.99.1, CPython 3.10 to 3.15
 from the official Docker images.
 
 ## Reproduce
@@ -150,6 +166,13 @@ Valgrind and takes long: Python runs about 50× slower under it. Without it
 the table has no instruction counts. Add `--workload NAME GRAMMAR INPUT`
 for your own data. On CPUs with performance and efficiency cores, pin the
 run to a few cores for stable times (Docker: `--cpuset-cpus=4-7`).
+
+For the [Operating Systems](#operating-systems) table, build `bench_run`
+with `--features parallel` (system allocator), `parallel,jemalloc` or
+`parallel,mimalloc`, also with `--target x86_64-unknown-linux-musl` or
+`--target x86_64-pc-windows-gnu`; write the inputs with `--sizes 25,100`.
+Pass each build as `--rust NAME=PATH` to one `compare.py --runs 7` and add
+`--workload scale-100 data/scale.gel data/scale-100mb.txt`.
 
 While developing, the Criterion benchmarks in `benches/*.rs`
 (`cargo bench --no-default-features`) time execution and serialization

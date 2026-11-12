@@ -137,4 +137,5 @@ All three stream directly to any `std::io::Write` (files, stdout) or build a
 | `serde_json` | JSON serialization |
 | `smallvec` | Stack-allocated small vectors |
 | `criterion` | Benchmarking framework (dev) |
-| `tikv-jemallocator` | jemalloc allocator (optional, Linux) |
+| `tikv-jemallocator` | jemalloc allocator (optional, Linux wheels) |
+| `mimalloc` | mimalloc allocator (optional, Windows wheels) |
