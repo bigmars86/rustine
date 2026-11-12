@@ -130,9 +130,9 @@ to JSON in a new process on the same Linux PC; details in
 
 | Workload                       | Python Gelatin   | Rustine        | Improvement                      |
 |--------------------------------|------------------|----------------|----------------------------------|
-| 20.0 MB IOS XR config          | 41.7 s, 1 919 MB | 1.24 s, 422 MB | **34× faster, 4.5× less memory** |
-| 25.0 MB synthetic input        | 67.2 s, 3 099 MB | 1.65 s, 457 MB | **41× faster, 6.8× less memory** |
-| 5 small inputs, per conversion | 18.8 ms          | 1.72 ms        | **11× faster**                   |
+| 20.0 MB IOS XR config          | 38.7 s, 1 915 MB | 1.21 s, 383 MB | **32× faster, 5.0× less memory** |
+| 25.0 MB synthetic input        | 58.3 s, 3 072 MB | 1.56 s, 409 MB | **37× faster, 7.5× less memory** |
+| 5 small inputs, per conversion | 14.4 ms          | 1.70 ms        | **8.5× faster**                  |
 
 ---
 

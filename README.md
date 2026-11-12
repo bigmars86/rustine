@@ -16,7 +16,7 @@ Python module, a Rust library, or a standalone CLI tool.
 does not support Python 3.12+. Rustine reimplements the engine in Rust:
 
 - **Drop-in replacement** — same Gel grammar language, same output
-- **34–45× faster** than Python Gelatin on large inputs, **4.5–8.5× less memory**
+- **32–39× faster** than Python Gelatin on large inputs, **5–8.5× less memory**
 - **Python 3.11+** — abi3 wheels, no SimpleParse
 
 ## Quick Start
@@ -83,9 +83,9 @@ a new process on the same Linux PC (263 grammars, 862 754 output nodes):
 
 | Engine               | Instructions | Peak memory | Time       |
 | -------------------- | -----------: | ----------: | ---------: |
-| Python Gelatin       | 357 G        | 1 919 MB    | 41.7 s     |
-| **Rustine** (Python) | **15.0 G**   | **422 MB**  | **1.24 s** |
-| **Rustine** (Rust)   | **14.1 G**   | **381 MB**  | **1.02 s** |
+| Python Gelatin       | 277 G        | 1 915 MB    | 38.7 s     |
+| **Rustine** (Python) | **14.9 G**   | **383 MB**  | **1.21 s** |
+| **Rustine** (Rust)   | **14.1 G**   | **381 MB**  | **1.07 s** |
 
 Instructions (G = 10⁹) measure the work independently of the CPU, times do
 not. [BENCHMARKS.md](BENCHMARKS.md) adds a synthetic 25 MB input, small

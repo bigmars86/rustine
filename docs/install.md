@@ -58,7 +58,7 @@ Compile-time switches, enabled with `--features`:
 | `bench`     | no               | Internal benchmark examples                |
 | `profiling` | no               | Per-rule timing counters                   |
 
-jemalloc is up to 18 % faster than glibc malloc
-([BENCHMARKS.md](../BENCHMARKS.md)) and returns freed memory to the OS, for a
-lower steady-state RSS in long-running workers. Source
+With glibc malloc, Rustine takes up to 23 % longer than with jemalloc
+([BENCHMARKS.md](../BENCHMARKS.md)); jemalloc also returns freed memory to the
+OS, for a lower steady-state RSS in long-running workers. Source
 builds use the system allocator unless built with `--features jemalloc`.

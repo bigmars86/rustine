@@ -5,7 +5,7 @@ workload the script reports instructions (Valgrind, Linux only; they do not
 depend on the CPU), peak memory, CPU time and wall time.
 
     python benches/compare.py --rust target/release/examples/bench_run \
-        --rustine .venv/bin/python --gelatin /usr/bin/python3.10 \
+        --rustine .venv/bin/python --gelatin /usr/bin/python3.11 \
         --workload scale data/scale.gel data/scale-25mb.txt \
         --small fixtures/parity --instructions
 
