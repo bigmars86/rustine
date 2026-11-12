@@ -43,7 +43,8 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["python"]
-python = ["pyo3/extension-module"]
+# The module is loaded with dlopen, where jemalloc's initial-exec TLS fails ("static TLS block").
+python = ["pyo3/extension-module", "tikv-jemallocator?/disable_initial_exec_tls"]
 parallel = ["rayon"]
 cli = ["clap"]
 mmap = ["memmap2"]
