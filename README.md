@@ -16,7 +16,7 @@ Python module, a Rust library, or a standalone CLI tool.
 does not support Python 3.12+. Rustine reimplements the engine in Rust:
 
 - **Drop-in replacement** — same Gel grammar language, same output
-- **35–46× faster** than Python Gelatin on large inputs, **4–9× less memory**
+- **34–45× faster** than Python Gelatin on large inputs, **4.5–8.5× less memory**
 - **Python 3.9+** — abi3 wheels, no SimpleParse
 
 ## Quick Start
@@ -78,26 +78,18 @@ rgel -s syntax.gel --preserve-case input.txt
 
 ## Performance
 
-Benchmarked on a 20.0 MB real-world IOS XR configuration
-(263 grammars, 113 regex patterns, 862 754 output nodes), CLI end to end to
-JSON, all tools on the same machine (Linux):
+A 20.0 MB real-world IOS XR configuration converted to JSON, each engine in
+a new process on the same Linux PC (263 grammars, 862 754 output nodes):
 
-| Tool                   | Time       | Throughput    | Peak RSS   |
-| ---------------------- | ---------- | ------------- | ---------- |
-| Python Gelatin (`gel`) | 49.9 s     | 0.40 MB/s     | 1 920 MB   |
-| **Rustine** (glibc)    | **1.16 s** | **17.3 MB/s** | **344 MB** |
-| **Rustine** (jemalloc) | **1.08 s** | **18.6 MB/s** | **374 MB** |
+| Engine               | Instructions | Peak memory | Time       |
+| -------------------- | -----------: | ----------: | ---------: |
+| Python Gelatin       | 357 G        | 1 919 MB    | 41.7 s     |
+| **Rustine** (Python) | **15.0 G**   | **422 MB**  | **1.24 s** |
+| **Rustine** (Rust)   | **14.1 G**   | **381 MB**  | **1.02 s** |
 
-| Comparison                                 | Speedup    |
-| ------------------------------------------ | ---------- |
-| Rustine vs Python Gelatin (25 MB scale)    | **35–36×** |
-| Rustine vs Python Gelatin (CLI, real data) | **38–46×** |
-| Rustine vs Python Gelatin (small fixtures) | **7–23×**  |
-| Rustine vs textfsm (25 MB, 2026-03-23)     | **1.6×**   |
-
-See [BENCHMARKS.md](BENCHMARKS.md) for full results (Linux glibc and
-jemalloc, Python Gelatin, older Windows and textfsm numbers), serialization
-timings, and reproduction instructions.
+Instructions (G = 10⁹) measure the work independently of the CPU, times do
+not. [BENCHMARKS.md](BENCHMARKS.md) adds a synthetic 25 MB input, small
+inputs and Windows, and shows how to repeat the measurement.
 
 ## Alternatives
 
@@ -140,7 +132,7 @@ simple template extractors (textfsm) and full parser generators (nom/pest).
 | [Gel Syntax Reference](docs/syntax.md) | Grammar language, statements, actions, triggers |
 | [Architecture](docs/architecture.md) | Parser pipeline, module layout, design decisions |
 | [Performance](docs/performance.md) | Optimization techniques, benchmark overview |
-| [BENCHMARKS.md](BENCHMARKS.md) | Raw benchmark data for all platforms |
+| [BENCHMARKS.md](BENCHMARKS.md) | Results against Python Gelatin, method, how to reproduce |
 | [Migration from Gelatin](docs/migration.md) | Drop-in replacement guide, parity notes |
 | [Contributing](CONTRIBUTING.md) | Development setup, coding guidelines, PR process |
 | [Changelog](CHANGELOG.md) | Version history |

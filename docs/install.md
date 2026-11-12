@@ -58,6 +58,7 @@ Compile-time switches, enabled with `--features`:
 | `bench`     | no               | Internal benchmark examples                |
 | `profiling` | no               | Per-rule timing counters                   |
 
-jemalloc returns freed memory to the OS: about 20 % faster than glibc malloc
-and a lower steady-state RSS, which matters for long-running workers. Source
+jemalloc is up to 18 % faster than glibc malloc
+([BENCHMARKS.md](../BENCHMARKS.md)) and returns freed memory to the OS, for a
+lower steady-state RSS in long-running workers. Source
 builds use the system allocator unless built with `--features jemalloc`.

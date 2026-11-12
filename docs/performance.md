@@ -1,33 +1,33 @@
 # Performance
 
 Rustine was built for throughput on large inputs. This page summarizes the
-key performance characteristics and optimization techniques. For raw
-benchmark data across all platforms, see [BENCHMARKS.md](../BENCHMARKS.md).
+key performance characteristics and optimization techniques. For the
+measured numbers and the method, see [BENCHMARKS.md](../BENCHMARKS.md).
 
 ---
 
 ## Summary
 
-| Comparison | Speedup | RSS Improvement |
-|------------|---------|-----------------|
-| Rustine vs Python Gelatin (25 MB scale) | **35–36×** | **6–9× less** |
-| Rustine vs Python Gelatin (CLI, 20.0 MB real data) | **38–46×** | **4–5× less** |
-| Rustine vs Python Gelatin (small fixtures) | **7–23×** | — |
-| Rustine vs textfsm (25 MB synthetic, 2026-03-23) | **1.6×** | — |
-| Rustine vs textfsm (20.9 MB real, 2026-03-23) | **1.9×** | — |
+Rustine compared with Python Gelatin, each converting the input to JSON in
+a new process on the same Linux PC:
 
-All tools were measured on the same machine (Linux), except textfsm.
+| Workload               | Rustine      | Instructions  | Time           | Peak memory   |
+|------------------------|--------------|---------------|----------------|---------------|
+| IOS XR config, 20.0 MB | Rust API     | **25× fewer** | **41× faster** | **5.0× less** |
+|                        | Python wheel | **24× fewer** | **34× faster** | **4.5× less** |
+| Scale, 25.0 MB         | Rust API     | **31× fewer** | **45× faster** | **8.5× less** |
+|                        | Python wheel | **29× fewer** | **41× faster** | **6.8× less** |
+| 5 small fixtures       | Rust API     | **11× fewer** | **11× faster** | —             |
+|                        | Python wheel | **11× fewer** | **11× faster** | —             |
 
-### Allocator Comparison (Rustine, Linux)
+Instruction counts do not depend on the CPU, times do.
 
-| Allocator | 25 MB One-Shot (best total) | 20.0 MB Real Data (exec) |
-|-----------|-----------------------------|--------------------------|
-| glibc | 1.49 s | 0.93 s |
-| **jemalloc** | **1.22 s** | **0.85 s** |
+### Allocators
 
-jemalloc executes about 1.1× faster than glibc. Windows (MSVC) was not
-measured again; in the 2026-03-23 numbers jemalloc was 1.5–1.8× faster than
-MSVC.
+The Linux wheels (glibc) use jemalloc. Source builds without
+`--features jemalloc` and the wheels for Windows, macOS and musl use the
+system allocator. On the same PC, glibc malloc is up to 18 % slower than
+jemalloc, and Windows takes 1.3–1.6× the time of Linux with jemalloc.
 
 ---
 
@@ -79,15 +79,16 @@ allocations for the common unquoted case.
 
 ## Memory Profile
 
-RSS scales linearly with input size:
+Peak memory for one conversion to JSON (Linux):
 
-| Input Size | Rustine (jemalloc) | Python Gelatin |
-|------------|--------------------:|---------------:|
-| 25 MB      | 358 MB             | 3 095 MB       |
-| 50 MB      | 716 MB             | —              |
-| 100 MB     | 1 284 MB           | —              |
+| Workload               | Rustine (Rust) | Rustine (Python) | Python Gelatin |
+|------------------------|---------------:|-----------------:|---------------:|
+| IOS XR config, 20.0 MB | 381 MB         | 422 MB           | 1 919 MB       |
+| Scale, 25.0 MB         | 363 MB         | 457 MB           | 3 099 MB       |
 
-The difference is primarily due to:
+Rustine keeps the whole tree in memory, so peak memory grows linearly with
+the input; the Python wheel also holds the JSON as a Python string. The
+difference to Gelatin is primarily due to:
 
 1. **Compact nodes** — Rust nodes are tightly packed; Python uses many
    small dict/list objects with per-object GC overhead.
@@ -99,7 +100,10 @@ The difference is primarily due to:
 
 ## How to Benchmark
 
-### Criterion Benchmarks
+[BENCHMARKS.md](../BENCHMARKS.md) shows how to repeat the comparison with
+`benches/compare.py`, also for your own grammar and input. While
+developing, the Criterion benchmarks time execution and serialization
+separately:
 
 ```bash
 # All benchmarks (exec + fixtures + scale)
@@ -113,42 +117,4 @@ cargo bench --bench fixtures --no-default-features
 
 # Scale (25 MB synthetic, 10 samples)
 cargo bench --bench scale --no-default-features
-```
-
-### One-Shot Scaling
-
-```bash
-cargo run --release --no-default-features --example scale_oneshot
-cargo run --release --no-default-features --example scale_oneshot -- --sizes 50,100
-```
-
-### Real-Data
-
-```bash
-# In-memory (5 iterations, median)
-cargo run --release --no-default-features \
-  --example bench_run -- syntax.gel input.txt 5
-
-# Streaming serialization
-cargo run --release --no-default-features \
-  --example bench_run -- syntax.gel input.txt 5 --stream
-```
-
-### CLI
-
-```bash
-cargo build --release --features cli --no-default-features
-target/release/rgel -s syntax.gel -f json input.txt > /dev/null
-```
-
-### Linux via Docker
-
-```bash
-# glibc
-docker run --rm -v "${PWD}:/work" -w /work rust:latest \
-  cargo bench --no-default-features
-
-# jemalloc
-docker run --rm -v "${PWD}:/work" -w /work rust:latest \
-  cargo bench --no-default-features --features jemalloc
 ```

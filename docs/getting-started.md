@@ -131,24 +131,13 @@ python tests/python/test_preserve_case.py
 ## Benchmarking
 
 ```bash
-# Execution engine micro-benchmarks (scaling, serialization, captures)
-cargo bench --bench exec --no-default-features
+# Criterion micro-benchmarks while developing (execution, fixtures, 25 MB scale)
+cargo bench --no-default-features
 
-# Fixture benchmarks (small grammars)
-cargo bench --bench fixtures --no-default-features
-
-# Scale benchmark (25 MB synthetic data)
-cargo bench --bench scale --no-default-features
-
-# One-shot scaling (25/50/100 MB)
-cargo run --release --no-default-features --example scale_oneshot
-
-# Custom grammar + input (any .gel + .txt)
-cargo run --release --no-default-features \
-  --example bench_run -- <syntax.gel> <input.txt> 5
-
-# With jemalloc (Linux)
-cargo bench --no-default-features --features jemalloc
+# Instructions (Valgrind), peak memory, CPU time and time for any grammar and input
+cargo build --release --no-default-features --features parallel,mmap --example bench_run
+python benches/compare.py --rust target/release/examples/bench_run \
+  --workload my-data <syntax.gel> <input.txt> --instructions
 ```
 
-See [BENCHMARKS.md](../BENCHMARKS.md) for full results.
+See [BENCHMARKS.md](../BENCHMARKS.md) for results and the full setup.

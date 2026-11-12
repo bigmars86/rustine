@@ -124,15 +124,15 @@ not in Rustine.
 
 ## Performance Gains
 
-Same machine (Linux), Python Gelatin on CPython 3.10; details in
+The Rustine wheel compared with Python Gelatin, each converting the input
+to JSON in a new process on the same Linux PC; details in
 [BENCHMARKS.md](../BENCHMARKS.md).
 
-| Metric | Python Gelatin | Rustine (best) | Improvement |
-|--------|---------------|----------------|-------------|
-| 25 MB scale (JSON) | 50.2 s | 1.41 s | **36×** |
-| 20.0 MB real data (CLI, JSON) | 49.9 s | 1.08 s | **46×** |
-| Peak RSS (25 MB) | 3 095 MB | 358 MB | **9× less** |
-| Fixture: complex | 23.3 ms | 1.60 ms | **15×** |
+| Workload                       | Python Gelatin   | Rustine        | Improvement                      |
+|--------------------------------|------------------|----------------|----------------------------------|
+| 20.0 MB IOS XR config          | 41.7 s, 1 919 MB | 1.24 s, 422 MB | **34× faster, 4.5× less memory** |
+| 25.0 MB synthetic input        | 67.2 s, 3 099 MB | 1.65 s, 457 MB | **41× faster, 6.8× less memory** |
+| 5 small inputs, per conversion | 18.8 ms          | 1.72 ms        | **11× faster**                   |
 
 ---
 

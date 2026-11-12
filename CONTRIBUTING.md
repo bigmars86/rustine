@@ -33,7 +33,7 @@ python -c "import Rustine; print(Rustine.__version__)"
 | `src/bridge.rs` | PyO3 Python bindings |
 | `src/main.rs` | CLI binary (`rgel`) |
 | `tests/` | Rust integration tests |
-| `benches/` | Criterion benchmarks |
+| `benches/` | Criterion benchmarks, `compare.py` |
 | `fixtures/` | Test grammars and input data |
 | `Rustine/` | Python package (PyO3 module) |
 | `Gelatin/` | `Rustine.util` under the `Gelatin` import path |
@@ -83,11 +83,11 @@ cargo bench --bench fixtures --no-default-features
 
 # Full scale benchmarks (25 MB synthetic — takes several minutes)
 cargo bench --bench scale --no-default-features
-
-# Custom grammar + input
-cargo run --release --no-default-features \
-  --example bench_run -- <syntax.gel> <input.txt> 5
 ```
+
+The numbers in [BENCHMARKS.md](BENCHMARKS.md) come from
+`benches/compare.py`, which also compares with Python Gelatin; the file
+explains how to rerun it.
 
 ## Submitting Changes
 
