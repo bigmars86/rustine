@@ -33,7 +33,7 @@ fn main() {
         let t0 = Instant::now();
         for _ in 0..iterations {
             let result = execute_tree(&doc, "input", &input).expect("exec");
-            let _json = serialize_tree(&result, RuntimeFormat::Json);
+            let _json = serialize_tree(&result, RuntimeFormat::Json).expect("serialize");
         }
         let elapsed = t0.elapsed();
         eprintln!(

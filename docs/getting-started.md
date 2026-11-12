@@ -62,8 +62,12 @@ use rustine::parser::{lexer::lex, syntax::parse_gel_document};
 
 let mut doc = parse_gel_document(&lex(grammar_source)?)?;
 let result = execute(&mut doc, "input", input_text)?;
-let json = serialize_tree(&result, RuntimeFormat::Json); // or Xml, Yaml
+let json = serialize_tree(&result, RuntimeFormat::Json)?; // or Xml, Yaml
 ```
+
+`result.error` holds the message of `do.fail`, or of input the grammar did
+not consume. `serialize_tree` fails only for XML, for names and characters
+that XML 1.0 cannot represent.
 
 `serialize_execution` writes the whole result instead of only the tree:
 `consumed`, `actions`, `traces`, `diagnostics`, `capture_history`, `output`

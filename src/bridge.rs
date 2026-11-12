@@ -53,11 +53,20 @@ fn require_utf8(py: Python<'_>, encoding: &str) -> PyResult<()> {
     }
 }
 
+/// Write the tree to `path`; on an error no partial file is left behind.
 fn write_tree(exec: &ExecutionResult, fmt: RuntimeFormat, path: &str) -> PyResult<()> {
     let io_err = |e: std::io::Error| PyIOError::new_err(format!("{}: {}", path, e));
     let mut writer = std::io::BufWriter::new(fs::File::create(path).map_err(io_err)?);
-    serialize_tree_to_writer(exec, fmt, &mut writer).map_err(io_err)?;
-    writer.flush().map_err(io_err)
+    let written = match serialize_tree_to_writer(exec, fmt, &mut writer) {
+        Ok(()) => writer.flush().map_err(io_err),
+        Err(GelError::Io(e)) => Err(io_err(e)),
+        Err(e) => Err(gel_to_pyerr(e)),
+    };
+    if written.is_err() {
+        drop(writer);
+        let _ = fs::remove_file(path);
+    }
+    written
 }
 
 /// Parse a format string into a RuntimeFormat, returning a PyErr on unknown values.
@@ -187,7 +196,7 @@ impl GelContext {
 
     /// Run and serialize without holding the GIL, so other Python threads keep running.
     fn render(&self, py: Python<'_>, input: &str, grammar: &str, fmt: RuntimeFormat) -> PyResult<String> {
-        py.detach(|| Ok(serialize_tree(&self.exec_input(input, grammar)?, fmt)))
+        py.detach(|| serialize_tree(&self.exec_input(input, grammar)?, fmt).map_err(gel_to_pyerr))
     }
 }
 

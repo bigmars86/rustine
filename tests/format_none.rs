@@ -21,11 +21,11 @@ fn format_none_returns_empty_string() {
     assert!(exec.error.is_none());
 
     // format=None should produce empty string
-    let output = serialize_tree(&exec, RuntimeFormat::None);
+    let output = serialize_tree(&exec, RuntimeFormat::None).unwrap();
     assert!(output.is_empty(), "expected empty string, got: {output:?}");
 
     // but JSON should produce actual output (sanity check)
-    let json = serialize_tree(&exec, RuntimeFormat::Json);
+    let json = serialize_tree(&exec, RuntimeFormat::Json).unwrap();
     assert!(!json.is_empty(), "JSON should not be empty");
     assert!(json.contains("item"), "JSON should contain 'item'");
 }

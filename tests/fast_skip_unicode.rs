@@ -6,7 +6,7 @@ use rustine::parser::{lexer::lex, syntax::parse_gel_document};
 fn run(gel: &str, input: &str) -> String {
     let mut doc = parse_gel_document(&lex(gel).unwrap()).unwrap();
     doc.compile_regexes();
-    serialize_tree(&execute_tree(&doc, "input", input).unwrap(), RuntimeFormat::Json)
+    serialize_tree(&execute_tree(&doc, "input", input).unwrap(), RuntimeFormat::Json).unwrap()
 }
 
 const SKIP_THEN_NEWLINE: &str = "grammar input:\n    skip /SKIP/\n    match /\\n/:\n        out.add('nl')\n";

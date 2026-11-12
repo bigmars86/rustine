@@ -42,7 +42,7 @@ fn compile(grammar: &str, preserve_case: bool) -> GelDocument {
 fn run_xml(grammar: &str, input: &str, preserve_case: bool) -> String {
     let mut doc = compile(grammar, preserve_case);
     let exec = execute(&mut doc, "input", input).expect("execute");
-    serialize_tree(&exec, RuntimeFormat::Xml)
+    serialize_tree(&exec, RuntimeFormat::Xml).unwrap()
 }
 
 #[test]

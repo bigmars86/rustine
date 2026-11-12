@@ -120,7 +120,7 @@ Three output formats are supported:
 | Format | Implementation | Notes |
 |--------|---------------|-------|
 | JSON   | Custom streaming writer | Direct to `Write` sink |
-| XML    | `quick-xml` + `AposWriter` adapter | Handles `&apos;` escaping |
+| XML    | Custom writer | Rejects names and characters XML 1.0 cannot represent |
 | YAML   | Custom block-style writer | Same structure as JSON; quotes only where needed |
 
 All three stream directly to any `std::io::Write` (files, stdout) or build a
@@ -135,7 +135,6 @@ All three stream directly to any `std::io::Write` (files, stdout) or build a
 | `pyo3` | Python bindings (feature-gated) |
 | `regex` | Pattern matching engine |
 | `serde_json` | JSON serialization |
-| `quick-xml` | XML serialization |
 | `smallvec` | Stack-allocated small vectors |
 | `criterion` | Benchmarking framework (dev) |
 | `tikv-jemallocator` | jemalloc allocator (optional, Linux) |

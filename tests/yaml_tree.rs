@@ -7,7 +7,7 @@ fn yaml(gel: &str, input: &str) -> String {
     let mut doc = parse_gel_document(&lex(gel).unwrap()).unwrap();
     doc.preserve_case = true;
     doc.compile_regexes();
-    serialize_tree(&execute_tree(&doc, "input", input).unwrap(), RuntimeFormat::Yaml)
+    serialize_tree(&execute_tree(&doc, "input", input).unwrap(), RuntimeFormat::Yaml).unwrap()
 }
 
 const PAIRS: &str = "grammar input:\n    match /([^\\t\\n]*)\\t([^\\n]*)\\n/:\n        out.add('$1', '$2')\n";

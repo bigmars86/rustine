@@ -219,7 +219,7 @@ pub fn execute_and_serialize(
 ) -> Result<String> {
     doc.compile_regexes();
     let exec = exec::execute_tree(doc, grammar, input)?;
-    Ok(serialize_tree(&exec, format))
+    serialize_tree(&exec, format)
 }
 
 #[cfg(test)]

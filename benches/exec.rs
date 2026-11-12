@@ -108,7 +108,7 @@ fn bench_serialization(c: &mut Criterion) {
     for &(name, fmt) in formats {
         group.bench_function(name, |b| {
             b.iter(|| {
-                let out = serialize_execution(&result, fmt);
+                let out = serialize_execution(&result, fmt).unwrap();
                 std::hint::black_box(out.len());
             });
         });

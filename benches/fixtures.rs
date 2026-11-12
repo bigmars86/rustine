@@ -88,7 +88,7 @@ fn bench_fixtures(c: &mut Criterion) {
             group.bench_with_input(BenchmarkId::new("total", *fmt_name), &(*fmt,), |b, (fmt,)| {
                 b.iter(|| {
                     let result = execute_tree(&doc, "input", input).expect("execute");
-                    let out = serialize_tree(&result, *fmt);
+                    let out = serialize_tree(&result, *fmt).unwrap();
                     std::hint::black_box(out.len());
                 });
             });

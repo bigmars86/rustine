@@ -61,6 +61,6 @@ impl Parser {
         for d in diags {
             exec_result.diagnostics.push(d);
         }
-        Ok(serialize_execution(&exec_result, RuntimeFormat::Json))
+        serialize_execution(&exec_result, RuntimeFormat::Json)
     }
 }

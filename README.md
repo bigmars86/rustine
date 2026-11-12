@@ -60,7 +60,7 @@ use rustine::parser::{lexer::lex, syntax::parse_gel_document};
 
 let mut doc = parse_gel_document(&lex(grammar_source)?)?;
 let result = execute(&mut doc, "input", input_text)?;
-let json = serialize_tree(&result, RuntimeFormat::Json);
+let json = serialize_tree(&result, RuntimeFormat::Json)?;
 ```
 
 ### CLI

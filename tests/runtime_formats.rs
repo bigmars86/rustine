@@ -18,11 +18,11 @@ fn runtime_json_xml_yaml_emit() {
     let tokens = lex(GEL_SOURCE).expect("lex");
     let mut doc = parse_gel_document(&tokens).expect("parse");
     let exec = execute(&mut doc, "main", input).expect("execute");
-    let xml = serialize_execution(&exec, RuntimeFormat::Xml);
+    let xml = serialize_execution(&exec, RuntimeFormat::Xml).unwrap();
     assert!(xml.contains("<execution"), "xml missing execution tag: {xml}");
     assert!(xml.contains("<output>"), "xml missing output: {xml}");
 
-    let yaml = serialize_execution(&exec, RuntimeFormat::Yaml);
+    let yaml = serialize_execution(&exec, RuntimeFormat::Yaml).unwrap();
     assert!(
         yaml.starts_with("consumed: 5\nactions:\n  - name: out.create\n    args:\n      - line\n"),
         "{yaml}"

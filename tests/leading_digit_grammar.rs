@@ -16,7 +16,7 @@ fn run(syntax: &str, input: &str, format: RuntimeFormat) -> String {
     let mut doc = parse_gel_document(&tokens).expect("parse");
     let exec = execute(&mut doc, "input", input).expect("execute");
     assert!(exec.error.is_none(), "execution error: {:?}", exec.error);
-    serialize_tree(&exec, format)
+    serialize_tree(&exec, format).unwrap()
 }
 
 /// Strip trailing whitespace for byte-exact comparison (matches parity_byte_exact).

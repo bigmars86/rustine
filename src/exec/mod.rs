@@ -1803,13 +1803,15 @@ pub enum RuntimeFormat {
 
 /// Serialize the full diagnostic envelope (`consumed`, `actions`, `traces`,
 /// `output`, …) for debugging. For the bare data tree use [`serialize_tree`].
-pub fn serialize_execution(result: &ExecutionResult, format: RuntimeFormat) -> String {
-    match format {
+///
+/// Fails only for XML, like [`serialize_tree`].
+pub fn serialize_execution(result: &ExecutionResult, format: RuntimeFormat) -> Result<String> {
+    Ok(match format {
         RuntimeFormat::Json => serialize_json(result),
-        RuntimeFormat::Xml => serialize_xml(result),
+        RuntimeFormat::Xml => serialize_xml(result)?,
         RuntimeFormat::Yaml => serialize_yaml(result),
         RuntimeFormat::None => String::new(),
-    }
+    })
 }
 
 // =========================================================================
@@ -1823,13 +1825,14 @@ pub fn serialize_execution(result: &ExecutionResult, format: RuntimeFormat) -> S
 /// - **XML**: attributes as XML attributes; root `<xml>` unless
 ///   `out.set_root_name` was used.
 /// - **YAML**: same mapping as JSON.
-pub fn serialize_tree(result: &ExecutionResult, format: RuntimeFormat) -> String {
-    match format {
-        RuntimeFormat::Json => tree_json(result),
-        RuntimeFormat::Xml => tree_xml(result),
-        RuntimeFormat::Yaml => tree_yaml(result),
-        RuntimeFormat::None => String::new(),
-    }
+///
+/// Fails only for XML: element and attribute names must be XML names without
+/// `:`, and text and attribute values must not contain control characters
+/// other than tab, line feed and carriage return, or U+FFFE and U+FFFF.
+pub fn serialize_tree(result: &ExecutionResult, format: RuntimeFormat) -> Result<String> {
+    let mut out = String::new();
+    write_tree(result, format, &mut out)?;
+    Ok(out)
 }
 
 /// Write the **data tree only** directly to a [`Write`](std::io::Write) impl,
@@ -1837,17 +1840,24 @@ pub fn serialize_tree(result: &ExecutionResult, format: RuntimeFormat) -> String
 ///
 /// For large outputs (100 MB+), this significantly reduces peak memory
 /// compared to [`serialize_tree`] which builds the full output in RAM.
+/// On an error the writer may hold part of the output.
 pub fn serialize_tree_to_writer<W: std::io::Write>(
     result: &ExecutionResult,
     format: RuntimeFormat,
     writer: &mut W,
-) -> std::io::Result<()> {
+) -> Result<()> {
+    write_tree(result, format, &mut WriterSink(writer))
+}
+
+fn write_tree<S: OutputSink>(result: &ExecutionResult, format: RuntimeFormat, out: &mut S) -> Result<()> {
+    let flat = result.flat.as_ref().expect("FlatTree not built");
     match format {
-        RuntimeFormat::Json => tree_json_to_writer(result, writer),
-        RuntimeFormat::Xml => tree_xml_to_writer(result, writer),
-        RuntimeFormat::Yaml => tree_yaml_to_writer(result, writer),
-        RuntimeFormat::None => Ok(()),
+        RuntimeFormat::Json => tree_json_node(flat, flat.root(), out, 0)?,
+        RuntimeFormat::Xml => tree_xml(flat, out)?,
+        RuntimeFormat::Yaml => tree_yaml_root(flat, out)?,
+        RuntimeFormat::None => {}
     }
+    Ok(())
 }
 
 // -- OutputSink trait for dual String / streaming serialization ------------
@@ -1888,19 +1898,6 @@ impl<W: std::io::Write> OutputSink for WriterSink<W> {
 }
 
 // -- Tree-only JSON -------------------------------------------------------
-
-fn tree_json(exec: &ExecutionResult) -> String {
-    let flat = exec.flat.as_ref().expect("FlatTree not built");
-    let mut out = String::new();
-    tree_json_node(flat, flat.root(), &mut out, 0).expect("writing to a String cannot fail");
-    out
-}
-
-/// Write tree JSON directly to a writer (truly streaming, no intermediate buffer).
-fn tree_json_to_writer<W: std::io::Write>(exec: &ExecutionResult, writer: &mut W) -> std::io::Result<()> {
-    let flat = exec.flat.as_ref().expect("FlatTree not built");
-    tree_json_node(flat, flat.root(), &mut WriterSink(writer), 0)
-}
 
 fn tree_json_node<S: OutputSink>(flat: &FlatTree, node: &FlatNode, out: &mut S, indent: usize) -> std::io::Result<()> {
     let attrs = flat.attrs_of(node);
@@ -2020,178 +2017,195 @@ fn json_write_escaped_body<S: OutputSink>(out: &mut S, s: &str) -> std::io::Resu
 
 // -- Tree-only XML --------------------------------------------------------
 
-/// A `Write` adapter that turns `&apos;` back into `'` (valid inside
-/// double-quoted attributes) without buffering the whole document.
-///
-/// Safety assumption: `quick_xml` always writes complete attribute values in a
-/// single `write_all` call, so `&apos;` is never split across calls.
-struct AposWriter<W: std::io::Write> {
-    inner: W,
-}
-
-impl<W: std::io::Write> std::io::Write for AposWriter<W> {
-    fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
-        write_bytes_replacing_apos(&mut self.inner, data)?;
-        Ok(data.len())
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.inner.flush()
-    }
-}
-
-fn tree_xml(exec: &ExecutionResult) -> String {
-    let mut buf = Vec::new();
-    tree_xml_to_writer(exec, &mut buf).expect("XML write to Vec never fails");
-    // SAFETY: quick_xml produces valid UTF-8; AposWriter only replaces valid
-    // UTF-8 subsequences.
-    unsafe { String::from_utf8_unchecked(buf) }
-}
-
-/// Write tree XML directly to a writer (truly streaming via `AposWriter`).
-fn tree_xml_to_writer<W: std::io::Write>(exec: &ExecutionResult, writer: &mut W) -> std::io::Result<()> {
-    use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
-    use quick_xml::Writer;
-
-    let flat = exec.flat.as_ref().expect("FlatTree not built");
+fn tree_xml<S: OutputSink>(flat: &FlatTree, out: &mut S) -> Result<()> {
     let root = flat.root();
-
     // Root element: name from out.set_root_name, otherwise "xml".
     let root_name = if root.name.is_empty() || &*root.name == "." {
         "xml"
     } else {
         &root.name
     };
-
-    {
-        let mut w = Writer::new_with_indent(AposWriter { inner: &mut *writer }, b' ', 2);
-
-        // Open root element (attributes of root node become XML attributes)
-        let mut start = BytesStart::new(root_name);
-        for (k, v) in flat.attrs_of(root) {
-            start.push_attribute((&**k, v.as_str()));
+    let mut w = XmlWriter::new(out);
+    w.start(root_name, flat.attrs_of(root))?;
+    if let Some(text) = root.text.as_deref().filter(|t| !t.is_empty()) {
+        w.text(root_name, text)?;
+    }
+    for group in flat.iter_child_groups(root) {
+        for child in group {
+            tree_xml_node(flat, child, &mut w)?;
         }
-        w.write_event(Event::Start(start)).expect("root start");
-
-        // Text content of root (rare but possible)
-        if let Some(txt) = &root.text {
-            if !txt.is_empty() {
-                let escaped = xml_escape_text_content(txt);
-                w.write_event(Event::Text(BytesText::from_escaped(escaped)))
-                    .expect("root text");
-            }
-        }
-
-        // Recursively write children
-        for group in flat.iter_child_groups(root) {
-            for ch in group {
-                tree_xml_node(flat, ch, &mut w);
-            }
-        }
-
-        w.write_event(Event::End(BytesEnd::new(root_name))).expect("root end");
-    } // AposWriter dropped here, releases borrow on writer
-
-    writer.write_all(b"\n")
+    }
+    w.end(root_name)?;
+    w.out.write_char('\n')?;
+    Ok(())
 }
 
 /// Write a node as an XML element (self-closing when empty).
-fn tree_xml_node<W: std::io::Write>(flat: &FlatTree, node: &FlatNode, writer: &mut quick_xml::Writer<W>) {
-    use quick_xml::events::{BytesEnd, BytesStart, BytesText, Event};
-
-    let tag: &str = &node.name;
-    let has_text = node.text.as_ref().is_some_and(|t| !t.is_empty());
-
-    // Check if node is completely empty (no non-empty text, no children)
-    let is_empty = !has_text && node.children_len == 0;
-
-    if is_empty {
-        // Self-closing: <tag/> or <tag attr="val"/>
-        let mut elem = BytesStart::new(tag);
-        for (k, v) in flat.attrs_of(node) {
-            elem.push_attribute((&**k, v.as_str()));
-        }
-        writer.write_event(Event::Empty(elem)).expect("empty elem");
-        return;
+fn tree_xml_node<S: OutputSink>(flat: &FlatTree, node: &FlatNode, w: &mut XmlWriter<'_, S>) -> Result<()> {
+    let text = node.text.as_deref().filter(|t| !t.is_empty());
+    if text.is_none() && node.children_len == 0 {
+        return w.empty(&node.name, flat.attrs_of(node));
     }
-
-    // Open element with XML attributes
-    let mut start = BytesStart::new(tag);
-    for (k, v) in flat.attrs_of(node) {
-        start.push_attribute((&**k, v.as_str()));
+    w.start(&node.name, flat.attrs_of(node))?;
+    if let Some(text) = text {
+        w.text(&node.name, text)?;
     }
-    writer.write_event(Event::Start(start)).expect("elem start");
-
-    // Text content
-    if has_text {
-        let txt = node.text.as_ref().unwrap();
-        let escaped = xml_escape_text_content(txt);
-        writer
-            .write_event(Event::Text(BytesText::from_escaped(escaped)))
-            .expect("text");
-    }
-
-    // Children, grouped by name in first-occurrence order
     for group in flat.iter_child_groups(node) {
-        for ch in group {
-            tree_xml_node(flat, ch, writer);
+        for child in group {
+            tree_xml_node(flat, child, w)?;
         }
     }
-
-    writer.write_event(Event::End(BytesEnd::new(tag))).expect("elem end");
+    w.end(&node.name)
 }
 
-/// Escape `<`, `>` and `&` in XML text (quotes are valid in text content).
-fn xml_escape_text_content(s: &str) -> Cow<'_, str> {
-    if !s.bytes().any(|b| matches!(b, b'<' | b'>' | b'&')) {
-        return Cow::Borrowed(s);
+/// Indented XML: each element starts on a new line, unless it follows text.
+struct XmlWriter<'a, S: OutputSink> {
+    out: &'a mut S,
+    level: usize,
+    line_break: bool,
+}
+
+impl<'a, S: OutputSink> XmlWriter<'a, S> {
+    fn new(out: &'a mut S) -> Self {
+        Self {
+            out,
+            level: 0,
+            line_break: false,
+        }
     }
-    let mut out = String::with_capacity(s.len() + 8);
+
+    fn start<K: AsRef<str>, V: AsRef<str>>(&mut self, name: &str, attrs: &[(K, V)]) -> Result<()> {
+        self.open(name, attrs)?;
+        self.out.write_char('>')?;
+        self.level += 1;
+        self.line_break = true;
+        Ok(())
+    }
+
+    fn empty<K: AsRef<str>, V: AsRef<str>>(&mut self, name: &str, attrs: &[(K, V)]) -> Result<()> {
+        self.open(name, attrs)?;
+        self.out.write_str("/>")?;
+        self.line_break = true;
+        Ok(())
+    }
+
+    /// Text in `element`.
+    fn text(&mut self, element: &str, text: &str) -> Result<()> {
+        xml_escape(self.out, text, false, || format!("the text of <{element}>"))?;
+        self.line_break = false;
+        Ok(())
+    }
+
+    fn end(&mut self, name: &str) -> Result<()> {
+        self.level -= 1;
+        self.new_line()?;
+        self.out.write_str("</")?;
+        self.out.write_str(name)?;
+        self.out.write_char('>')?;
+        self.line_break = true;
+        Ok(())
+    }
+
+    fn open<K: AsRef<str>, V: AsRef<str>>(&mut self, name: &str, attrs: &[(K, V)]) -> Result<()> {
+        if !is_xml_name(name) {
+            return Err(GelError::runtime(format!("not an XML element name: {name:?}"), None));
+        }
+        self.new_line()?;
+        self.out.write_char('<')?;
+        self.out.write_str(name)?;
+        for (k, v) in attrs {
+            let k = k.as_ref();
+            if !is_xml_name(k) {
+                return Err(GelError::runtime(
+                    format!("not an XML attribute name: {k:?} (element <{name}>)"),
+                    None,
+                ));
+            }
+            self.out.write_char(' ')?;
+            self.out.write_str(k)?;
+            self.out.write_str("=\"")?;
+            xml_escape(self.out, v.as_ref(), true, || format!("attribute {k:?} of <{name}>"))?;
+            self.out.write_char('"')?;
+        }
+        Ok(())
+    }
+
+    fn new_line(&mut self) -> std::io::Result<()> {
+        if self.line_break {
+            self.out.write_char('\n')?;
+            write_indent(self.out, self.level)?;
+        }
+        Ok(())
+    }
+}
+
+/// Escape text or a double-quoted attribute value. Carriage returns, and in
+/// attributes also tabs and line feeds, become character references, which
+/// parsers keep instead of normalizing them.
+fn xml_escape<S: OutputSink>(out: &mut S, s: &str, attr: bool, place: impl Fn() -> String) -> Result<()> {
+    let b = s.as_bytes();
     let mut run = 0;
-    for (i, b) in s.bytes().enumerate() {
-        let esc = match b {
+    for (i, &c) in b.iter().enumerate() {
+        let esc = match c {
             b'<' => "&lt;",
             b'>' => "&gt;",
             b'&' => "&amp;",
+            b'"' if attr => "&quot;",
+            b'\r' => "&#13;",
+            b'\n' if attr => "&#10;",
+            b'\t' if attr => "&#9;",
+            b'\t' | b'\n' => continue,
+            0x00..=0x1F => return Err(xml_char_error(char::from(c), place())),
+            0xEF if b.get(i + 1) == Some(&0xBF) && matches!(b.get(i + 2), Some(0xBE | 0xBF)) => {
+                let c = if b[i + 2] == 0xBE { '\u{FFFE}' } else { '\u{FFFF}' };
+                return Err(xml_char_error(c, place()));
+            }
             _ => continue,
         };
-        out.push_str(&s[run..i]);
-        out.push_str(esc);
+        out.write_str(&s[run..i])?;
+        out.write_str(esc)?;
         run = i + 1;
     }
-    out.push_str(&s[run..]);
-    Cow::Owned(out)
+    out.write_str(&s[run..])?;
+    Ok(())
 }
 
-/// Write raw bytes to a writer, replacing all `&apos;` with `'`.
-fn write_bytes_replacing_apos<W: std::io::Write>(writer: &mut W, bytes: &[u8]) -> std::io::Result<()> {
-    let needle = b"&apos;";
-    let mut cursor = 0usize;
-    for pos in memchr::memmem::find_iter(bytes, needle) {
-        writer.write_all(&bytes[cursor..pos])?;
-        writer.write_all(b"'")?;
-        cursor = pos + needle.len();
+fn xml_char_error(c: char, place: String) -> GelError {
+    GelError::runtime(
+        format!("XML 1.0 cannot represent U+{:04X} in {place}", u32::from(c)),
+        None,
+    )
+}
+
+/// An XML 1.0 name without `:`, which XML namespaces reserve for prefixes.
+fn is_xml_name(s: &str) -> bool {
+    let b = s.as_bytes();
+    if b.first().is_some_and(|c| c.is_ascii_alphabetic() || *c == b'_')
+        && b.iter()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'.' | b'_'))
+    {
+        return true;
     }
-    writer.write_all(&bytes[cursor..])
+    let mut chars = s.chars();
+    chars.next().is_some_and(is_xml_name_start)
+        && chars.all(|c| {
+            is_xml_name_start(c)
+                || matches!(c, '-' | '.' | '0'..='9' | '\u{B7}' | '\u{300}'..='\u{36F}' | '\u{203F}'..='\u{2040}')
+        })
+}
+
+fn is_xml_name_start(c: char) -> bool {
+    matches!(c,
+        'A'..='Z' | '_' | 'a'..='z' | '\u{C0}'..='\u{D6}' | '\u{D8}'..='\u{F6}' | '\u{F8}'..='\u{2FF}'
+        | '\u{370}'..='\u{37D}' | '\u{37F}'..='\u{1FFF}' | '\u{200C}'..='\u{200D}' | '\u{2070}'..='\u{218F}'
+        | '\u{2C00}'..='\u{2FEF}' | '\u{3001}'..='\u{D7FF}' | '\u{F900}'..='\u{FDCF}' | '\u{FDF0}'..='\u{FFFD}'
+        | '\u{10000}'..='\u{EFFFF}')
 }
 
 // -- Tree-only YAML -------------------------------------------------------
 //
 // The same mapping as JSON: each node is a mapping of `'@attr'`, `'#text'` and
 // child names, same-named children form a sequence and an empty node is `{}`.
-
-fn tree_yaml(exec: &ExecutionResult) -> String {
-    let flat = exec.flat.as_ref().expect("FlatTree not built");
-    let mut out = String::new();
-    tree_yaml_root(flat, &mut out).expect("writing to a String cannot fail");
-    out
-}
-
-/// Write tree YAML directly to a writer (truly streaming, no intermediate buffer).
-fn tree_yaml_to_writer<W: std::io::Write>(exec: &ExecutionResult, writer: &mut W) -> std::io::Result<()> {
-    let flat = exec.flat.as_ref().expect("FlatTree not built");
-    tree_yaml_root(flat, &mut WriterSink(writer))
-}
 
 fn tree_yaml_root<S: OutputSink>(flat: &FlatTree, out: &mut S) -> std::io::Result<()> {
     let root = flat.root();
@@ -2217,7 +2231,7 @@ fn tree_yaml_entries<S: OutputSink>(
     let mut indent = !inline;
     for (k, v) in flat.attrs_of(node) {
         if indent {
-            yaml_indent(out, level)?;
+            write_indent(out, level)?;
         }
         indent = true;
         yaml_key(out, "@", k, level)?;
@@ -2227,7 +2241,7 @@ fn tree_yaml_entries<S: OutputSink>(
     }
     if let Some(text) = node.text.as_deref().filter(|t| !t.is_empty()) {
         if indent {
-            yaml_indent(out, level)?;
+            write_indent(out, level)?;
         }
         indent = true;
         out.write_str("'#text': ")?;
@@ -2236,7 +2250,7 @@ fn tree_yaml_entries<S: OutputSink>(
     }
     for group in flat.iter_child_groups(node) {
         if indent {
-            yaml_indent(out, level)?;
+            write_indent(out, level)?;
         }
         indent = true;
         yaml_key(out, "", &group[0].name, level)?;
@@ -2249,7 +2263,7 @@ fn tree_yaml_entries<S: OutputSink>(
             _ => {
                 out.write_str(":\n")?;
                 for child in group {
-                    yaml_indent(out, level)?;
+                    write_indent(out, level)?;
                     if is_empty_node(child) {
                         out.write_str("- {}\n")?;
                     } else {
@@ -2263,8 +2277,9 @@ fn tree_yaml_entries<S: OutputSink>(
     Ok(())
 }
 
+/// Two spaces per level (YAML and XML).
 #[inline]
-fn yaml_indent<S: OutputSink>(out: &mut S, level: usize) -> std::io::Result<()> {
+fn write_indent<S: OutputSink>(out: &mut S, level: usize) -> std::io::Result<()> {
     const SPACES: &str = "                                                                ";
     let n = level * 2;
     if n <= SPACES.len() {
@@ -2289,7 +2304,7 @@ fn yaml_key<S: OutputSink>(out: &mut S, prefix: &str, key: &str, level: usize) -
     out.write_str("? ")?;
     yaml_scalar(out, prefix, key)?;
     out.write_char('\n')?;
-    yaml_indent(out, level)
+    write_indent(out, level)
 }
 
 /// Write `prefix` + `s` as a scalar that YAML 1.1 and 1.2 parsers read back as
@@ -2500,42 +2515,26 @@ fn output_node_to_value(flat: &FlatTree, node: &FlatNode) -> serde_json::Value {
 }
 
 // ---------------------------------------------------------------------------
-// XML serialization via quick-xml
+// XML envelope
 // ---------------------------------------------------------------------------
 
-/// Serialize an [`ExecutionResult`] to XML using `quick_xml::Writer`.
-///
-/// Attribute values and text content are escaped through quick-xml's
-/// built-in routines, eliminating hand-rolled escape helpers.
-fn serialize_xml(exec: &ExecutionResult) -> String {
-    use quick_xml::events::{BytesDecl, BytesEnd, BytesStart, Event};
-    use quick_xml::Writer;
-    use std::io::Cursor;
+const NO_ATTRS: &[(&str, &str)] = &[];
 
-    let mut w = Writer::new_with_indent(Cursor::new(Vec::new()), b' ', 2);
+/// Serialize an [`ExecutionResult`] to XML: `<execution>` with actions,
+/// traces, captures, the output tree as `<node>` elements and the error.
+fn serialize_xml(exec: &ExecutionResult) -> Result<String> {
+    let mut out = String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+    let mut w = XmlWriter::new(&mut out);
+    w.line_break = true;
+    w.start("execution", &[("consumed", exec.consumed.to_string())])?;
 
-    // <?xml version="1.0" encoding="UTF-8"?>
-    w.write_event(Event::Decl(BytesDecl::new("1.0", Some("UTF-8"), None)))
-        .expect("xml decl");
-
-    // <execution consumed="N">
-    let mut exec_start = BytesStart::new("execution");
-    exec_start.push_attribute(("consumed", exec.consumed.to_string().as_str()));
-    w.write_event(Event::Start(exec_start)).expect("execution start");
-
-    // --- actions ---
     if !exec.actions.is_empty() {
-        w.write_event(Event::Start(BytesStart::new("actions")))
-            .expect("actions start");
+        w.start("actions", NO_ATTRS)?;
         for a in &exec.actions {
-            let mut action = BytesStart::new("action");
-            action.push_attribute(("name", &*a.name));
-            w.write_event(Event::Start(action)).expect("action start");
+            w.start("action", &[("name", &*a.name)])?;
             if !a.args.is_empty() {
-                w.write_event(Event::Start(BytesStart::new("args")))
-                    .expect("args start");
+                w.start("args", NO_ATTRS)?;
                 for arg in &a.args {
-                    w.write_event(Event::Start(BytesStart::new("arg"))).expect("arg start");
                     let text = match arg {
                         Expression::String(s) => s.clone(),
                         Expression::Regex(r) => r.clone(),
@@ -2544,38 +2543,31 @@ fn serialize_xml(exec: &ExecutionResult) -> String {
                         Expression::Capture(i) => format!("${}", i),
                         Expression::CaptureName(name) => format!("${}", name),
                     };
-                    xml_write_escaped_text(&mut w, &text);
-                    w.write_event(Event::End(BytesEnd::new("arg"))).expect("arg end");
+                    w.start("arg", NO_ATTRS)?;
+                    w.text("arg", &text)?;
+                    w.end("arg")?;
                 }
-                w.write_event(Event::End(BytesEnd::new("args"))).expect("args end");
+                w.end("args")?;
             }
-            w.write_event(Event::End(BytesEnd::new("action"))).expect("action end");
+            w.end("action")?;
         }
-        w.write_event(Event::End(BytesEnd::new("actions")))
-            .expect("actions end");
+        w.end("actions")?;
     }
 
-    // --- traces ---
     if !exec.traces.is_empty() {
-        w.write_event(Event::Start(BytesStart::new("traces")))
-            .expect("traces start");
+        w.start("traces", NO_ATTRS)?;
         for t in &exec.traces {
-            w.write_event(Event::Start(BytesStart::new("trace")))
-                .expect("trace start");
-            xml_write_escaped_text(&mut w, t);
-            w.write_event(Event::End(BytesEnd::new("trace"))).expect("trace end");
+            w.start("trace", NO_ATTRS)?;
+            w.text("trace", t)?;
+            w.end("trace")?;
         }
-        w.write_event(Event::End(BytesEnd::new("traces"))).expect("traces end");
+        w.end("traces")?;
     }
 
-    // --- captures ---
     if !exec.capture_history.is_empty() {
-        w.write_event(Event::Start(BytesStart::new("captures")))
-            .expect("captures start");
+        w.start("captures", NO_ATTRS)?;
         for (i, scope) in exec.capture_history.iter().enumerate() {
-            let mut scope_start = BytesStart::new("scope");
-            scope_start.push_attribute(("index", i.to_string().as_str()));
-            w.write_event(Event::Start(scope_start)).expect("scope start");
+            w.start("scope", &[("index", i.to_string())])?;
             for (j, val) in scope.iter().enumerate() {
                 let name = exec
                     .capture_names_history
@@ -2583,76 +2575,42 @@ fn serialize_xml(exec: &ExecutionResult) -> String {
                     .and_then(|nms| nms.get(j))
                     .map(|n| n.as_deref().unwrap_or(""))
                     .unwrap_or("");
-                let mut value_start = BytesStart::new("value");
-                value_start.push_attribute(("name", name));
-                w.write_event(Event::Start(value_start)).expect("value start");
-                xml_write_escaped_text(&mut w, val);
-                w.write_event(Event::End(BytesEnd::new("value"))).expect("value end");
+                w.start("value", &[("name", name)])?;
+                w.text("value", val)?;
+                w.end("value")?;
             }
-            w.write_event(Event::End(BytesEnd::new("scope"))).expect("scope end");
+            w.end("scope")?;
         }
-        w.write_event(Event::End(BytesEnd::new("captures")))
-            .expect("captures end");
+        w.end("captures")?;
     }
 
-    // --- output ---
-    w.write_event(Event::Start(BytesStart::new("output")))
-        .expect("output start");
+    w.start("output", NO_ATTRS)?;
     let flat = exec.flat.as_ref().expect("FlatTree not built");
-    xml_write_node(flat, flat.root(), &mut w);
-    w.write_event(Event::End(BytesEnd::new("output"))).expect("output end");
+    xml_write_node(flat, flat.root(), &mut w)?;
+    w.end("output")?;
 
-    // --- error ---
-    w.write_event(Event::Start(BytesStart::new("error")))
-        .expect("error start");
+    w.start("error", NO_ATTRS)?;
     if let Some(e) = &exec.error {
-        xml_write_escaped_text(&mut w, e);
+        w.text("error", e)?;
     }
-    w.write_event(Event::End(BytesEnd::new("error"))).expect("error end");
-
-    // </execution>
-    w.write_event(Event::End(BytesEnd::new("execution")))
-        .expect("execution end");
-
-    String::from_utf8(w.into_inner().into_inner()).unwrap_or_default()
+    w.end("error")?;
+    w.end("execution")?;
+    Ok(out)
 }
 
-/// Write properly-escaped text content via quick-xml.
-fn xml_write_escaped_text<W: std::io::Write>(writer: &mut quick_xml::Writer<W>, text: &str) {
-    use quick_xml::events::{BytesText, Event};
-    let escaped = quick_xml::escape::escape(text);
-    writer
-        .write_event(Event::Text(BytesText::from_escaped(escaped)))
-        .expect("text write");
-}
-
-/// Recursively write an output-tree node as XML via quick-xml.
-fn xml_write_node<W: std::io::Write>(flat: &FlatTree, node: &FlatNode, writer: &mut quick_xml::Writer<W>) {
-    use quick_xml::events::{BytesEnd, BytesStart, Event};
-
-    let mut start = BytesStart::new("node");
-    start.push_attribute(("name", &*node.name));
-    writer.write_event(Event::Start(start)).expect("node start");
-
-    // Attributes as self-closing child elements
+/// An output-tree node as `<node name="…">` with `<attr key="…" value="…"/>` children.
+fn xml_write_node<S: OutputSink>(flat: &FlatTree, node: &FlatNode, w: &mut XmlWriter<'_, S>) -> Result<()> {
+    w.start("node", &[("name", &*node.name)])?;
     for (k, v) in flat.attrs_of(node) {
-        let mut attr_elem = BytesStart::new("attr");
-        attr_elem.push_attribute(("key", &**k));
-        attr_elem.push_attribute(("value", v.as_str()));
-        writer.write_event(Event::Empty(attr_elem)).expect("attr");
+        w.empty("attr", &[("key", &**k), ("value", v.as_str())])?;
     }
-
-    // Text content
     if let Some(txt) = &node.text {
-        xml_write_escaped_text(writer, txt);
+        w.text("node", txt)?;
     }
-
-    // Recurse into children
     for ch in flat.children_of(node) {
-        xml_write_node(flat, ch, writer);
+        xml_write_node(flat, ch, w)?;
     }
-
-    writer.write_event(Event::End(BytesEnd::new("node"))).expect("node end");
+    w.end("node")
 }
 
 /// The envelope of [`serialize_json`] as YAML.
@@ -2674,7 +2632,7 @@ fn yaml_json_mapping<S: OutputSink>(
     let mut indent = !inline;
     for (k, v) in map {
         if indent {
-            yaml_indent(out, level)?;
+            write_indent(out, level)?;
         }
         indent = true;
         yaml_key(out, "", k, level)?;
@@ -2695,7 +2653,7 @@ fn yaml_json_sequence<S: OutputSink>(
     let mut indent = !inline;
     for item in items {
         if indent {
-            yaml_indent(out, level)?;
+            write_indent(out, level)?;
         }
         indent = true;
         out.write_char('-')?;

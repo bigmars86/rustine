@@ -13,7 +13,7 @@ fn run(syntax: &str, input: &str, format: RuntimeFormat) -> String {
     let mut doc = parse_gel_document(&tokens).expect("parse");
     let exec = execute(&mut doc, "input", input).expect("execute");
     assert!(exec.error.is_none(), "execution error: {:?}", exec.error);
-    serialize_tree(&exec, format)
+    serialize_tree(&exec, format).unwrap()
 }
 
 /// Normalize: strip trailing whitespace.
@@ -182,7 +182,7 @@ fn run_exec(syntax: &str, input: &str) -> rustine::exec::ExecutionResult {
 #[test]
 fn streaming_writer_matches_string_json() {
     let exec = run_exec(SIMPLE_SYNTAX, SIMPLE_INPUT);
-    let string_out = serialize_tree(&exec, RuntimeFormat::Json);
+    let string_out = serialize_tree(&exec, RuntimeFormat::Json).unwrap();
     let mut buf = Vec::new();
     serialize_tree_to_writer(&exec, RuntimeFormat::Json, &mut buf).expect("write");
     let writer_out = String::from_utf8(buf).expect("utf8");
@@ -192,7 +192,7 @@ fn streaming_writer_matches_string_json() {
 #[test]
 fn streaming_writer_matches_string_xml() {
     let exec = run_exec(SIMPLE_SYNTAX, SIMPLE_INPUT);
-    let string_out = serialize_tree(&exec, RuntimeFormat::Xml);
+    let string_out = serialize_tree(&exec, RuntimeFormat::Xml).unwrap();
     let mut buf = Vec::new();
     serialize_tree_to_writer(&exec, RuntimeFormat::Xml, &mut buf).expect("write");
     let writer_out = String::from_utf8(buf).expect("utf8");
@@ -202,7 +202,7 @@ fn streaming_writer_matches_string_xml() {
 #[test]
 fn streaming_writer_matches_string_yaml() {
     let exec = run_exec(SIMPLE_SYNTAX, SIMPLE_INPUT);
-    let string_out = serialize_tree(&exec, RuntimeFormat::Yaml);
+    let string_out = serialize_tree(&exec, RuntimeFormat::Yaml).unwrap();
     let mut buf = Vec::new();
     serialize_tree_to_writer(&exec, RuntimeFormat::Yaml, &mut buf).expect("write");
     let writer_out = String::from_utf8(buf).expect("utf8");

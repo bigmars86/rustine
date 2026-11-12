@@ -220,7 +220,7 @@ fn main() {
             serialize_tree_to_writer(&result, RuntimeFormat::Json, &mut counter).expect("streaming serialize error");
             json_len = counter.0;
         } else {
-            let json = serialize_tree(&result, RuntimeFormat::Json);
+            let json = serialize_tree(&result, RuntimeFormat::Json).expect("serialize");
             json_len = json.len();
 
             if dump_output && i == 0 {

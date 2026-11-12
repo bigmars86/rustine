@@ -20,7 +20,7 @@ fn parity_simple_fixture() {
     let exec = execute(&mut doc, "input", INPUT).expect("execute input grammar");
     assert!(exec.error.is_none(), "unexpected execution error: {:?}", exec.error);
     // Serialize runtime result to JSON
-    let runtime_json = serialize_execution(&exec, RuntimeFormat::Json);
+    let runtime_json = serialize_execution(&exec, RuntimeFormat::Json).unwrap();
     println!("RUNTIME JSON: {}", runtime_json);
 
     // Check key attributes present for both users (attributes serialized with '@' prefix)

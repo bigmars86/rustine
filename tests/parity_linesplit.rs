@@ -12,7 +12,7 @@ fn run_linesplit(format: RuntimeFormat) -> String {
     let mut doc = parse_gel_document(&tokens).expect("parse syntax");
     let exec = execute(&mut doc, "input", INPUT).expect("execute");
     assert!(exec.error.is_none(), "unexpected error: {:?}", exec.error);
-    serialize_execution(&exec, format)
+    serialize_execution(&exec, format).unwrap()
 }
 
 #[test]

@@ -84,7 +84,13 @@ fn cli() {
                 eprintln!("Runtime error{}: {}", source, err);
                 process::exit(1);
             }
-            print!("{}", serialize_tree(&exec, runtime_format));
+            match serialize_tree(&exec, runtime_format) {
+                Ok(out) => print!("{}", out),
+                Err(e) => {
+                    eprintln!("Output error{}: {}", source, e);
+                    process::exit(1);
+                }
+            }
         }
         Err(e) => {
             eprintln!("Execution error{}: {}", source, e);

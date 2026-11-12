@@ -111,7 +111,7 @@ fn main() {
             let node_count = result.flat.as_ref().map_or(0, |f| f.len());
 
             let t1 = Instant::now();
-            let output = serialize_tree(&result, *fmt);
+            let output = serialize_tree(&result, *fmt).expect("serialize");
             let ser_time = t1.elapsed();
 
             let total = exec_time + ser_time;

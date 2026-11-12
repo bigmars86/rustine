@@ -39,7 +39,7 @@ fn run(input: &str) -> Value {
     doc.compile_regexes();
     let exec = execute_tree(&doc, "input", input).unwrap();
     assert_eq!(exec.error, None);
-    serde_json::from_str(&serialize_tree(&exec, RuntimeFormat::Json)).unwrap()
+    serde_json::from_str(&serialize_tree(&exec, RuntimeFormat::Json).unwrap()).unwrap()
 }
 
 /// `run` with and without many siblings; the result without the sibling nodes.

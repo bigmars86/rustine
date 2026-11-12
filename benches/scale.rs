@@ -116,7 +116,7 @@ fn bench_scale(c: &mut Criterion) {
         group.sample_size(10);
         group.bench_function(format!("serialize_{fmt_name}_25MB"), |b| {
             b.iter(|| {
-                let out = serialize_tree(&result, *fmt);
+                let out = serialize_tree(&result, *fmt).unwrap();
                 std::hint::black_box(out.len());
             });
         });
@@ -133,7 +133,7 @@ fn bench_scale(c: &mut Criterion) {
         group.bench_function(format!("total_{fmt_name}_25MB"), |b| {
             b.iter(|| {
                 let res = execute_tree(&doc, "input", &input).expect("execute");
-                let out = serialize_tree(&res, *fmt);
+                let out = serialize_tree(&res, *fmt).unwrap();
                 std::hint::black_box(out.len());
             });
         });

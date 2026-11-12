@@ -717,8 +717,30 @@ impl OutputTree {
     /// 4. The arena is freed in one shot — minimal allocator fragmentation.
     pub fn compact_and_flatten(mut self) -> FlatTree {
         self.compact_node(self.root_id);
+        self.merge_repeated_attrs();
         self.attr_pool.shrink_to_fit();
         FlatTree::from_arena(self.arena, self.attr_pool, self.root_id)
+    }
+
+    /// `add_attribute` may repeat a key: as in Gelatin, the key stays at its
+    /// first position with the last value.
+    fn merge_repeated_attrs(&mut self) {
+        for &id in self.key_attr_lens.keys() {
+            let node = &mut self.arena[id as usize];
+            let start = node.attr_start as usize;
+            let attrs = &mut self.attr_pool[start..start + node.attr_len as usize];
+            let mut kept = 0;
+            for i in 0..attrs.len() {
+                if let Some(j) = attrs[..kept].iter().position(|(k, _)| *k == attrs[i].0) {
+                    let value = std::mem::take(&mut attrs[i].1);
+                    attrs[j].1 = value;
+                } else {
+                    attrs.swap(kept, i);
+                    kept += 1;
+                }
+            }
+            node.attr_len = kept as u32;
+        }
     }
 
     /// Recursively compact a node and its descendants.

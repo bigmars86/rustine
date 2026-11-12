@@ -22,8 +22,8 @@ fn execute_tree_skips_metadata_only() {
     let full = execute_precompiled(&doc, "input", input).unwrap();
     let tree = execute_tree(&doc, "input", input).unwrap();
     assert_eq!(
-        serialize_tree(&tree, RuntimeFormat::Json),
-        serialize_tree(&full, RuntimeFormat::Json)
+        serialize_tree(&tree, RuntimeFormat::Json).unwrap(),
+        serialize_tree(&full, RuntimeFormat::Json).unwrap()
     );
     assert_eq!(tree.consumed, full.consumed);
     assert!(!full.actions.is_empty() && !full.traces.is_empty());

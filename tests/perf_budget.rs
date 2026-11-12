@@ -42,7 +42,7 @@ fn perf_budget_complex_json() {
         let tokens = lex(COMPLEX_SYNTAX).expect("lex");
         let mut doc = parse_gel_document(&tokens).expect("parse");
         let exec = execute(&mut doc, "input", COMPLEX_INPUT).expect("execute");
-        let _json = serialize_tree(&exec, RuntimeFormat::Json);
+        let _json = serialize_tree(&exec, RuntimeFormat::Json).unwrap();
     }
     let elapsed = start.elapsed();
 
@@ -72,7 +72,7 @@ fn perf_budget_simple_high_iter() {
         let tokens = lex(SIMPLE_SYNTAX).expect("lex");
         let mut doc = parse_gel_document(&tokens).expect("parse");
         let exec = execute(&mut doc, "input", SIMPLE_INPUT).expect("execute");
-        let _json = serialize_tree(&exec, RuntimeFormat::Json);
+        let _json = serialize_tree(&exec, RuntimeFormat::Json).unwrap();
     }
     let elapsed = start.elapsed();
 
@@ -100,7 +100,7 @@ fn perf_budget_complex_xml() {
         let tokens = lex(COMPLEX_SYNTAX).expect("lex");
         let mut doc = parse_gel_document(&tokens).expect("parse");
         let exec = execute(&mut doc, "input", COMPLEX_INPUT).expect("execute");
-        let _xml = serialize_tree(&exec, RuntimeFormat::Xml);
+        let _xml = serialize_tree(&exec, RuntimeFormat::Xml).unwrap();
     }
     let elapsed = start.elapsed();
 
