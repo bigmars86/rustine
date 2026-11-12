@@ -12,20 +12,26 @@ depend on the CPU), peak memory, CPU time and wall time.
 Engines: --rust takes the `bench_run` example binary, --rustine and --gelatin
 take a Python interpreter that can import Rustine or Gelatin. Large workloads
 run once per process; the small fixtures are measured per conversion, with
-startup and grammar compilation subtracted.
+startup and grammar compilation subtracted. Inputs ending in .xz or .gz are
+unpacked to a temporary file first.
 """
 
 import argparse
+import atexit
+import gzip
+import lzma
 import os
 import re
 import shutil
 import statistics
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
 PY_MODULES = {"rustine": "Rustine.util", "gelatin": "Gelatin.util"}
+OPENERS = {".xz": lzma.open, ".gz": gzip.open}
 
 
 def child(engine, grammar, input_path, repeat):
@@ -48,6 +54,19 @@ def command(engine, exe, grammar, input_path, repeat):
     if engine == "rust":
         return [exe, grammar, input_path, str(repeat), "--quiet"]
     return [exe, os.path.abspath(__file__), "--child", engine, grammar, input_path, str(repeat)]
+
+
+def unpacked(path):
+    """`path`, or for a compressed file the path of an unpacked temporary copy."""
+    if Path(path).suffix not in OPENERS:
+        return path
+    fd, tmp = tempfile.mkstemp(suffix="-" + Path(path).stem)
+    os.close(fd)
+    atexit.register(os.remove, tmp)
+    # A child unpacks: on Linux the peak memory reported for a child includes its
+    # parent's peak, so unpacking here would inflate every later measurement.
+    subprocess.run([sys.executable, os.path.abspath(__file__), "--unpack", path, tmp], check=True)
+    return tmp
 
 
 def run(cmd):
@@ -157,6 +176,10 @@ def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--child":
         child(sys.argv[2], sys.argv[3], sys.argv[4], int(sys.argv[5]))
         return
+    if len(sys.argv) > 1 and sys.argv[1] == "--unpack":
+        with OPENERS[Path(sys.argv[2]).suffix](sys.argv[2]) as src, open(sys.argv[3], "wb") as out:
+            shutil.copyfileobj(src, out)
+        return
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--rust", help="bench_run example binary")
     ap.add_argument("--rustine", help="Python interpreter with Rustine installed")
@@ -178,6 +201,7 @@ def main():
     print("| Workload | Engine | Instructions | Peak memory | CPU time | Time |")
     print("|---|---|---|---|---|---|")
     for name, grammar, input_path in args.workload:
+        input_path = unpacked(input_path)
         for engine, exe in engines:
             r = measure_large(engine, exe, grammar, input_path, args.runs, args.instructions)
             print(f"| {name} | {engine} | {fmt_instr(r['instr'])} | {r['peak']:.0f} MB | "

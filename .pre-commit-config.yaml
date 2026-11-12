@@ -15,6 +15,7 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ["--maxkb=500"]
+        exclude: ^fixtures/parity/complex/input2\.txt\.xz$
 
   # ── Rust formatting ────────────────────────────────────────────────
   - repo: local
