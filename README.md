@@ -17,7 +17,7 @@ does not support Python 3.12+. Rustine reimplements the engine in Rust:
 
 - **Drop-in replacement** — same Gel grammar language, same output
 - **34–45× faster** than Python Gelatin on large inputs, **4.5–8.5× less memory**
-- **Python 3.9+** — abi3 wheels, no SimpleParse
+- **Python 3.11+** — abi3 wheels, no SimpleParse
 
 ## Quick Start
 

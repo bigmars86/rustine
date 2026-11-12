@@ -5,7 +5,7 @@ Thank you for your interest in improving Rustine!
 ## Prerequisites
 
 - **Rust** stable toolchain (1.86+)
-- **Python** 3.9+ (for PyO3 development)
+- **Python** 3.11+ (for PyO3 development)
 - **maturin** (`pip install maturin`)
 
 Recommended VS Code extensions: rust-analyzer, Python, markdownlint, GitLens.

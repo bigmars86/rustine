@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "High-performance Gel syntax parser transforming to JSON/XML (Rust + PyO3)"
 readme = "README.md"
 authors = [ { name = "Rustine Contributors" } ]
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = {text = "MIT OR Apache-2.0"}
 classifiers = [
   "Programming Language :: Python",

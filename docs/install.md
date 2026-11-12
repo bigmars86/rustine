@@ -16,7 +16,7 @@ Wheels are published for:
 
 ### From Source
 
-Requires Rust 1.86+ and Python 3.9+.
+Requires Rust 1.86+ and Python 3.11+.
 
 ```bash
 git clone https://github.com/bigmars86/rustine.git

@@ -12,7 +12,7 @@ updated since 2020 and does not support Python 3.12+. This makes Gelatin
 unusable on modern Python installations.
 
 Rustine eliminates this dependency by reimplementing the entire engine in
-Rust, exposed to Python via PyO3. It works on Python 3.9 through 3.13+.
+Rust, exposed to Python via PyO3. It works on Python 3.11 and newer.
 
 ---
 
