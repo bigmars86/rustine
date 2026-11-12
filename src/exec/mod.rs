@@ -464,14 +464,13 @@ impl<'a> Runner<'a> {
                 .and_then(|&idx| self.ctx.doc.fast_path_kinds.get(idx).copied())
                 .unwrap_or(crate::parser::ast::FastPathKind::None);
             if kind != crate::parser::ast::FastPathKind::None {
-                // Fast-path classification exists for this pattern.
-                // If it returns None, the pattern doesn't match — skip the
-                // full regex fallback since the fast-path is semantically complete.
-                if let Some(n) = Self::try_fast_skip_kind(kind, rem) {
-                    prof_inc!(EVAL_SKIP_FAST);
-                    return Ok(Some(n));
+                let n = Self::try_fast_skip_kind(kind, rem);
+                if fast_skip_decides(kind, rem, n) {
+                    if n.is_some() {
+                        prof_inc!(EVAL_SKIP_FAST);
+                    }
+                    return Ok(n);
                 }
-                return Ok(None);
             }
         }
         self.eval_expression(&s.pattern, rem, false, &[], &[])
@@ -480,7 +479,8 @@ impl<'a> Runner<'a> {
 
     /// Attempt to match common skip regex patterns using memchr/byte scanning
     /// instead of the full regex engine.  Returns `Some(consumed)` on a fast-path
-    /// hit, or `None` to fall back to the regex engine.
+    /// hit and `None` if the pattern does not match; [`fast_skip_decides`] tells
+    /// when non-ASCII text needs the regex instead.
     ///
     /// Dispatches on a pre-classified [`FastPathKind`] enum (integer match)
     /// instead of comparing pattern strings at runtime.
@@ -540,7 +540,7 @@ impl<'a> Runner<'a> {
             }
             FastPathKind::DotStarNewline => memchr::memchr(b'\n', bytes).map(|pos| pos + 1),
             FastPathKind::Whitespace => {
-                let count = bytes.iter().take_while(|b| b.is_ascii_whitespace()).count();
+                let count = bytes.iter().take_while(|&&b| is_regex_space(b)).count();
                 if count > 0 {
                     Some(count)
                 } else {
@@ -548,7 +548,7 @@ impl<'a> Runner<'a> {
                 }
             }
             FastPathKind::NonWhitespace => {
-                let count = bytes.iter().take_while(|b| !b.is_ascii_whitespace()).count();
+                let count = bytes.iter().take_while(|&&b| !is_regex_space(b)).count();
                 if count > 0 {
                     Some(count)
                 } else {
@@ -617,13 +617,11 @@ impl<'a> Runner<'a> {
                     Some(bytes.len())
                 }
             }
-            FastPathKind::NonCrLf => {
-                if bytes[0] != b'\r' && bytes[0] != b'\n' {
-                    Some(1)
-                } else {
-                    None
-                }
-            }
+            FastPathKind::NonCrLf => rem
+                .chars()
+                .next()
+                .filter(|&c| c != '\r' && c != '\n')
+                .map(char::len_utf8),
             FastPathKind::SpacesNewlines => {
                 let spaces = bytes.iter().take_while(|&&b| b == b' ').count();
                 let newlines = bytes[spaces..]
@@ -749,7 +747,7 @@ impl<'a> Runner<'a> {
                     None
                 }
             }
-            FastPathKind::Dot => Some(1),
+            FastPathKind::Dot => rem.chars().next().filter(|&c| c != '\n').map(char::len_utf8),
             FastPathKind::None => None,
         }
     }
@@ -1549,6 +1547,26 @@ impl<'a> Runner<'a> {
 /// Whether an `out.*` path names a node; `""` (e.g. an empty capture) or only slashes name none.
 fn names_node(path: &str) -> bool {
     path.split('/').any(|part| !part.is_empty())
+}
+
+/// ASCII bytes in the regex class `\s` (which also has vertical tab, unlike `u8::is_ascii_whitespace`).
+fn is_regex_space(b: u8) -> bool {
+    b.is_ascii_whitespace() || b == 0x0B
+}
+
+/// The skip fast paths compare ASCII bytes, while `\s`, `\S`, `\d` and `\w` are Unicode
+/// classes: when a non-ASCII character decides the outcome, only the regex can tell.
+fn fast_skip_decides(kind: crate::parser::ast::FastPathKind, rem: &str, n: Option<usize>) -> bool {
+    use crate::parser::ast::FastPathKind;
+    let len = n.unwrap_or(0);
+    let bytes = rem.as_bytes();
+    match kind {
+        FastPathKind::Whitespace | FastPathKind::Digits | FastPathKind::WordChars => {
+            bytes.get(len).is_none_or(u8::is_ascii)
+        }
+        FastPathKind::NonWhitespace => bytes[..len].is_ascii(),
+        _ => true,
+    }
 }
 
 // Helper for trigger interpolation ($N and $name)
@@ -2868,6 +2886,81 @@ fn serialize_yaml_node(flat: &FlatTree, n: &FlatNode, out: &mut String, indent: 
         out.push_str("  children:\n");
         for ch in flat.children_of(n) {
             serialize_yaml_node(flat, ch, out, indent + 2);
+        }
+    }
+}
+
+#[cfg(test)]
+mod fast_skip_tests {
+    use super::{fast_skip_decides, Runner};
+    use crate::parser::ast::{classify_fast_path, FastPathKind};
+    use regex::Regex;
+
+    /// Where a fast path decides, it consumes exactly what the regex consumes.
+    #[test]
+    fn fast_paths_agree_with_the_regex() {
+        let patterns = [
+            r"[^\n]*\n",
+            r"[^\n]+\n",
+            r"[^\r\n]*[\r\n]",
+            r"[^\r\n]+[\r\n]",
+            r"[!#][^\r\n]*[\r\n]",
+            r"#[^\r\n]*[\r\n]+",
+            r".*\n",
+            r".*?\n",
+            r"\s+",
+            r"\S+",
+            r"\d+",
+            r"\w+",
+            r"[\t ]+",
+            r"[\r\n]+",
+            r"[\r\n]",
+            r"[^\r\n]+",
+            r"[^\r\n]*",
+            r"[^\r\n]",
+            r" *[\r\n]+",
+            r"\r?\n",
+            r"(?:\r?\n)+",
+            r"[^\r\n]*\r?\n",
+            r"[^\r\n]+\r?\n",
+            r"[!#][^\r\n]*\r?\n",
+            r"#[^\r\n]*(?:\r?\n)+",
+            r" *(?:\r?\n)+",
+            r"\n",
+            ".",
+        ];
+        let inputs = [
+            "",
+            "a",
+            "abc\n",
+            "\n",
+            "\r\n",
+            "  x",
+            "\t\x0B\x0C\r\n x",
+            "\u{a0}x",
+            "x\u{a0}y",
+            "café\n",
+            "é",
+            "\u{661}\u{662}\n",
+            "123abc",
+            "_a1 b",
+            "#c\r\n\r\nx",
+            "!c\n",
+            "  \n\n",
+            "\u{2028}\n",
+            "\u{1F642}\n",
+        ];
+        for p in patterns {
+            let kind = classify_fast_path(p);
+            assert_ne!(kind, FastPathKind::None, "{p} has no fast path");
+            let re = Regex::new(&format!("^(?:{p})")).unwrap();
+            for input in inputs {
+                let n = Runner::try_fast_skip_kind(kind, input);
+                if fast_skip_decides(kind, input, n) {
+                    let expected = re.find(input).map(|m| m.end()).filter(|&end| end > 0);
+                    assert_eq!(n.filter(|&len| len > 0), expected, "{p:?} on {input:?}");
+                }
+            }
         }
     }
 }
