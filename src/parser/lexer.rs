@@ -130,9 +130,10 @@ pub fn lex(input: &str) -> Result<Vec<Token<'_>>, GelError> {
             }
             Err(_) => {
                 let (line, col) = lc.at(position);
+                let ch = remaining.chars().next().unwrap_or_default();
                 return Err(GelError::lex(
-                    format!("Unexpected character '{}'", &remaining[..remaining.len().min(1)]),
-                    Span::new(position, line, col, 1),
+                    format!("Unexpected character '{ch}'"),
+                    Span::new(position, line, col, ch.len_utf8()),
                 ));
             }
         }

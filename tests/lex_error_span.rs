@@ -29,3 +29,17 @@ fn lex_error_single_line_position() {
         other => panic!("expected Lex, got: {other:?}"),
     }
 }
+
+/// A non-ASCII character is reported whole, with its byte length as span.
+#[test]
+fn lex_error_non_ascii_character() {
+    for (src, ch) in [("grammar input: ä", 'ä'), ("\u{1F642}", '\u{1F642}')] {
+        match rustine::parse_and_run(src, "input", "x").expect_err("not valid Gel") {
+            GelError::Lex { span, message } => {
+                assert_eq!(message, format!("Unexpected character '{ch}'"));
+                assert_eq!(span.len, ch.len_utf8());
+            }
+            other => panic!("expected Lex, got: {other:?}"),
+        }
+    }
+}
