@@ -226,9 +226,8 @@ fn run_source(
     preserve_case: bool,
     fmt: RuntimeFormat,
 ) -> PyResult<String> {
-    let mut doc = parse_doc(gel_source, preserve_case)?;
-    doc.compile_regexes();
-    Ok(serialize_tree(&checked(execute_tree(&doc, grammar, input))?, fmt))
+    let ctx = GelContext::new(gel_source, preserve_case)?;
+    Ok(serialize_tree(&ctx.exec_input(input, grammar)?, fmt))
 }
 
 /// Compile `gel_source`, run `grammar` on `runtime_input` and return JSON.
