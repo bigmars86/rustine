@@ -10,7 +10,9 @@ depend on the CPU), peak memory, CPU time and wall time.
         --small fixtures/parity --instructions
 
 Engines: --rust takes the `bench_run` example binary, --rustine and --gelatin
-take a Python interpreter that can import Rustine or Gelatin. Large workloads
+take a Python interpreter that can import Rustine or Gelatin. Repeat
+`--rust NAME=PATH` to compare builds. The engines run in turns, one run each
+per round, so drift of the machine affects them alike. Large workloads
 run once per process; the small fixtures are measured per conversion, with
 startup and grammar compilation subtracted. Inputs ending in .xz or .gz are
 unpacked to a temporary file first.
@@ -123,38 +125,61 @@ def instructions(cmd):
     return int(match.group(1))
 
 
-def measure_large(engine, exe, grammar, input_path, runs, count_instr):
-    cmd = command(engine, exe, grammar, input_path, 1)
-    run(cmd)  # warm-up
-    results = [run(cmd) for _ in range(runs)]
+def in_turns(labels, runs):
+    """`labels` `runs` times, starting each round with the next label."""
+    for r in range(runs):
+        k = r % len(labels)
+        yield from labels[k:] + labels[:k]
+
+
+def measure_large(engines, grammar, input_path, runs, count_instr):
+    cmds = {label: command(engine, exe, grammar, input_path, 1) for label, engine, exe in engines}
+    for cmd in cmds.values():
+        run(cmd)  # warm-up
+    results = {label: [] for label in cmds}
+    for label in in_turns(list(cmds), runs):
+        results[label].append(run(cmds[label]))
     return {
-        "wall": statistics.median(r[0] for r in results),
-        "cpu": statistics.median(r[1] for r in results),
-        "peak": max(r[2] for r in results),
-        "instr": instructions(cmd) if count_instr else None,
+        label: {
+            "wall": statistics.median(r[0] for r in rs),
+            "cpu": statistics.median(r[1] for r in rs),
+            "peak": max(r[2] for r in rs),
+            "instr": instructions(cmds[label]) if count_instr else None,
+        }
+        for label, rs in results.items()
     }
 
 
-def measure_small(engine, exe, fixtures, runs, count_instr):
+def measure_small(engines, fixtures, runs, count_instr):
     """Per-conversion cost of all fixtures, without startup and compilation."""
-    total = {"wall": 0.0, "cpu": 0.0, "peak": 0.0, "instr": 0 if count_instr else None}
+    totals = {
+        label: {"wall": 0.0, "cpu": 0.0, "peak": 0.0, "instr": 0 if count_instr else None} for label, _, _ in engines
+    }
     for grammar, input_path in fixtures:
-        one = command(engine, exe, grammar, input_path, 1)
-        run(one)  # warm-up
-        startup = statistics.median(run(one)[0] for _ in range(3))
-        repeat = 101
-        while run(command(engine, exe, grammar, input_path, repeat))[0] - startup < 0.5 and repeat < 10**7:
-            repeat *= 4
-        many = command(engine, exe, grammar, input_path, repeat)
-        base = [run(one) for _ in range(runs)]
-        loop = [run(many) for _ in range(runs)]
-        for key, idx in (("wall", 0), ("cpu", 1)):
-            per = statistics.median(r[idx] for r in loop) - statistics.median(r[idx] for r in base)
-            total[key] += max(per, 0.0) / (repeat - 1)
-        total["peak"] = max(total["peak"], max(r[2] for r in loop))
-        if count_instr:
-            total["instr"] += (instructions(command(engine, exe, grammar, input_path, 11)) - instructions(one)) // 10
-    return total
+        plans = {}
+        for label, engine, exe in engines:
+            one = command(engine, exe, grammar, input_path, 1)
+            run(one)  # warm-up
+            startup = statistics.median(run(one)[0] for _ in range(3))
+            repeat = 101
+            while run(command(engine, exe, grammar, input_path, repeat))[0] - startup < 0.5 and repeat < 10**7:
+                repeat *= 4
+            plans[label] = (engine, exe, one, command(engine, exe, grammar, input_path, repeat), repeat)
+        base = {label: [] for label in plans}
+        loop = {label: [] for label in plans}
+        for label in in_turns(list(plans), runs):
+            one, many = plans[label][2:4]
+            base[label].append(run(one))
+            loop[label].append(run(many))
+        for label, (engine, exe, one, _, repeat) in plans.items():
+            total = totals[label]
+            for key, idx in (("wall", 0), ("cpu", 1)):
+                per = statistics.median(r[idx] for r in loop[label]) - statistics.median(r[idx] for r in base[label])
+                total[key] += max(per, 0.0) / (repeat - 1)
+            total["peak"] = max(total["peak"], max(r[2] for r in loop[label]))
+            if count_instr:
+                total["instr"] += (instructions(command(engine, exe, grammar, input_path, 11)) - instructions(one)) // 10
+    return totals
 
 
 def fmt_instr(n):
@@ -181,7 +206,8 @@ def main():
             shutil.copyfileobj(src, out)
         return
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--rust", help="bench_run example binary")
+    ap.add_argument("--rust", action="append", default=[], metavar="[NAME=]PATH",
+                    help="bench_run example binary (repeat as NAME=PATH to compare builds)")
     ap.add_argument("--rustine", help="Python interpreter with Rustine installed")
     ap.add_argument("--gelatin", help="Python interpreter with Gelatin installed")
     ap.add_argument("--workload", nargs=3, action="append", default=[], metavar=("NAME", "GRAMMAR", "INPUT"))
@@ -191,7 +217,11 @@ def main():
     args = ap.parse_args()
     if args.instructions and not shutil.which("valgrind"):
         sys.exit("--instructions needs valgrind")
-    engines = [(n, e) for n, e in (("rust", args.rust), ("rustine", args.rustine), ("gelatin", args.gelatin)) if e]
+    engines = []
+    for spec in args.rust:
+        label, exe = spec.split("=", 1) if "=" in spec else ("rust", spec)
+        engines.append((label, "rust", exe))
+    engines += [(n, n, e) for n, e in (("rustine", args.rustine), ("gelatin", args.gelatin)) if e]
     fixtures = []
     if args.small:
         for d in sorted(Path(args.small).iterdir()):
@@ -202,14 +232,12 @@ def main():
     print("|---|---|---|---|---|---|")
     for name, grammar, input_path in args.workload:
         input_path = unpacked(input_path)
-        for engine, exe in engines:
-            r = measure_large(engine, exe, grammar, input_path, args.runs, args.instructions)
-            print(f"| {name} | {engine} | {fmt_instr(r['instr'])} | {r['peak']:.0f} MB | "
+        for label, r in measure_large(engines, grammar, input_path, args.runs, args.instructions).items():
+            print(f"| {name} | {label} | {fmt_instr(r['instr'])} | {r['peak']:.0f} MB | "
                   f"{fmt_time(r['cpu'])} | {fmt_time(r['wall'])} |", flush=True)
     if fixtures:
-        for engine, exe in engines:
-            r = measure_small(engine, exe, fixtures, args.runs, args.instructions)
-            print(f"| small ({len(fixtures)} files, per conversion) | {engine} | {fmt_instr(r['instr'])} | "
+        for label, r in measure_small(engines, fixtures, args.runs, args.instructions).items():
+            print(f"| small ({len(fixtures)} files, per conversion) | {label} | {fmt_instr(r['instr'])} | "
                   f"{r['peak']:.0f} MB | {fmt_time(r['cpu'])} | {fmt_time(r['wall'])} |", flush=True)
 
 
