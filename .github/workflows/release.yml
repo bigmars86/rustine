@@ -267,8 +267,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo publish --no-default-features --features "parallel,cli,mmap"
-        continue-on-error: true   # tolerate already-published versions
+      - name: Publish unless this version is already on crates.io
+        run: |
+          version="${RELEASE_TAG#v}"
+          status=$(curl -s -o /dev/null -w '%{http_code}' -A 'rustine-release (https://github.com/bigmars86/rustine)' \
+            "https://crates.io/api/v1/crates/rustine/${version}")
+          if [ "$status" = 200 ]; then
+            echo "rustine ${version} is already on crates.io"
+          else
+            cargo publish --no-default-features --features "parallel,cli,mmap"
+          fi
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
 
