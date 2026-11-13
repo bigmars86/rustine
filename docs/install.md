@@ -10,7 +10,7 @@ Wheels are published for:
 
 | OS                        | Architectures         | Allocator |
 |---------------------------|-----------------------|-----------|
-| Linux (glibc)             | x86_64, aarch64, i686 | jemalloc  |
+| Linux (glibc)             | x86_64, aarch64       | jemalloc  |
 | Linux (musl, e.g. Alpine) | x86_64, aarch64       | jemalloc  |
 | macOS                     | x86_64, Apple Silicon | system    |
 | Windows                   | x86_64, x86           | mimalloc  |

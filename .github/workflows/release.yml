@@ -145,11 +145,6 @@ jobs:
             target: aarch64-unknown-linux-musl
             features: "python,jemalloc"
             manylinux: musllinux_1_2
-          # Linux i686 (32-bit glibc)
-          - os: ubuntu-latest
-            target: i686-unknown-linux-gnu
-            features: "python,jemalloc"
-            manylinux: auto
           # macOS x86_64, cross-compiled on the arm64 runner
           - os: macos-latest
             target: x86_64-apple-darwin
