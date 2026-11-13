@@ -315,9 +315,18 @@ jobs:
     needs: [build, wheel-test, wheel-test-musl, sdist]
     if: github.event_name == 'push' || inputs.publish
     runs-on: ubuntu-latest
+    environment:
+      name: crates-io
+      url: https://crates.io/crates/rustine
+    permissions:
+      contents: read
+      id-token: write          # OIDC for trusted publishing
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+      # Short-lived token, revoked when the job ends. Configure at https://crates.io/crates/rustine/settings
+      - uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
+        id: auth
       - name: Publish unless this version is already on crates.io
         run: |
           version="${RELEASE_TAG#v}"
@@ -329,7 +338,7 @@ jobs:
             cargo publish --no-default-features --features "parallel,cli"
           fi
         env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
 
   # ── GitHub Release ─────────────────────────────────────────────────
   github-release:
