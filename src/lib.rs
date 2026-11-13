@@ -5,7 +5,7 @@
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
-// Windows wheels: mimalloc is faster than the Windows heap (BENCHMARKS.md).
+// Windows wheels: mimalloc is faster than the Windows heap on large inputs (BENCHMARKS.md).
 #[cfg(feature = "mimalloc")]
 #[global_allocator]
 static GLOBAL_MI: mimalloc_dep::MiMalloc = mimalloc_dep::MiMalloc;

@@ -59,9 +59,9 @@ Compile-time switches, enabled with `--features`:
 | `profiling` | no                 | Per-rule timing counters            |
 
 The wheels use jemalloc on Linux and mimalloc on Windows. With the system
-allocator, Rustine takes 4–25 % longer on Linux (glibc), 28 % to 2.1× longer
-on musl and 26–39 % longer on Windows; mimalloc on Linux takes 4–13 % less
-time than jemalloc but needs up to 32 % more memory
+allocator, Rustine takes 1–24 % longer on Linux (glibc), 26 % to 2.1× longer
+on musl and 26–32 % longer on Windows with large inputs; mimalloc on Linux
+takes 7–13 % less time than jemalloc but needs up to 67 % more memory
 ([BENCHMARKS.md](../BENCHMARKS.md#operating-systems)). Source builds use the
 system allocator unless built with `--features jemalloc` or
 `--features mimalloc`.

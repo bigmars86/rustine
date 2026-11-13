@@ -72,26 +72,34 @@ builds of each OS ran in turns:
 
 | Platform and build                               | Allocator    | IOS XR config   | Scale, 25 MB    | Scale, 100 MB     | 5 small fixtures |
 |--------------------------------------------------|--------------|-----------------|-----------------|-------------------|------------------|
-| Linux wheels (glibc)                             | jemalloc     | 1.03 s · 342 MB | 1.50 s · 371 MB | 6.04 s · 1 357 MB | 1.66 ms · 29 MB  |
-| Linux (glibc), `--features mimalloc`             | mimalloc     | 0.99 s · 453 MB | 1.30 s · 425 MB | 5.41 s · 1 687 MB | 1.51 ms · 54 MB  |
-| Other Linux (glibc) builds, e.g. `cargo install` | glibc malloc | 1.07 s · 305 MB | 1.68 s · 385 MB | 6.89 s · 1 402 MB | 2.07 ms · 23 MB  |
-| Linux wheels (musl, e.g. Alpine)                 | jemalloc     | 1.51 s · 341 MB | 1.98 s · 368 MB | 8.37 s · 1 357 MB | 2.03 ms · 27 MB  |
-| Linux (musl), `--features mimalloc`              | mimalloc     | 1.39 s · 424 MB | 1.81 s · 410 MB | 7.60 s · 1 685 MB | 1.86 ms · 52 MB  |
-| Other Linux (musl) builds                        | musl malloc  | 1.94 s · 275 MB | 2.63 s · 343 MB | 11.0 s · 1 316 MB | 4.36 ms · 20 MB  |
-| Windows wheels                                   | mimalloc     | 1.05 s · 393 MB | 1.42 s · 389 MB | 5.91 s · 1 320 MB | 1.85 ms · 53 MB  |
-| Other Windows builds                             | Windows heap | 1.32 s · 320 MB | 1.84 s · 371 MB | 7.71 s · 1 394 MB | 2.57 ms · 29 MB  |
+| Linux wheels (glibc)                             | jemalloc     | 1.04 s · 342 MB | 1.48 s · 372 MB | 6.28 s · 1 357 MB | 1.68 ms · 30 MB  |
+| Linux (glibc), `--features mimalloc`             | mimalloc     | 0.96 s · 558 MB | 1.37 s · 592 MB | 5.45 s · 1 881 MB | 1.54 ms · 98 MB  |
+| Other Linux (glibc) builds, e.g. `cargo install` | glibc malloc | 1.05 s · 305 MB | 1.66 s · 385 MB | 7.11 s · 1 402 MB | 2.08 ms · 23 MB  |
+| Linux wheels (musl, e.g. Alpine)                 | jemalloc     | 1.50 s · 341 MB | 2.04 s · 369 MB | 8.84 s · 1 354 MB | 2.07 ms · 27 MB  |
+| Linux (musl), `--features mimalloc`              | mimalloc     | 1.40 s · 527 MB | 1.90 s · 615 MB | 7.72 s · 1 850 MB | 1.91 ms · 88 MB  |
+| Other Linux (musl) builds                        | musl malloc  | 1.89 s · 275 MB | 2.76 s · 343 MB | 11.5 s · 1 316 MB | 4.42 ms · 20 MB  |
+| Windows wheels                                   | mimalloc     | 1.05 s · 324 MB | 1.46 s · 332 MB | 5.95 s · 1 223 MB | 2.65 ms · 40 MB  |
+| Other Windows builds                             | Windows heap | 1.32 s · 320 MB | 1.92 s · 371 MB | 7.77 s · 1 394 MB | 2.57 ms · 28 MB  |
 
 - **System allocators** take longer than the allocators of the wheels:
-  glibc malloc 4–25 %, musl malloc 28–33 % on large inputs and 2.1× on
-  small ones, the Windows heap 26–39 %. They need 11–19 % less memory on
-  the IOS XR config and 6–24 MB less on the small fixtures; on the scale
-  inputs memory differs by up to 7 %.
-- **mimalloc on Linux** takes 4–13 % less time than jemalloc but needs
-  11–32 % more memory on large inputs (330 MB more at 100 MB) and 25 MB more
-  on small ones, so the Linux wheels use jemalloc. jemalloc does not build
-  for MSVC; the Windows wheels use mimalloc.
+  glibc malloc 1–24 %, musl malloc 26–35 % on large inputs and 2.1× on
+  small ones, the Windows heap 26–32 % on large inputs and 3 % less on the
+  small fixtures. On Linux they need 11–19 % less memory on the IOS XR
+  config and 7 MB less on the small fixtures; on the scale inputs memory
+  differs by up to 7 %. The Windows heap needs about as much memory as
+  mimalloc on the IOS XR config, 12–14 % more on the scale inputs and
+  12 MB less on the small fixtures.
+- **mimalloc on Linux** takes 7–13 % less time than jemalloc but needs
+  37–67 % more memory on large inputs (about 500 MB more at 100 MB) and
+  61–68 MB more on small ones, so the Linux wheels use jemalloc. jemalloc
+  does not build for MSVC; the Windows wheels use mimalloc.
+- **mimalloc v3** is the version the mimalloc developers recommend and the
+  default of the mimalloc crate; the builds use it. Against v2 it needs
+  17–39 % more memory on Linux at the same speed (within 3 %). On Windows
+  it needs 7–18 % less memory and is 2–4 % faster on large inputs, but
+  takes about 40 % longer on the small fixtures (0.8 ms per conversion).
 - With mimalloc, **Windows** is within 5 % of Linux with jemalloc on large
-  inputs. **musl** builds take 1.2–1.5× the time of glibc builds.
+  inputs. **musl** builds take 1.2–1.4× the time of glibc builds.
 - **macOS** uses its system allocator and was not measured.
 
 ## Method
@@ -172,7 +180,9 @@ with `--features parallel` (system allocator), `parallel,jemalloc` or
 `parallel,mimalloc`, also with `--target x86_64-unknown-linux-musl` or
 `--target x86_64-pc-windows-gnu`; write the inputs with `--sizes 25,100`.
 Pass each build as `--rust NAME=PATH` to one `compare.py --runs 7` and add
-`--workload scale-100 data/scale.gel data/scale-100mb.txt`.
+`--workload scale-100 data/scale.gel data/scale-100mb.txt`. The mimalloc
+builds use mimalloc 3.3.2; for 2.3.2 (v2), add `features = ["v2"]` to
+`mimalloc-dep` in `Cargo.toml`.
 
 While developing, the Criterion benchmarks in `benches/*.rs`
 (`cargo bench --no-default-features`) time execution and serialization
