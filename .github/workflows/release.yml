@@ -119,11 +119,29 @@ jobs:
             echo "::error::Tag ${RELEASE_TAG} does not match Cargo.toml version v${pkg_version}. Bump Cargo.toml or retag."
             exit 1
           fi
+      - name: CHANGELOG.md must have a section for the tag
+        run: |
+          if ! grep -qF "## [${RELEASE_TAG#v}]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no section for ${RELEASE_TAG}. Run git cliff --bump -o CHANGELOG.md in the release commit."
+            exit 1
+          fi
+
+  # ── Gate: the version must fit the API changes since the last release ──
+  semver:
+    name: SemVer check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239 # v2.9
+        with:
+          # Not all features: jemalloc and mimalloc both set the global allocator.
+          feature-group: only-explicit-features
+          features: parallel,cli
 
   # ── Build wheels for each platform ─────────────────────────
   build:
     name: Build (${{ matrix.target }})
-    needs: [fmt, clippy, test, deny, audit, python, version-guard]
+    needs: [fmt, clippy, test, deny, audit, python, version-guard, semver]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -250,7 +268,7 @@ jobs:
   # ── Build sdist ────────────────────────────────────────────────────
   sdist:
     name: Source distribution
-    needs: [fmt, clippy, test, deny, audit, python, version-guard]
+    needs: [fmt, clippy, test, deny, audit, python, version-guard, semver]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -348,31 +366,3 @@ jobs:
           tag_name: ${{ env.RELEASE_TAG }}
           body_path: CHANGES.md
           files: dist/*
-
-  # ── Update CHANGELOG.md in main after release ─────────────────────
-  changelog:
-    name: Update CHANGELOG.md
-    needs: [github-release]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          ref: main
-
-      - name: Generate full changelog
-        uses: orhun/git-cliff-action@a9a95522b26fe6403f7bb24031f21fb573d0f5ff # v4.9.1
-        with:
-          config: cliff.toml
-          args: --output CHANGELOG.md
-
-      - name: Commit and push CHANGELOG.md
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add CHANGELOG.md
-          git diff --cached --quiet && exit 0
-          git commit -m "docs: update CHANGELOG.md for ${{ env.RELEASE_TAG }}"
-          git push

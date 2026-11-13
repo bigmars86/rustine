@@ -20,8 +20,7 @@ Closes #
 - [ ] `cargo clippy` passes with no warnings
 - [ ] `cargo test --no-default-features` passes
 - [ ] New code has doc comments where appropriate
-- [ ] Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/)
-- [ ] CHANGELOG.md entry added (or will be auto-generated)
+- [ ] Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/); the changelog and the next version are generated from them
 
 ## Testing
 

@@ -97,21 +97,27 @@ explains how to rerun it.
 
 ## Releasing
 
-The wheels are built on GitHub's runners, so changes to the runners (retired
-images, a new Docker) only show up there. Run the release workflow once
-without publishing before you push the tag:
+Versions follow Semantic Versioning and come from the commit messages: `fix`
+raises the patch version, `feat` the minor version and a breaking change (`!`
+after the type) the major version. The wheels are built on GitHub's runners,
+so changes to the runners (retired images, a new Docker) only show up there.
+Run the release workflow once without publishing before you push the tag:
 
-1. Set the version in `Cargo.toml`, commit it as `chore(release): vX.Y.Z`
-   and push `main`.
+1. `git cliff --bumped-version` prints the next version, e.g. `v1.1.0`
+   (`pip install git-cliff`). Set it in `Cargo.toml` and in the `rustine`
+   entry of `Cargo.lock`, write the changelog with
+   `git cliff --bump -o CHANGELOG.md`, commit the three files as
+   `chore(release): vX.Y.Z` and push `main`.
 2. Start a dry run: **Actions → Release → Run workflow** on `main` with the
    tag `vX.Y.Z` and **publish** unchecked, or
    `gh workflow run release.yml --ref main -f tag=vX.Y.Z`. It runs the
-   checks and the version guard, builds every wheel and the sdist and tests
-   the wheels, but publishes nothing.
+   checks, makes sure `Cargo.toml` and `CHANGELOG.md` match the tag and that
+   the version fits the API changes since the last release
+   (`cargo semver-checks`), builds every wheel and the sdist and tests the
+   wheels, but publishes nothing.
 3. When it is green, tag that commit and push the tag:
    `git tag vX.Y.Z` and `git push origin vX.Y.Z`. This run publishes to PyPI
-   and crates.io and creates the GitHub release; a bot commit then updates
-   `CHANGELOG.md` on `main`.
+   and crates.io and creates the GitHub release.
 
 To publish an existing tag again, run the workflow from that tag with
 **publish** checked.

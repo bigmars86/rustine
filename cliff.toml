@@ -1,9 +1,8 @@
 # git-cliff configuration
 # https://git-cliff.org/docs/configuration
 #
-# Generates CHANGELOG.md from conventional commits.
-# Run locally:  git cliff -o CHANGELOG.md
-# Run for tag:  git cliff --latest -o CHANGELOG.md
+# Generates CHANGELOG.md from conventional commits, in the release commit:
+#   git cliff --bump -o CHANGELOG.md
 
 [changelog]
 # Header prepended to the generated changelog.
@@ -64,6 +63,9 @@ commit_preprocessors = [
 
 # Map conventional commit types to Keep a Changelog sections.
 commit_parsers = [
+  # Release and changelog commits are bookkeeping; skip them before ^chore and ^doc match.
+  { message = '^chore(\(release\))?: (release )?v[0-9]', skip = true },
+  { message = '^docs: update CHANGELOG', skip = true },
   { message = "^feat",     group = "<!-- 0 -->Added" },
   { message = "^fix",      group = "<!-- 1 -->Fixed" },
   { message = "^perf",     group = "<!-- 2 -->Performance" },

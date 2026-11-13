@@ -58,7 +58,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- Update CHANGELOG.md for v0.2.0([f94cde9](https://github.com/bigmars86/rustine/commit/f94cde917ba303109bb20cf5df1dd56162f1daff))
 - Update benchmark results([4602661](https://github.com/bigmars86/rustine/commit/46026618fee014c6ff950a79291e9478d652579b))
 - Measure Python Gelatin and the 2026-03 release on the same machine([b44d14b](https://github.com/bigmars86/rustine/commit/b44d14b5359c7bd331932b0598859c69507cea6b))
 - Report benchmarks from one comparison with instructions, memory and time([26389f7](https://github.com/bigmars86/rustine/commit/26389f7f3fd21d2d91b1d5de39d1d1e11b9ccde9))
@@ -90,10 +89,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build the Intel macOS wheel on macos-latest([011d58f](https://github.com/bigmars86/rustine/commit/011d58f2221184c668aa7e0d582b8756c8e0f655))
 - Drop the i686 Linux wheel (**BREAKING**)([1197080](https://github.com/bigmars86/rustine/commit/1197080b1a881c998f3cd448d6a0c1c9c56d76a8))
 - Let a manual Release run build and test without publishing([4b35ad8](https://github.com/bigmars86/rustine/commit/4b35ad89a4d151b811b59b3b124bdce48305ba52))
-
-### Miscellaneous
-
-- **release:** V1.0.0([6fa8380](https://github.com/bigmars86/rustine/commit/6fa8380d0a7e65f0cba5e909e79a8b5987736215))
 ## [0.2.0] - 2026-06-25
 
 ### Added
@@ -105,11 +100,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Simplify token collection in collect_tokens function([1153c4f](https://github.com/bigmars86/rustine/commit/1153c4f81ca36bbd464952e64b3c36669444d689))
 
-### Documentation
-
-- Update CHANGELOG.md for v0.1.1([d147532](https://github.com/bigmars86/rustine/commit/d1475322cb69749db03dca39468d950c220ef3ea))
-- Update CHANGELOG.md for v0.2.0([6fbb3c7](https://github.com/bigmars86/rustine/commit/6fbb3c7a5433d4071e313bbc0b538c2589a4f748))
-
 ### CI/CD
 
 - **release:** Guard tag against version and derive wheel version from Cargo.toml([4723828](https://github.com/bigmars86/rustine/commit/4723828d969345cee5f1f06498be51cc440d6198))
@@ -120,7 +110,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update CI and release workflows to use latest action versions; bump dependencies in Cargo.toml and requirements.txt([0750f3e](https://github.com/bigmars86/rustine/commit/0750f3ed624899466c58fef93b43abdc7a849929))
 - Update dependencies in Cargo.toml, Cargo.lock, and requirements.txt([6b758f9](https://github.com/bigmars86/rustine/commit/6b758f99746ce9aaaadc698ebaacc1530c2f00dc))
 - Update memmap2 to version 0.9.11 in Cargo.toml and Cargo.lock([cc0d0a9](https://github.com/bigmars86/rustine/commit/cc0d0a97f7c1e66623075390c6a38b460a430017))
-- **release:** V0.2.0([9263bdc](https://github.com/bigmars86/rustine/commit/9263bdc8fb1b8cfed8daec28b4fe663c498f08c5))
 ## [0.1.1] - 2026-03-24
 
 ### Added
@@ -130,14 +119,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Update README badges and correct performance metrics([b122f09](https://github.com/bigmars86/rustine/commit/b122f09a331e110b86723eeeb35e74621f1e6a38))
-
-### Documentation
-
-- Update CHANGELOG.md for v0.1.0([1845ccd](https://github.com/bigmars86/rustine/commit/1845ccd7594b09ab4bb6a5c7a1fac935e5a6190c))
-
-### Miscellaneous
-
-- Release v0.1.1([65e59fe](https://github.com/bigmars86/rustine/commit/65e59fed8f7beec8a65b99d4eac9e45c1e846bb8))
 ## [0.1.0] - 2026-03-24
 
 ### Added
