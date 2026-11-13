@@ -32,8 +32,6 @@ is available.
 ## Dependency Auditing
 
 This project uses:
-- [`cargo deny`](https://github.com/EmbarkStudios/cargo-deny) for license
-  and advisory checks
-- [`cargo audit`](https://github.com/RustSec/rustsec) via CI for known
-  vulnerabilities in dependencies
+- [`cargo deny`](https://github.com/EmbarkStudios/cargo-deny) in CI for
+  licenses and known vulnerabilities (RustSec advisory database)
 - [Dependabot](.github/dependabot.yml) for automated dependency updates

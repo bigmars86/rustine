@@ -25,7 +25,7 @@ jobs:
   # ── Gate: full CI checks before building ───────────────────────────
   fmt:
     name: Rustfmt
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
@@ -35,7 +35,7 @@ jobs:
 
   clippy:
     name: Clippy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
@@ -52,7 +52,7 @@ jobs:
       matrix:
         # With the allocator of the wheels for that platform.
         include:
-          - { os: ubuntu-latest, features: "parallel,cli,jemalloc" }
+          - { os: ubuntu-26.04, features: "parallel,cli,jemalloc" }
           - { os: macos-latest, features: "parallel,cli" }
           - { os: windows-latest, features: "parallel,cli,mimalloc" }
     steps:
@@ -66,7 +66,7 @@ jobs:
 
   deny:
     name: Cargo Deny
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
@@ -75,20 +75,9 @@ jobs:
           arguments: --all-features
           rust-version: stable
 
-  audit:
-    name: Cargo Audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: rustsec/audit-check@69366f33c96575abad1ee0dba8212993eecbe998 # v2.0.0
-        env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
   python:
     name: Python smoke test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
@@ -107,7 +96,7 @@ jobs:
   # ── Gate: the tag must match the package version ──────────────────
   version-guard:
     name: Verify tag matches version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Tag must equal Cargo.toml [package] version
@@ -129,7 +118,7 @@ jobs:
   # ── Gate: the version must fit the API changes since the last release ──
   semver:
     name: SemVer check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239 # v2.9
@@ -141,29 +130,29 @@ jobs:
   # ── Build wheels for each platform ─────────────────────────
   build:
     name: Build (${{ matrix.target }})
-    needs: [fmt, clippy, test, deny, audit, python, version-guard, semver]
+    needs: [fmt, clippy, test, deny, python, version-guard, semver]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
           # Linux x86_64 (glibc) — jemalloc
-          - os: ubuntu-latest
+          - os: ubuntu-26.04
             target: x86_64-unknown-linux-gnu
             features: "python,jemalloc"
             manylinux: auto
           # Linux x86_64 (musl — Alpine / Docker) — jemalloc
-          - os: ubuntu-latest
+          - os: ubuntu-26.04
             target: x86_64-unknown-linux-musl
             features: "python,jemalloc"
             manylinux: musllinux_1_2
           # Linux aarch64 (glibc) — jemalloc
-          - os: ubuntu-latest
+          - os: ubuntu-26.04
             target: aarch64-unknown-linux-gnu
             features: "python,jemalloc"
             manylinux: auto
           # Linux aarch64 (musl — Alpine / Docker) — jemalloc
-          - os: ubuntu-latest
+          - os: ubuntu-26.04
             target: aarch64-unknown-linux-musl
             features: "python,jemalloc"
             manylinux: musllinux_1_2
@@ -217,8 +206,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, artifact: wheels-x86_64-unknown-linux-gnu, python: "3.11" }
-          - { os: ubuntu-latest, artifact: wheels-x86_64-unknown-linux-gnu, python: "3.15" }
+          - { os: ubuntu-26.04, artifact: wheels-x86_64-unknown-linux-gnu, python: "3.11" }
+          - { os: ubuntu-26.04, artifact: wheels-x86_64-unknown-linux-gnu, python: "3.15" }
           - { os: windows-latest, artifact: wheels-x86_64-pc-windows-msvc, python: "3.13" }
           - { os: macos-latest, artifact: wheels-aarch64-apple-darwin, python: "3.13" }
     steps:
@@ -246,7 +235,7 @@ jobs:
   wheel-test-musl:
     name: Test wheel (x86_64 musl, Alpine)
     needs: [build]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -268,8 +257,8 @@ jobs:
   # ── Build sdist ────────────────────────────────────────────────────
   sdist:
     name: Source distribution
-    needs: [fmt, clippy, test, deny, audit, python, version-guard, semver]
-    runs-on: ubuntu-latest
+    needs: [fmt, clippy, test, deny, python, version-guard, semver]
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Build sdist
@@ -288,7 +277,7 @@ jobs:
     name: Publish to PyPI
     needs: [build, wheel-test, wheel-test-musl, sdist]
     if: github.event_name == 'push' || inputs.publish
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     environment:
       name: pypi
       url: https://pypi.org/p/rustine
@@ -314,7 +303,7 @@ jobs:
     name: Publish to crates.io
     needs: [build, wheel-test, wheel-test-musl, sdist]
     if: github.event_name == 'push' || inputs.publish
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     environment:
       name: crates.io
       url: https://crates.io/crates/rustine
@@ -345,7 +334,7 @@ jobs:
     name: GitHub Release
     needs: [build, wheel-test, wheel-test-musl, sdist]
     if: github.event_name == 'push' || inputs.publish
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: write          # create the GitHub release
     steps:
