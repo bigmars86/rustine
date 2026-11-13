@@ -316,7 +316,7 @@ jobs:
     if: github.event_name == 'push' || inputs.publish
     runs-on: ubuntu-latest
     environment:
-      name: crates-io
+      name: crates.io
       url: https://crates.io/crates/rustine
     permissions:
       contents: read
