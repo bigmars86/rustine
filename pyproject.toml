@@ -5,12 +5,13 @@ build-backend = "maturin"
 [project]
 name = "rustine"
 dynamic = ["version"]
-description = "High-performance Gel syntax parser transforming to JSON/XML (Rust + PyO3)"
+description = "High-performance Gel syntax parser transforming text to JSON/XML/YAML (Rust + PyO3)"
 readme = "README.md"
 authors = [ { name = "Rustine Contributors" } ]
 requires-python = ">=3.11"
 license = {text = "MIT OR Apache-2.0"}
 classifiers = [
+  "Development Status :: 5 - Production/Stable",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
