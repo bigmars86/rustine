@@ -48,11 +48,3 @@ repos:
         language: system
         pass_filenames: false
         files: "(Cargo\\.toml|Cargo\\.lock|deny\\.toml)"
-
-      - id: git-cliff
-        name: changelog (git-cliff --dry-run)
-        entry: git cliff --dry-run
-        language: system
-        pass_filenames: false
-        always_run: true
-        stages: [pre-push]
