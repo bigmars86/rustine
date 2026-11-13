@@ -150,8 +150,8 @@ jobs:
             target: i686-unknown-linux-gnu
             features: "python,jemalloc"
             manylinux: auto
-          # macOS x86_64 (macos-14 is arm64 but can cross-compile)
-          - os: macos-14
+          # macOS x86_64, cross-compiled on the arm64 runner
+          - os: macos-latest
             target: x86_64-apple-darwin
             features: python
             manylinux: auto
