@@ -95,6 +95,27 @@ explains how to rerun it.
 3. Update documentation if behavior changes.
 4. Open a PR with a concise description.
 
+## Releasing
+
+The wheels are built on GitHub's runners, so changes to the runners (retired
+images, a new Docker) only show up there. Run the release workflow once
+without publishing before you push the tag:
+
+1. Set the version in `Cargo.toml`, commit it as `chore(release): vX.Y.Z`
+   and push `main`.
+2. Start a dry run: **Actions → Release → Run workflow** on `main` with the
+   tag `vX.Y.Z` and **publish** unchecked, or
+   `gh workflow run release.yml --ref main -f tag=vX.Y.Z`. It runs the
+   checks and the version guard, builds every wheel and the sdist and tests
+   the wheels, but publishes nothing.
+3. When it is green, tag that commit and push the tag:
+   `git tag vX.Y.Z` and `git push origin vX.Y.Z`. This run publishes to PyPI
+   and crates.io and creates the GitHub release; a bot commit then updates
+   `CHANGELOG.md` on `main`.
+
+To publish an existing tag again, run the workflow from that tag with
+**publish** checked.
+
 ## License
 
 Contributions are accepted under the same dual license as the project:

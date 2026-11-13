@@ -6,9 +6,13 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing git tag to re-release (e.g. v0.1.1)"
+        description: "Release tag, e.g. v1.0.1 (must match the version in Cargo.toml)"
         required: true
         type: string
+      publish:
+        description: "Publish to PyPI and crates.io and create the GitHub release (off: build and test only)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -265,6 +269,7 @@ jobs:
   publish-pypi:
     name: Publish to PyPI
     needs: [build, wheel-test, wheel-test-musl, sdist]
+    if: github.event_name == 'push' || inputs.publish
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -290,6 +295,7 @@ jobs:
   publish-crate:
     name: Publish to crates.io
     needs: [build, wheel-test, wheel-test-musl, sdist]
+    if: github.event_name == 'push' || inputs.publish
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -311,6 +317,7 @@ jobs:
   github-release:
     name: GitHub Release
     needs: [build, wheel-test, wheel-test-musl, sdist]
+    if: github.event_name == 'push' || inputs.publish
     runs-on: ubuntu-latest
     permissions:
       contents: write          # create the GitHub release
