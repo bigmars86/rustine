@@ -137,6 +137,20 @@ Python Gelatin stops at about 245 nested grammar calls with Python's
 `RecursionError`. Rustine allows 250 and then ends the run with an error
 that names the grammar and the line ([Limits](syntax.md#limits)).
 
+#### Percent-Decoding
+
+Rustine decodes `%XX` alike in tag names, attribute keys, attribute values
+and text. Python Gelatin differs in two places:
+
+- **Tag names** stay encoded in Gelatin. Captures are percent-encoded when
+  they are put into a path, so a captured tag name with characters other
+  than letters, digits, space and `-_.~` differs: `out.add('$1')` with
+  `Gi0/0/0/1` gives the tag `gi0/0/0/1` in Rustine and `gi0%2f0%2f0%2f1` in
+  Gelatin.
+- **`+` in attribute values** that the grammar writes into a path becomes a
+  space in Gelatin: `out.add('x?a="1+1"')` gives `1 1` in Gelatin and `1+1`
+  in Rustine. A `+` from a capture stays `+` in both.
+
 #### Output Parity
 
 Rustine produces **near-perfect output parity** with Python Gelatin. Across
