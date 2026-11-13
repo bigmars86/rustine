@@ -2,7 +2,8 @@
 
 Rustine was built for throughput on large inputs. This page summarizes the
 key performance characteristics and optimization techniques. For the
-measured numbers and the method, see [BENCHMARKS.md](../BENCHMARKS.md).
+measured numbers and the method, see
+[BENCHMARKS.md](https://github.com/bigmars86/rustine/blob/main/BENCHMARKS.md).
 
 ---
 
@@ -102,10 +103,10 @@ difference to Gelatin is primarily due to:
 
 ## How to Benchmark
 
-[BENCHMARKS.md](../BENCHMARKS.md) shows how to repeat the comparison with
-`benches/compare.py`, also for your own grammar and input. While
-developing, the Criterion benchmarks time execution and serialization
-separately:
+[BENCHMARKS.md](https://github.com/bigmars86/rustine/blob/main/BENCHMARKS.md)
+shows how to repeat the comparison with `benches/compare.py`, also for your
+own grammar and input. While developing, the Criterion benchmarks time
+execution and serialization separately:
 
 ```bash
 # All benchmarks (exec + fixtures + scale)

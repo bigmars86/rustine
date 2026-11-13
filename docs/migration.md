@@ -164,7 +164,7 @@ not in Rustine.
 
 The Rustine wheel compared with Python Gelatin, each converting the input
 to JSON in a new process on the same Linux PC; details in
-[BENCHMARKS.md](../BENCHMARKS.md).
+[BENCHMARKS.md](https://github.com/bigmars86/rustine/blob/main/BENCHMARKS.md).
 
 | Workload                       | Python Gelatin   | Rustine        | Improvement                      |
 |--------------------------------|------------------|----------------|----------------------------------|

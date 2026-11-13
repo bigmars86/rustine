@@ -349,8 +349,10 @@ longer matches, for example lines over 1000 bytes, raise the limit with
 - Rust: set `doc.search_window = 4000` on the `GelDocument` before executing
 
 The limit costs neither time nor memory: with 500, 1000 or 2000 bytes or no
-limit, the [benchmark](../BENCHMARKS.md) inputs ran equally fast, within
-the noise of the measurement, with the same peak memory and output.
+limit, the
+[benchmark](https://github.com/bigmars86/rustine/blob/main/BENCHMARKS.md)
+inputs ran equally fast, within the noise of the measurement, with the same
+peak memory and output.
 
 ### Nesting Depth
 

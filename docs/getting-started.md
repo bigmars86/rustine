@@ -143,4 +143,5 @@ python benches/compare.py --rust target/release/examples/bench_run \
   --workload my-data <syntax.gel> <input.txt> --instructions
 ```
 
-See [BENCHMARKS.md](../BENCHMARKS.md) for results and the full setup.
+See [BENCHMARKS.md](https://github.com/bigmars86/rustine/blob/main/BENCHMARKS.md)
+for results and the full setup.

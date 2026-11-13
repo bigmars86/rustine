@@ -31,3 +31,5 @@ myst_enable_extensions = [
     "colon_fence",
     "deflist",
 ]
+# GitHub-style anchors, so links like syntax.md#limits work in both places.
+myst_heading_anchors = 3
