@@ -54,7 +54,7 @@ mimalloc = ["mimalloc-dep"]
 
 [dependencies]
 nom = "8"
-pyo3 = { version = "0.29.0", features = ["extension-module", "abi3-py311"], optional = true }
+pyo3 = { version = "0.30.1", features = ["extension-module", "abi3-py311"], optional = true }
 rayon = { version = "1.12", optional = true }
 serde_json = { version = "1.0.150", features = ["preserve_order"] }
 thiserror = "2.0.18"
