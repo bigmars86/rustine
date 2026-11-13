@@ -116,6 +116,7 @@ pub mod errors {
     }
 
     #[derive(Debug, Error)]
+    #[non_exhaustive]
     pub enum GelError {
         /// Lexer error: unexpected character or unterminated literal.
         #[error("{span}: lex error: {message}")]

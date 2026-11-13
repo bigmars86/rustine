@@ -117,6 +117,7 @@ fn collect_inherited_inner(
 /// Contains consumed byte count, captured actions, diagnostic traces,
 /// the built output tree, and an optional error message.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct ExecutionResult {
     pub consumed: usize,
     pub actions: Vec<FunctionCall>,
@@ -1789,6 +1790,7 @@ fn flatten(mut result: ExecutionResult) -> Result<ExecutionResult> {
 
 /// Serialization format for [`ExecutionResult`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum RuntimeFormat {
     Json,
     Xml,

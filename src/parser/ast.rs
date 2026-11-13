@@ -112,6 +112,7 @@ pub const DEFAULT_SEARCH_WINDOW: usize = 1000;
 
 /// Root node: complete Gel document
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub struct GelDocument {
     pub defines: HashMap<String, Expression>,
     pub grammars: HashMap<String, Grammar>,
