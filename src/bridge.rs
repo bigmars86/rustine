@@ -1,5 +1,5 @@
 use crate::exec::{execute_tree, serialize_tree, serialize_tree_to_writer, ExecutionResult, RuntimeFormat};
-use crate::parser::ast::GelDocument;
+use crate::parser::ast::{GelDocument, DEFAULT_SEARCH_WINDOW};
 use crate::parser::lexer::lex;
 use crate::parser::syntax::parse_gel_document;
 use crate::parser::validate;
@@ -30,10 +30,16 @@ fn checked(result: Result<ExecutionResult>) -> PyResult<ExecutionResult> {
     }
 }
 
-fn parse_doc(gel_source: &str, preserve_case: bool) -> PyResult<GelDocument> {
+fn parse_doc(gel_source: &str, preserve_case: bool, search_window: Option<i64>) -> PyResult<GelDocument> {
+    let search_window = match search_window {
+        None => DEFAULT_SEARCH_WINDOW,
+        Some(bytes) if bytes >= 1 => usize::try_from(bytes).unwrap_or(usize::MAX),
+        Some(_) => return Err(PyValueError::new_err("search_window must be at least 1")),
+    };
     let tokens = lex(gel_source).map_err(gel_to_pyerr)?;
     let mut doc = parse_gel_document(&tokens).map_err(gel_to_pyerr)?;
     doc.preserve_case = preserve_case;
+    doc.search_window = search_window;
     Ok(doc)
 }
 
@@ -100,13 +106,14 @@ impl GelContext {
     /// Compile a grammar from source text.
     ///
     /// ``preserve_case=True`` keeps the case of tag names and attribute keys in
-    /// ``out.*`` paths instead of lowercasing them.
+    /// ``out.*`` paths instead of lowercasing them. ``search_window`` is the
+    /// number of input bytes one regex match can span (default 1000).
     ///
     /// Raises ``ValueError`` on lex / parse / validation errors.
     #[new]
-    #[pyo3(signature = (gel_source, *, preserve_case = false))]
-    fn new(gel_source: &str, preserve_case: bool) -> PyResult<Self> {
-        let mut doc = parse_doc(gel_source, preserve_case)?;
+    #[pyo3(signature = (gel_source, *, preserve_case = false, search_window = None))]
+    fn new(gel_source: &str, preserve_case: bool, search_window: Option<i64>) -> PyResult<Self> {
+        let mut doc = parse_doc(gel_source, preserve_case, search_window)?;
         for d in validate::validate(&doc) {
             if d.severity == Severity::Error {
                 return Err(gel_to_pyerr(GelError::validation(
@@ -202,24 +209,30 @@ impl GelContext {
 
 /// Compile a grammar from source text; same as ``GelContext(gel_source)``.
 #[pyfunction]
-#[pyo3(signature = (gel_source, *, preserve_case = false))]
-pub fn compile_grammar(gel_source: &str, preserve_case: bool) -> PyResult<GelContext> {
-    GelContext::new(gel_source, preserve_case)
+#[pyo3(signature = (gel_source, *, preserve_case = false, search_window = None))]
+pub fn compile_grammar(gel_source: &str, preserve_case: bool, search_window: Option<i64>) -> PyResult<GelContext> {
+    GelContext::new(gel_source, preserve_case, search_window)
 }
 
 /// Alias of [`compile_grammar`].
 #[pyfunction]
-#[pyo3(signature = (gel_source, *, preserve_case = false))]
-pub fn compile_string(gel_source: &str, preserve_case: bool) -> PyResult<GelContext> {
-    GelContext::new(gel_source, preserve_case)
+#[pyo3(signature = (gel_source, *, preserve_case = false, search_window = None))]
+pub fn compile_string(gel_source: &str, preserve_case: bool, search_window: Option<i64>) -> PyResult<GelContext> {
+    GelContext::new(gel_source, preserve_case, search_window)
 }
 
 /// Compile a grammar from a UTF-8 ``.gel`` file.
 #[pyfunction]
-#[pyo3(signature = (syntax_file, encoding = "utf-8", *, preserve_case = false))]
-pub fn compile_file(py: Python<'_>, syntax_file: &str, encoding: &str, preserve_case: bool) -> PyResult<GelContext> {
+#[pyo3(signature = (syntax_file, encoding = "utf-8", *, preserve_case = false, search_window = None))]
+pub fn compile_file(
+    py: Python<'_>,
+    syntax_file: &str,
+    encoding: &str,
+    preserve_case: bool,
+    search_window: Option<i64>,
+) -> PyResult<GelContext> {
     require_utf8(py, encoding)?;
-    GelContext::new(&read_file(syntax_file)?, preserve_case)
+    GelContext::new(&read_file(syntax_file)?, preserve_case, search_window)
 }
 
 /// Serialize the grammar's AST as JSON.
@@ -240,20 +253,22 @@ fn run_source(
     grammar: &str,
     input: &str,
     preserve_case: bool,
+    search_window: Option<i64>,
     fmt: RuntimeFormat,
 ) -> PyResult<String> {
-    GelContext::new(gel_source, preserve_case)?.render(py, input, grammar, fmt)
+    GelContext::new(gel_source, preserve_case, search_window)?.render(py, input, grammar, fmt)
 }
 
 /// Compile `gel_source`, run `grammar` on `runtime_input` and return JSON.
 #[pyfunction]
-#[pyo3(signature = (gel_source, grammar, runtime_input, *, preserve_case = false))]
+#[pyo3(signature = (gel_source, grammar, runtime_input, *, preserve_case = false, search_window = None))]
 pub fn run_grammar(
     py: Python<'_>,
     gel_source: &str,
     grammar: &str,
     runtime_input: &str,
     preserve_case: bool,
+    search_window: Option<i64>,
 ) -> PyResult<String> {
     run_source(
         py,
@@ -261,19 +276,21 @@ pub fn run_grammar(
         grammar,
         runtime_input,
         preserve_case,
+        search_window,
         RuntimeFormat::Json,
     )
 }
 
 /// Like [`run_grammar`], returning XML.
 #[pyfunction]
-#[pyo3(signature = (gel_source, grammar, runtime_input, *, preserve_case = false))]
+#[pyo3(signature = (gel_source, grammar, runtime_input, *, preserve_case = false, search_window = None))]
 pub fn run_grammar_xml(
     py: Python<'_>,
     gel_source: &str,
     grammar: &str,
     runtime_input: &str,
     preserve_case: bool,
+    search_window: Option<i64>,
 ) -> PyResult<String> {
     run_source(
         py,
@@ -281,19 +298,21 @@ pub fn run_grammar_xml(
         grammar,
         runtime_input,
         preserve_case,
+        search_window,
         RuntimeFormat::Xml,
     )
 }
 
 /// Like [`run_grammar`], returning YAML.
 #[pyfunction]
-#[pyo3(signature = (gel_source, grammar, runtime_input, *, preserve_case = false))]
+#[pyo3(signature = (gel_source, grammar, runtime_input, *, preserve_case = false, search_window = None))]
 pub fn run_grammar_yaml(
     py: Python<'_>,
     gel_source: &str,
     grammar: &str,
     runtime_input: &str,
     preserve_case: bool,
+    search_window: Option<i64>,
 ) -> PyResult<String> {
     run_source(
         py,
@@ -301,6 +320,7 @@ pub fn run_grammar_yaml(
         grammar,
         runtime_input,
         preserve_case,
+        search_window,
         RuntimeFormat::Yaml,
     )
 }

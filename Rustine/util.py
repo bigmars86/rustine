@@ -13,22 +13,26 @@ def _require_utf8(encoding):
         raise ValueError("only UTF-8 is supported, not '%s'" % encoding)
 
 
-def compile_string(syntax, *, preserve_case=False):
+def compile_string(syntax, *, preserve_case=False, search_window=None):
     """Compile a grammar from a source string; returns a ``GelContext``.
 
     ``preserve_case=True`` keeps the case of tag names and attribute keys
-    in ``out.*`` paths instead of lowercasing them.
+    in ``out.*`` paths instead of lowercasing them. *search_window* is the
+    number of input bytes one regex match can span (default 1000).
     """
-    return _native.compile_string(syntax, preserve_case=preserve_case)
+    return _native.compile_string(syntax, preserve_case=preserve_case,
+                                  search_window=search_window)
 
 
-def compile(syntax_file, encoding='utf-8', *, preserve_case=False):
+def compile(syntax_file, encoding='utf-8', *, preserve_case=False,
+            search_window=None):
     """Compile a grammar from a UTF-8 ``.gel`` file.
 
-    *preserve_case* works as in :func:`compile_string`.
+    *preserve_case* and *search_window* work as in :func:`compile_string`.
     """
     return _native.compile_file(syntax_file, encoding=encoding,
-                                preserve_case=preserve_case)
+                                preserve_case=preserve_case,
+                                search_window=search_window)
 
 
 def generate(converter, input_file, format='xml', encoding='utf-8'):

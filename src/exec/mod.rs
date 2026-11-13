@@ -59,9 +59,6 @@ type CaptureVec<'a> = SmallVec<[Cow<'a, str>; 8]>;
 /// Stack-allocated named-capture vector.
 type NameVec = SmallVec<[Option<Arc<str>>; 8]>;
 
-/// Regex matching only looks at this many bytes of the remaining input.
-const SEARCH_WINDOW: usize = 1000;
-
 /// Grammar calls nest at most this deep; a deeper call ends the run with an error.
 /// Each level takes about 3 KB of stack in a release build, so 250 levels stay
 /// below 1 MB, the default stack of a Windows main thread.
@@ -72,10 +69,10 @@ fn line_number(before: &str) -> usize {
     memchr::memchr_iter(b'\n', before.as_bytes()).count() + 1
 }
 
-/// The first [`SEARCH_WINDOW`] bytes of `rem`, extended to the next char boundary.
+/// The first `max` bytes of `rem`, extended to the next char boundary.
 #[inline]
-fn search_window(rem: &str) -> &str {
-    let mut end = rem.len().min(SEARCH_WINDOW);
+fn search_window(rem: &str, max: usize) -> &str {
+    let mut end = rem.len().min(max);
     while !rem.is_char_boundary(end) {
         end += 1;
     }
@@ -805,7 +802,7 @@ impl<'a> Runner<'a> {
         if let Some(combined) = &list.compiled_regex {
             prof_inc!(EVAL_FIELD_LIST_FAST);
             let rem = self.ctx.remaining();
-            let window = search_window(rem);
+            let window = search_window(rem, self.ctx.doc.search_window);
             if combined.captures_len() > 1 {
                 if let Some(mat) = combined.captures(window) {
                     let consumed = mat.get(0).map_or(0, |m| m.end());
@@ -887,8 +884,7 @@ impl<'a> Runner<'a> {
                     None => return Ok(None),
                 };
                 // Two-phase: fast find() first (DFA), only compute captures on hit.
-                // Window the input to avoid scanning the full remaining buffer.
-                let window = search_window(rem);
+                let window = search_window(rem, self.ctx.doc.search_window);
                 prof_inc!(EVAL_EXPR_REGEX);
                 if let Some(m) = compiled.find(window) {
                     if m.start() == 0 {
@@ -1020,7 +1016,7 @@ impl<'a> Runner<'a> {
                     Some(rx) => rx,
                     None => return Ok(None),
                 };
-                if let Some(m) = compiled.find(search_window(rem)) {
+                if let Some(m) = compiled.find(search_window(rem, self.ctx.doc.search_window)) {
                     if m.start() == 0 {
                         return Ok(Some((m.end(), rem[..m.end()].to_string())));
                     }

@@ -5,6 +5,7 @@ use rustine::parser::syntax::parse_gel_document;
 use rustine::parser::validate;
 use rustine::GelError;
 use std::io::{ErrorKind, Read, Write};
+use std::num::NonZeroUsize;
 use std::{fs, process};
 
 /// Transform text into JSON, XML or YAML with a Gel grammar.
@@ -26,6 +27,10 @@ struct Cli {
     /// Keep the case of tag names and attribute keys in out.* paths (default: lowercase).
     #[arg(long = "preserve-case")]
     preserve_case: bool,
+
+    /// Bytes of input one regex match can span (default: 1000).
+    #[arg(long = "search-window", value_name = "BYTES")]
+    search_window: Option<NonZeroUsize>,
 
     /// Input files to process. Reads stdin when omitted.
     #[arg(value_name = "FILE")]
@@ -70,6 +75,9 @@ fn cli() {
         process::exit(1);
     });
     doc.preserve_case = cli.preserve_case;
+    if let Some(bytes) = cli.search_window {
+        doc.search_window = bytes.get();
+    }
     for d in validate::validate(&doc) {
         if d.severity == rustine::Severity::Error {
             eprintln!("Validation error: {}", d);

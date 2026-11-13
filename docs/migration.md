@@ -123,9 +123,19 @@ UTF-8 first.
 
 #### Match Length
 
-A regex is matched against at most the next 1000 bytes of the input, so one
-match cannot be longer. A statement that would need more does not match;
-if nothing else matches there, the run fails with `stopped at line N`.
+Like Python Gelatin, Rustine matches a regex against at most the next 1000
+units of the input, so one match cannot be longer. Gelatin counts
+characters, Rustine bytes: for text with non-ASCII characters a match can be
+shorter in Rustine. A statement that would need more does not match; if
+nothing else matches there, Rustine fails with `stopped at line N`.
+`search_window` raises the limit ([Limits](syntax.md#limits)); the default
+of 1000 keeps the output of existing grammars.
+
+#### Nesting Depth
+
+Python Gelatin stops at about 245 nested grammar calls with Python's
+`RecursionError`. Rustine allows 250 and then ends the run with an error
+that names the grammar and the line ([Limits](syntax.md#limits)).
 
 #### Output Parity
 

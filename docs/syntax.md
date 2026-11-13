@@ -75,8 +75,7 @@ grammar input:
 
 A bare function call invokes another grammar. When the called grammar returns
 (via `do.return()` or end-of-grammar), execution continues in the caller.
-Calls nest at most 250 levels deep; a deeper call ends the run with an error,
-like `do.fail`.
+Calls nest at most 250 levels deep ([Limits](#limits)).
 
 ---
 
@@ -331,6 +330,36 @@ Appends a warning trace entry.
 
 Ends the run with an error, also from inside a called grammar: Python raises
 `RuntimeError`, `rgel` prints the message and exits with status 1.
+
+---
+
+## Limits
+
+### Match Length
+
+A regex is matched against at most the next 1000 bytes of the input, so one
+match cannot be longer. A statement that would need more does not match; if
+nothing else matches there, the run fails with `stopped at line N`. For
+longer matches, for example lines over 1000 bytes, raise the limit with
+`search_window`:
+
+- CLI: `rgel --search-window 4000 -s syntax.gel input.txt`
+- Python: `compile_string(syntax, search_window=4000)` — also accepted by
+  `compile()`, `GelContext()`, `compile_grammar()` and `run_grammar*()`
+- Rust: set `doc.search_window = 4000` on the `GelDocument` before executing
+
+The limit costs neither time nor memory: with 500, 1000 or 2000 bytes or no
+limit, the [benchmark](../BENCHMARKS.md) inputs ran equally fast, within
+the noise of the measurement, with the same peak memory and output.
+
+### Nesting Depth
+
+Grammar calls nest at most 250 levels deep; a deeper call ends the run with
+an error, like `do.fail`. Each level needs stack space: 250 levels take
+about 750 KB in a release build, less than the 1 MB default stack of a
+Windows main thread. Running out of stack would end the whole process
+instead of raising an error, so the limit is fixed. The benchmark grammars
+nest at most 6 levels deep.
 
 ---
 

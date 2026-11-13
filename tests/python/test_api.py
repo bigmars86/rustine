@@ -40,6 +40,16 @@ nested.generate_string("{" * 250 + "}" * 250, format="json")
 err = raises(RuntimeError, nested.generate_string, "{" * 5000 + "}" * 5000, format="json")
 assert "nested more than 250 levels" in str(err), err
 
+# One regex match spans at most search_window bytes (default 1000).
+line = "grammar input:\n    match /[a-z]+\\n/:\n        out.add('line')\n"
+long_line = "a" * 1500 + "\n"
+err = raises(RuntimeError, util.compile_string(line).generate_string, long_line, format="json")
+assert "stopped at line 1" in str(err), err
+assert '"line"' in util.compile_string(line, search_window=2000).generate_string(long_line, format="json")
+assert '"line"' in rustine.run_grammar(line, "input", long_line, search_window=2000)
+for bad in (0, -1):
+    raises(ValueError, rustine.compile_grammar, line, search_window=bad)
+
 # A conversion releases the GIL: another thread keeps running in the middle of it.
 big = "".join("word%d %d\n" % (i % 97, i) for i in range(400000))
 stamps = []

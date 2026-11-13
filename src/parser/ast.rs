@@ -107,8 +107,11 @@ pub fn classify_fast_path(pattern: &str) -> FastPathKind {
     }
 }
 
+/// Default of [`GelDocument::search_window`].
+pub const DEFAULT_SEARCH_WINDOW: usize = 1000;
+
 /// Root node: complete Gel document
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct GelDocument {
     pub defines: HashMap<String, Expression>,
     pub grammars: HashMap<String, Grammar>,
@@ -122,6 +125,23 @@ pub struct GelDocument {
     /// Keep the case of tag names and attribute keys in `out.*` paths instead
     /// of lowercasing them.
     pub preserve_case: bool,
+    /// Bytes of the remaining input that one regex match can span.
+    pub search_window: usize,
+}
+
+impl Default for GelDocument {
+    fn default() -> Self {
+        Self {
+            defines: HashMap::new(),
+            grammars: HashMap::new(),
+            regex_patterns: Vec::new(),
+            pattern_indices: HashMap::new(),
+            regex_cache: Vec::new(),
+            fast_path_kinds: Vec::new(),
+            preserve_case: false,
+            search_window: DEFAULT_SEARCH_WINDOW,
+        }
+    }
 }
 
 /// Grammar block: `grammar name: statements`

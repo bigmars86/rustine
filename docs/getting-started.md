@@ -52,6 +52,15 @@ Rustine lowercases tag names and attribute keys in `out.*` paths. Pass
 converter = compile_string(grammar, preserve_case=True)
 ```
 
+### Long Matches
+
+One regex match covers at most 1000 bytes of the input. For longer lines,
+pass a larger `search_window` ([Limits](syntax.md#limits)):
+
+```python
+converter = compile_string(grammar, search_window=4000)
+```
+
 ---
 
 ## Rust Usage
@@ -91,6 +100,9 @@ rgel -s syntax.gel -f yaml input.txt
 
 # Keep the case of tag names (default: lowercase)
 rgel -s syntax.gel --preserve-case input.txt
+
+# Allow matches longer than 1000 bytes
+rgel -s syntax.gel --search-window 4000 input.txt
 
 # Version
 rgel --version
